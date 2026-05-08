@@ -4,5 +4,27 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'IBM Plex Sans Arabic', 'Segoe UI', sans-serif;
+    --font-display: 'Space Grotesk', 'IBM Plex Sans Arabic', sans-serif;
+    --color-canvas: oklch(0.96 0.02 82);
+    --color-panel: oklch(0.99 0.01 85 / 0.94);
+    --color-panel-alt: oklch(0.95 0.015 80);
+    --color-line: oklch(0.86 0.02 75 / 0.9);
+    --color-line-strong: oklch(0.72 0.04 65 / 0.9);
+    --color-ink: oklch(0.29 0.03 48);
+    --color-muted: oklch(0.49 0.02 60);
+    --color-accent: oklch(0.62 0.16 52);
+    --color-accent-soft: oklch(0.84 0.08 65 / 0.35);
+    --color-accent-contrast: oklch(0.99 0.01 80);
+}
+
+@source '../views/livewire/**/*.blade.php';
+
+@layer base {
+    body {
+        background-image:
+            linear-gradient(to bottom, rgba(255, 249, 241, 0.92), rgba(246, 239, 224, 0.98)),
+            radial-gradient(circle at top left, rgba(217, 165, 83, 0.22), transparent 34%),
+            radial-gradient(circle at bottom right, rgba(111, 154, 121, 0.18), transparent 30%);
+    }
 }

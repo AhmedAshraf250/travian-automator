@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Application\Accounts\Session\Contracts\AccountSessionFactory;
+use App\Infrastructure\Accounts\Session\Guzzle\GuzzleAccountSessionFactory;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +17,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(AccountSessionFactory::class, GuzzleAccountSessionFactory::class);
     }
 
     /**
