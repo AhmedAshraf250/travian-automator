@@ -77,4 +77,12 @@ class Village extends Model
     {
         return $this->hasOne(VillageResourceState::class);
     }
+
+    /**
+     * Get the latest synced runtime snapshot for troops and movements.
+     */
+    public function runtimeState(): HasOne
+    {
+        return $this->hasOne(VillageRuntimeState::class);
+    }
 }

@@ -12,6 +12,8 @@ use App\Models\Account;
 use App\Models\ActivityLog;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
 
@@ -35,17 +37,22 @@ class SyncAccountOverview
             app(TravianLoginAction::class)->handle($account, $session);
 
             $response = $session->get('/dorf1.php');
+            $this->dumpDorf1Response($account, $response->body, $response->effectiveUri);
             $parsedOverview = app(Dorf1OverviewParser::class)->parse($response->body);
 
             DB::transaction(function () use ($account, $parsedOverview): void {
                 foreach ($parsedOverview->villages as $parsedVillage) {
+                    $resolvedVillage = $parsedVillage->travianVillageId === $parsedOverview->activeVillage->travianVillageId
+                        ? $parsedOverview->activeVillage
+                        : $parsedVillage;
+
                     $village = $account->villages()->updateOrCreate(
-                        ['travian_village_id' => $parsedVillage->travianVillageId],
+                        ['travian_village_id' => $resolvedVillage->travianVillageId],
                         [
-                            'name' => $parsedVillage->name,
-                            'x' => $parsedVillage->x,
-                            'y' => $parsedVillage->y,
-                            'population' => $parsedVillage->population ?? 0,
+                            'name' => $resolvedVillage->name,
+                            'x' => $resolvedVillage->x,
+                            'y' => $resolvedVillage->y,
+                            'population' => $resolvedVillage->population ?? 0,
                             'is_active' => true,
                             'last_sync_at' => now(),
                         ],
@@ -58,7 +65,7 @@ class SyncAccountOverview
                         ],
                     );
 
-                    if ($parsedVillage->travianVillageId === $parsedOverview->activeVillage->travianVillageId) {
+                    if ($resolvedVillage->travianVillageId === $parsedOverview->activeVillage->travianVillageId) {
                         $village->resourceState()->updateOrCreate(
                             [],
                             [
@@ -76,6 +83,56 @@ class SyncAccountOverview
                                 'server_reported_at' => now(),
                             ],
                         );
+
+                        $village->runtimeState()->updateOrCreate(
+                            [],
+                            [
+                                'tribe_id' => $parsedOverview->runtimeState->tribeId,
+                                'troop_slots' => $parsedOverview->runtimeState->troopSlots,
+                                'incoming_attack_count' => $parsedOverview->runtimeState->incomingAttackCount,
+                                'incoming_reinforcement_count' => $parsedOverview->runtimeState->incomingReinforcementCount,
+                                'outgoing_movement_count' => $parsedOverview->runtimeState->outgoingMovementCount,
+                                'movement_entries' => array_map(
+                                    static fn ($entry): array => [
+                                        'kind' => $entry->kind,
+                                        'label' => $entry->label,
+                                        'count' => $entry->count,
+                                        'remaining_seconds' => $entry->remainingSeconds,
+                                        'remaining_label' => $entry->remainingLabel,
+                                    ],
+                                    $parsedOverview->runtimeState->movementEntries,
+                                ),
+                                'construction_entries' => array_map(
+                                    static fn ($entry): array => [
+                                        'building_name' => $entry->buildingName,
+                                        'target_level' => $entry->targetLevel,
+                                        'remaining_seconds' => $entry->remainingSeconds,
+                                        'remaining_label' => $entry->remainingLabel,
+                                        'finish_label' => $entry->finishLabel,
+                                    ],
+                                    $parsedOverview->runtimeState->constructionEntries,
+                                ),
+                                'hero_status' => $parsedOverview->runtimeState->heroStatus,
+                                'hero_remaining_seconds' => $parsedOverview->runtimeState->heroRemainingSeconds,
+                                'server_reported_at' => now(),
+                            ],
+                        );
+
+                        $village->buildings()
+                            ->where('slot_id', '>=', 200)
+                            ->delete();
+
+                        foreach ($parsedOverview->constructionQueue as $queueIndex => $constructionQueueEntry) {
+                            $village->buildings()->updateOrCreate(
+                                ['slot_id' => 200 + $queueIndex],
+                                [
+                                    'building_type' => $constructionQueueEntry->buildingName,
+                                    'current_level' => $constructionQueueEntry->targetLevel,
+                                    'is_under_construction' => true,
+                                    'finish_at' => now()->addSeconds($constructionQueueEntry->remainingSeconds),
+                                ],
+                            );
+                        }
                     }
                 }
 
@@ -135,5 +192,46 @@ class SyncAccountOverview
         }
 
         return $message;
+    }
+
+    /**
+     * Persist the live dorf1 response for debugging when enabled.
+     */
+    protected function dumpDorf1Response(Account $account, string $html, string $effectiveUri): void
+    {
+        if (! config('travian.debug.dump_dorf1_response')) {
+            return;
+        }
+
+        $timestamp = now()->format('Ymd_His');
+        $accountSlug = Str::slug($account->username) ?: 'account-'.$account->id;
+        $directory = "debug/travian/{$accountSlug}";
+        $baseFilename = "{$timestamp}_dorf1";
+
+        $metadata = [
+            'account_id' => $account->id,
+            'account_username' => $account->username,
+            'effective_uri' => $effectiveUri,
+            'contains_view_data' => str_contains($html, 'viewData:'),
+            'contains_population_markup' => str_contains($html, 'class="population"'),
+            'contains_coordinates_markup' => str_contains($html, 'coordinatesGrid'),
+            'contains_building_list' => str_contains($html, 'class="buildingList"'),
+            'contains_resources_object' => str_contains($html, 'var resources = {'),
+            'captured_at' => now()->toIso8601String(),
+        ];
+
+        Storage::disk('local')->put("{$directory}/{$baseFilename}.html", $html);
+        Storage::disk('local')->put(
+            "{$directory}/{$baseFilename}.json",
+            json_encode($metadata, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR),
+        );
+
+        ActivityLog::query()->create([
+            'account_id' => $account->id,
+            'activity_type' => ActivityType::Sync,
+            'status' => ActivityLogStatus::Done,
+            'message' => "Debug dorf1 dump saved to storage/app/{$directory}/{$baseFilename}.html",
+            'executed_at' => now(),
+        ]);
     }
 }

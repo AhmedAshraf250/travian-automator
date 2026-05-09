@@ -1,4 +1,0 @@
-Manifest-Version: 1.0
-TA_Version: 20161021.0-tap
-Main-Class: traviaut.Main
-

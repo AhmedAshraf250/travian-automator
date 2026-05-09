@@ -4,11 +4,8 @@ namespace App\Application\Accounts\Session\Actions;
 
 use App\Application\Accounts\Session\Contracts\AccountSession;
 use App\Application\Accounts\Session\Exceptions\AuthenticationFailedException;
-use App\Application\Accounts\Session\Exceptions\LoginFormNotFoundException;
 use App\Models\Account;
-use DOMDocument;
-use DOMElement;
-use DOMXPath;
+use JsonException;
 
 /**
  * Establishes an authenticated Travian session for a single account.
@@ -28,12 +25,25 @@ class TravianLoginAction
             return;
         }
 
-        [$action, $payload] = $this->extractLoginPayload($landingPage->body, $account);
+        $loginResponse = $session->postJson(
+            '/api/v1/auth/login',
+            $this->buildApiLoginPayload($account),
+            $this->buildApiLoginOptions($landingPage->body),
+        );
 
-        $loginResponse = $session->postForm($action, $payload);
+        if (! $loginResponse->successful()) {
+            throw new AuthenticationFailedException('Travian login API rejected the provided credentials or request context.');
+        }
 
-        if (! $this->isAuthenticatedHtml($loginResponse->body)) {
-            throw new AuthenticationFailedException('Travian login failed or returned an unexpected page.');
+        $authRedirectUri = $this->extractAuthRedirectUri($loginResponse->body);
+        $authResponse = $session->get($authRedirectUri);
+
+        if (! $this->isAuthenticatedHtml($authResponse->body)) {
+            $overviewResponse = $session->get('/dorf1.php');
+
+            if (! $this->isAuthenticatedHtml($overviewResponse->body)) {
+                throw new AuthenticationFailedException('Travian login completed, but the session did not reach an authenticated game page.');
+            }
         }
 
         $session->persist();
@@ -51,103 +61,115 @@ class TravianLoginAction
     }
 
     /**
-     * Build a login form payload from the HTML page.
+     * Build the modern Travian login payload.
      *
-     * @return array{0:string,1:array<string,mixed>}
+     * @return array{name:string,password:string,w:string,mobileOptimizations:bool}
      */
-    protected function extractLoginPayload(string $html, Account $account): array
+    protected function buildApiLoginPayload(Account $account): array
     {
-        if ($this->isReactLoginPage($html)) {
-            throw new LoginFormNotFoundException(
-                'Travian now renders the login scene with JavaScript. We need the actual login network request or endpoint to wire the authenticator to the current flow.',
-            );
-        }
-
-        $xpath = $this->createXPath($html);
-        $formNode = null;
-
-        foreach ($xpath->query('//form') ?: [] as $candidateForm) {
-            if (! $candidateForm instanceof DOMElement) {
-                continue;
-            }
-
-            $passwordInputs = $xpath->query('.//input[@type="password"]', $candidateForm);
-
-            if ($passwordInputs !== false && $passwordInputs->length > 0) {
-                $formNode = $candidateForm;
-
-                break;
-            }
-        }
-
-        if (! $formNode instanceof DOMElement) {
-            throw new LoginFormNotFoundException('Could not find a recognizable Travian login form.');
-        }
-
-        /** @var array<string, mixed> $payload */
-        $payload = [];
-        $usernameFieldName = null;
-        $passwordFieldName = null;
-
-        foreach ($xpath->query('.//input', $formNode) ?: [] as $inputElement) {
-            if (! $inputElement instanceof DOMElement) {
-                continue;
-            }
-
-            $name = trim((string) $inputElement->getAttribute('name'));
-
-            if ($name === '') {
-                continue;
-            }
-
-            $type = strtolower((string) $inputElement->getAttribute('type'));
-            $value = (string) $inputElement->getAttribute('value');
-
-            if (in_array($type, ['', 'hidden', 'submit'], true)) {
-                $payload[$name] = $value;
-            }
-
-            if ($type === 'password') {
-                $passwordFieldName = $name;
-            }
-
-            if (in_array($type, ['text', 'email'], true) && $usernameFieldName === null) {
-                $usernameFieldName = $name;
-            }
-        }
-
-        if ($usernameFieldName === null || $passwordFieldName === null) {
-            throw new LoginFormNotFoundException('The Travian login form is missing username or password fields.');
-        }
-
-        $payload[$usernameFieldName] = $account->username;
-        $payload[$passwordFieldName] = $account->password;
-
-        $action = trim((string) $formNode->getAttribute('action'));
-
-        return [$action === '' ? '/' : $action, $payload];
+        return [
+            'name' => $account->username,
+            'password' => $account->password,
+            'w' => '1920:1200',
+            'mobileOptimizations' => false,
+        ];
     }
 
     /**
-     * Detect the modern React-based Travian login scene.
+     * Build the request options expected by the Travian login API.
+     *
+     * @return array<string, mixed>
      */
-    protected function isReactLoginPage(string $html): bool
+    protected function buildApiLoginOptions(string $landingHtml): array
     {
-        return str_contains($html, 'window.Travian.React.Login.render(')
-            || str_contains($html, 'id="loginScene"');
+        return [
+            'headers' => [
+                'accept' => 'application/json, text/javascript, */*; q=0.01',
+                'content-type' => 'application/json; charset=UTF-8',
+                'x-requested-with' => 'XMLHttpRequest',
+                'x-version' => $this->extractClientVersion($landingHtml),
+            ],
+        ];
     }
 
     /**
-     * Create an XPath instance for the provided HTML string.
+     * Extract the Travian client bundle version used by the login request.
      */
-    protected function createXPath(string $html): DOMXPath
+    protected function extractClientVersion(string $html): string
     {
-        $document = new DOMDocument;
+        if (preg_match('/gpack\/([0-9.]+)\//', $html, $matches) === 1) {
+            return $matches[1];
+        }
 
-        libxml_use_internal_errors(true);
-        $document->loadHTML('<?xml encoding="utf-8" ?>'.$html);
-        libxml_clear_errors();
+        if (preg_match('/Variables\.js\?([0-9.]+)/', $html, $matches) === 1) {
+            return $matches[1];
+        }
 
-        return new DOMXPath($document);
+        return '417.8';
+    }
+
+    /**
+     * Extract the auth redirect URI from the login API response body.
+     */
+    protected function extractAuthRedirectUri(string $body): string
+    {
+        $decoded = $this->decodeJson($body);
+
+        $uri = $this->findRedirectUriInDecodedResponse($decoded);
+
+        if ($uri !== null) {
+            return $uri;
+        }
+
+        throw new AuthenticationFailedException('Travian login API response did not expose an auth redirect URI.');
+    }
+
+    /**
+     * Decode a JSON response body into an associative array.
+     *
+     * @return array<string, mixed>
+     */
+    protected function decodeJson(string $body): array
+    {
+        try {
+            /** @var array<string, mixed> $decoded */
+            $decoded = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
+
+            return $decoded;
+        } catch (JsonException $exception) {
+            throw new AuthenticationFailedException('Travian login API returned malformed JSON.', previous: $exception);
+        }
+    }
+
+    /**
+     * Search the decoded login response for a follow-up auth URI.
+     *
+     * @param  array<string, mixed>  $decoded
+     */
+    protected function findRedirectUriInDecodedResponse(array $decoded): ?string
+    {
+        $candidateKeys = ['redirectUrl', 'redirectUri', 'url', 'href', 'location'];
+
+        foreach ($candidateKeys as $candidateKey) {
+            $candidate = $decoded[$candidateKey] ?? null;
+
+            if (is_string($candidate) && str_contains($candidate, '/api/v1/auth')) {
+                return $candidate;
+            }
+        }
+
+        $code = $decoded['code'] ?? null;
+
+        if (is_string($code) && $code !== '') {
+            return '/api/v1/auth?code='.rawurlencode($code).'&response_type=redirect';
+        }
+
+        $serializedResponse = json_encode($decoded);
+
+        if (is_string($serializedResponse) && preg_match('/(\/api\/v1\/auth\?code=[^"]+response_type=redirect)/', $serializedResponse, $matches) === 1) {
+            return html_entity_decode($matches[1], ENT_QUOTES);
+        }
+
+        return null;
     }
 }

@@ -1,11 +1,13 @@
 <?php
 
+use App\Jobs\SyncTravianAccountJob;
 use App\Livewire\Dashboard\Index;
 use App\Models\Account;
 use App\Models\AccountSetting;
 use App\Models\ActivityLog;
 use App\Models\ImportDraft;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -13,7 +15,7 @@ uses(RefreshDatabase::class);
 test('dashboard page loads successfully', function () {
     $this->get(route('home'))
         ->assertOk()
-        ->assertSee('Travian Multi-Account Automation');
+        ->assertSeeText('Travian Multi-Account Automation');
 });
 
 test('bulk import creates accounts and persists encrypted draft', function () {
@@ -44,4 +46,22 @@ test('dashboard shows imported account username', function () {
     $this->get(route('home'))
         ->assertOk()
         ->assertSee('strategist');
+});
+
+test('village update queues the account overview sync job', function () {
+    Queue::fake();
+
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23378',
+        'name' => 'قرية Marshal25',
+        'is_active' => true,
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('requestVillageSync', $village->id);
+
+    Queue::assertPushed(SyncTravianAccountJob::class, function (SyncTravianAccountJob $job) use ($account) {
+        return $job->accountId === $account->id;
+    });
 });

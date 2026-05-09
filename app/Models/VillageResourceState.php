@@ -46,4 +46,47 @@ class VillageResourceState extends Model
     {
         return $this->belongsTo(Village::class);
     }
+
+    /**
+     * Get the warehouse capacity left before wood, clay, or iron would overflow.
+     */
+    public function warehouseRemaining(): int
+    {
+        return max(
+            0,
+            $this->warehouse_capacity - max($this->wood, $this->clay, $this->iron),
+        );
+    }
+
+    /**
+     * Get the granary capacity left before crop would overflow.
+     */
+    public function granaryRemaining(): int
+    {
+        return max(0, $this->granary_capacity - $this->crop);
+    }
+
+    /**
+     * Get the warehouse usage percentage based on the highest stored basic resource.
+     */
+    public function warehouseUsagePercentage(): int
+    {
+        if ($this->warehouse_capacity <= 0) {
+            return 0;
+        }
+
+        return (int) round((max($this->wood, $this->clay, $this->iron) / $this->warehouse_capacity) * 100);
+    }
+
+    /**
+     * Get the granary usage percentage based on current crop storage.
+     */
+    public function granaryUsagePercentage(): int
+    {
+        if ($this->granary_capacity <= 0) {
+            return 0;
+        }
+
+        return (int) round(($this->crop / $this->granary_capacity) * 100);
+    }
 }

@@ -25,6 +25,14 @@ interface AccountSession
     public function postForm(string $uri, array $formParams, array $options = []): SessionResponse;
 
     /**
+     * Submit a JSON request within the account session.
+     *
+     * @param  array<string, mixed>  $payload
+     * @param  array<string, mixed>  $options
+     */
+    public function postJson(string $uri, array $payload, array $options = []): SessionResponse;
+
+    /**
      * Persist the in-memory session state back to storage.
      */
     public function persist(): void;

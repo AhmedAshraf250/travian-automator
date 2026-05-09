@@ -44,6 +44,8 @@ class GuzzleAccountSessionFactory implements AccountSessionFactory
             $headers['User-Agent'] = $account->user_agent;
         }
 
+        $headers['Accept-Language'] = 'en-US,en;q=0.9';
+
         return array_filter([
             'base_uri' => rtrim($account->server_url, '/').'/',
             'headers' => $headers,

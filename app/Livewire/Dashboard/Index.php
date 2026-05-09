@@ -200,11 +200,22 @@ class Index extends Component
     {
         $village = Village::query()->with('account')->findOrFail($villageId);
 
-        $village->forceFill([
-            'last_sync_at' => now(),
+        $village->account->forceFill([
+            'status' => AccountStatus::Syncing,
         ])->save();
 
-        $this->logManualActivity($village->account, $village, 'Manual village sync requested.');
+        ActivityLog::query()->create([
+            'account_id' => $village->account->id,
+            'village_id' => $village->id,
+            'activity_type' => ActivityType::Sync,
+            'status' => ActivityLogStatus::Pending,
+            'message' => 'Village update requested and queued through the account overview sync.',
+            'scheduled_at' => now(),
+        ]);
+
+        SyncTravianAccountJob::dispatch($village->account->id);
+
+        session()->flash('dashboard-banner', "Village {$village->name} was queued for background sync.");
     }
 
     /**
@@ -214,38 +225,53 @@ class Index extends Component
     {
         if (! Schema::hasTable('accounts') || ! Schema::hasTable('activity_logs')) {
             return view('livewire.dashboard.index', [
-                'accounts' => collect(),
-                'activityLogs' => collect(),
-                'stats' => [
-                    'accounts' => 0,
-                    'activeAccounts' => 0,
-                    'villages' => 0,
-                    'syncing' => 0,
-                ],
+                ...$this->emptyDashboardState(),
             ]);
         }
 
-        $accounts = Account::query()
-            ->with([
-                'settings',
-                'villages.settings',
-                'villages.resourceState',
-            ])
-            ->withCount('villages')
-            ->latest()
-            ->get();
-
-        $activityLogs = ActivityLog::query()
-            ->with(['account', 'village'])
-            ->latest()
-            ->limit(50)
-            ->get();
+        $accounts = $this->loadAccounts();
+        $activityLogs = $this->loadActivityLogs();
 
         return view('livewire.dashboard.index', [
             'accounts' => $accounts,
             'activityLogs' => $activityLogs,
             'stats' => $this->buildStats($accounts),
         ]);
+    }
+
+    /**
+     * Load the dashboard accounts with the relationships needed by the UI.
+     *
+     * @return Collection<int, Account>
+     */
+    protected function loadAccounts(): Collection
+    {
+        return Account::query()
+            ->with([
+                'settings',
+                'villages.settings',
+                'villages.resourceState',
+                'villages.runtimeState',
+                'villages.buildings' => fn ($query) => $query->orderBy('slot_id'),
+            ])
+            ->withCount('villages')
+            ->orderByDesc('last_sync_at')
+            ->latest('id')
+            ->get();
+    }
+
+    /**
+     * Load the most recent activity log rows for the footer timeline.
+     *
+     * @return Collection<int, ActivityLog>
+     */
+    protected function loadActivityLogs(): Collection
+    {
+        return ActivityLog::query()
+            ->with(['account', 'village'])
+            ->latest()
+            ->limit(50)
+            ->get();
     }
 
     /**
@@ -261,6 +287,29 @@ class Index extends Component
             'activeAccounts' => $accounts->where('is_active', true)->count(),
             'villages' => $accounts->sum('villages_count'),
             'syncing' => $accounts->where('status', AccountStatus::Syncing)->count(),
+        ];
+    }
+
+    /**
+     * Build the empty-state payload used before migrations are available.
+     *
+     * @return array{
+     *     accounts: Collection<int, Account>,
+     *     activityLogs: Collection<int, ActivityLog>,
+     *     stats: array<string, int>
+     * }
+     */
+    protected function emptyDashboardState(): array
+    {
+        return [
+            'accounts' => collect(),
+            'activityLogs' => collect(),
+            'stats' => [
+                'accounts' => 0,
+                'activeAccounts' => 0,
+                'villages' => 0,
+                'syncing' => 0,
+            ],
         ];
     }
 
