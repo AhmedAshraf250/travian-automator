@@ -17,5 +17,6 @@ final readonly class ParsedVillageSummary
         public ?int $y,
         public ?int $population,
         public bool $isActive,
+        public ?string $switchUri = null,
     ) {}
 }

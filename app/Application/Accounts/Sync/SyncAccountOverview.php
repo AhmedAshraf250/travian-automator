@@ -3,142 +3,69 @@
 namespace App\Application\Accounts\Sync;
 
 use App\Application\Accounts\Session\Actions\TravianLoginAction;
+use App\Application\Accounts\Session\Contracts\AccountSession;
 use App\Application\Accounts\Session\Contracts\AccountSessionFactory;
+use App\Application\Accounts\Sync\Data\ParsedDorf1Overview;
+use App\Application\Accounts\Sync\Data\ParsedDorf2Overview;
+use App\Application\Accounts\Sync\Data\ParsedVillageSummary;
 use App\Application\Accounts\Sync\Parsers\Dorf1OverviewParser;
+use App\Application\Accounts\Sync\Parsers\Dorf2OverviewParser;
 use App\Enums\AccountStatus;
 use App\Enums\ActivityLogStatus;
 use App\Enums\ActivityType;
 use App\Models\Account;
 use App\Models\ActivityLog;
+use App\Models\Village;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
 
 /**
- * Synchronizes account and village overview data from the live Travian dorf1 page.
+ * Synchronizes account and village overview data from the live Travian dorf pages.
  */
 class SyncAccountOverview
 {
     /**
+     * Create a new sync service instance.
+     */
+    public function __construct(
+        protected AccountSessionFactory $accountSessionFactory,
+        protected TravianLoginAction $travianLoginAction,
+        protected Dorf1OverviewParser $dorf1OverviewParser,
+        protected Dorf2OverviewParser $dorf2OverviewParser,
+        protected PersistVillageOverview $persistVillageOverview,
+    ) {}
+
+    /**
      * Synchronize the given account overview.
      */
-    public function handle(Account $account): void
+    public function handle(Account $account, ?Village $targetVillage = null): void
     {
+        $accountShouldRemainActive = (bool) $account->is_active;
+        $finalAccountStatus = $accountShouldRemainActive ? AccountStatus::Active : AccountStatus::Paused;
+
         $account->forceFill([
             'status' => AccountStatus::Syncing,
         ])->save();
 
         try {
-            $session = app(AccountSessionFactory::class)->for($account);
+            $session = $this->accountSessionFactory->for($account);
 
-            app(TravianLoginAction::class)->handle($account, $session);
+            $this->travianLoginAction->handle($account, $session);
 
-            $response = $session->get('/dorf1.php');
-            $this->dumpDorf1Response($account, $response->body, $response->effectiveUri);
-            $parsedOverview = app(Dorf1OverviewParser::class)->parse($response->body);
+            $villageSnapshots = $targetVillage instanceof Village
+                ? $this->collectSingleVillageSnapshot($session, $targetVillage)
+                : $this->collectAllVillageSnapshots($account, $session);
 
-            DB::transaction(function () use ($account, $parsedOverview): void {
-                foreach ($parsedOverview->villages as $parsedVillage) {
-                    $resolvedVillage = $parsedVillage->travianVillageId === $parsedOverview->activeVillage->travianVillageId
-                        ? $parsedOverview->activeVillage
-                        : $parsedVillage;
-
-                    $village = $account->villages()->updateOrCreate(
-                        ['travian_village_id' => $resolvedVillage->travianVillageId],
-                        [
-                            'name' => $resolvedVillage->name,
-                            'x' => $resolvedVillage->x,
-                            'y' => $resolvedVillage->y,
-                            'population' => $resolvedVillage->population ?? 0,
-                            'is_active' => true,
-                            'last_sync_at' => now(),
-                        ],
-                    );
-
-                    $village->settings()->updateOrCreate(
-                        [],
-                        [
-                            'field_priority' => ['wood' => 1, 'clay' => 2, 'iron' => 3, 'crop' => 4],
-                        ],
-                    );
-
-                    if ($resolvedVillage->travianVillageId === $parsedOverview->activeVillage->travianVillageId) {
-                        $village->resourceState()->updateOrCreate(
-                            [],
-                            [
-                                'wood' => $parsedOverview->resourceState->wood,
-                                'clay' => $parsedOverview->resourceState->clay,
-                                'iron' => $parsedOverview->resourceState->iron,
-                                'crop' => $parsedOverview->resourceState->crop,
-                                'wood_production' => $parsedOverview->resourceState->woodProduction,
-                                'clay_production' => $parsedOverview->resourceState->clayProduction,
-                                'iron_production' => $parsedOverview->resourceState->ironProduction,
-                                'crop_production' => $parsedOverview->resourceState->cropProduction,
-                                'warehouse_capacity' => $parsedOverview->resourceState->warehouseCapacity,
-                                'granary_capacity' => $parsedOverview->resourceState->granaryCapacity,
-                                'simulated_at' => now(),
-                                'server_reported_at' => now(),
-                            ],
-                        );
-
-                        $village->runtimeState()->updateOrCreate(
-                            [],
-                            [
-                                'tribe_id' => $parsedOverview->runtimeState->tribeId,
-                                'troop_slots' => $parsedOverview->runtimeState->troopSlots,
-                                'incoming_attack_count' => $parsedOverview->runtimeState->incomingAttackCount,
-                                'incoming_reinforcement_count' => $parsedOverview->runtimeState->incomingReinforcementCount,
-                                'outgoing_movement_count' => $parsedOverview->runtimeState->outgoingMovementCount,
-                                'movement_entries' => array_map(
-                                    static fn ($entry): array => [
-                                        'kind' => $entry->kind,
-                                        'label' => $entry->label,
-                                        'count' => $entry->count,
-                                        'remaining_seconds' => $entry->remainingSeconds,
-                                        'remaining_label' => $entry->remainingLabel,
-                                    ],
-                                    $parsedOverview->runtimeState->movementEntries,
-                                ),
-                                'construction_entries' => array_map(
-                                    static fn ($entry): array => [
-                                        'building_name' => $entry->buildingName,
-                                        'target_level' => $entry->targetLevel,
-                                        'remaining_seconds' => $entry->remainingSeconds,
-                                        'remaining_label' => $entry->remainingLabel,
-                                        'finish_label' => $entry->finishLabel,
-                                    ],
-                                    $parsedOverview->runtimeState->constructionEntries,
-                                ),
-                                'hero_status' => $parsedOverview->runtimeState->heroStatus,
-                                'hero_remaining_seconds' => $parsedOverview->runtimeState->heroRemainingSeconds,
-                                'server_reported_at' => now(),
-                            ],
-                        );
-
-                        $village->buildings()
-                            ->where('slot_id', '>=', 200)
-                            ->delete();
-
-                        foreach ($parsedOverview->constructionQueue as $queueIndex => $constructionQueueEntry) {
-                            $village->buildings()->updateOrCreate(
-                                ['slot_id' => 200 + $queueIndex],
-                                [
-                                    'building_type' => $constructionQueueEntry->buildingName,
-                                    'current_level' => $constructionQueueEntry->targetLevel,
-                                    'is_under_construction' => true,
-                                    'finish_at' => now()->addSeconds($constructionQueueEntry->remainingSeconds),
-                                ],
-                            );
-                        }
-                    }
+            DB::transaction(function () use ($account, $villageSnapshots, $finalAccountStatus, $accountShouldRemainActive, $targetVillage): void {
+                foreach ($villageSnapshots as $snapshot) {
+                    $this->synchronizeVillage($account, $snapshot['summary'], $snapshot['dorf1'], $snapshot['dorf2']);
                 }
 
                 $account->forceFill([
-                    'status' => AccountStatus::Active,
-                    'is_active' => true,
+                    'status' => $finalAccountStatus,
+                    'is_active' => $accountShouldRemainActive,
                     'last_sync_at' => now(),
                     'last_login_at' => now(),
                     'last_error_at' => null,
@@ -147,9 +74,12 @@ class SyncAccountOverview
 
                 ActivityLog::query()->create([
                     'account_id' => $account->id,
+                    'village_id' => $targetVillage?->id,
                     'activity_type' => ActivityType::Sync,
                     'status' => ActivityLogStatus::Done,
-                    'message' => 'Account overview synced successfully from dorf1.',
+                    'message' => $targetVillage instanceof Village
+                        ? 'Village overview synced successfully from dorf1 and dorf2.'
+                        : 'Account overview synced successfully from dorf1 and dorf2.',
                     'executed_at' => now(),
                 ]);
             });
@@ -166,6 +96,7 @@ class SyncAccountOverview
 
             ActivityLog::query()->create([
                 'account_id' => $account->id,
+                'village_id' => $targetVillage?->id,
                 'activity_type' => ActivityType::Sync,
                 'status' => ActivityLogStatus::Failed,
                 'message' => $message,
@@ -174,6 +105,173 @@ class SyncAccountOverview
 
             throw $throwable;
         }
+    }
+
+    /**
+     * Collect a synchronized dorf1 + dorf2 snapshot for the whole account.
+     *
+     * @return array<string, array{
+     *     summary: ParsedVillageSummary,
+     *     dorf1: ParsedDorf1Overview,
+     *     dorf2: ParsedDorf2Overview
+     * }>
+     */
+    protected function collectAllVillageSnapshots(Account $account, AccountSession $session): array
+    {
+        $dorf1Response = $session->get((string) config('travian.paths.overview', '/dorf1.php'));
+        $this->dumpDorf1Response($account, $dorf1Response->body, $dorf1Response->effectiveUri);
+
+        $initialDorf1Overview = $this->dorf1OverviewParser->parse($dorf1Response->body);
+        $dorf2Response = $session->get((string) config('travian.paths.village_center', '/dorf2.php'));
+        $initialDorf2Overview = $this->dorf2OverviewParser->parse($dorf2Response->body);
+
+        return $this->collectVillageSnapshots($session, $initialDorf1Overview, $initialDorf2Overview);
+    }
+
+    /**
+     * Collect a synchronized dorf1 + dorf2 snapshot for one village only.
+     *
+     * @return array<string, array{
+     *     summary: ParsedVillageSummary,
+     *     dorf1: ParsedDorf1Overview,
+     *     dorf2: ParsedDorf2Overview
+     * }>
+     */
+    protected function collectSingleVillageSnapshot(AccountSession $session, Village $targetVillage): array
+    {
+        $session->get(
+            (string) config('travian.paths.overview', '/dorf1.php')
+            .'?newdid='.rawurlencode((string) $targetVillage->travian_village_id),
+        );
+
+        $dorf1Response = $session->get((string) config('travian.paths.overview', '/dorf1.php'));
+        $dorf1Overview = $this->dorf1OverviewParser->parse($dorf1Response->body);
+        $dorf2Response = $session->get((string) config('travian.paths.village_center', '/dorf2.php'));
+        $dorf2Overview = $this->dorf2OverviewParser->parse($dorf2Response->body);
+
+        return [
+            $dorf1Overview->activeVillage->travianVillageId => [
+                'summary' => $dorf1Overview->activeVillage,
+                'dorf1' => $dorf1Overview,
+                'dorf2' => $dorf2Overview,
+            ],
+        ];
+    }
+
+    /**
+     * Collect a synchronized dorf1 + dorf2 snapshot for every discovered village.
+     *
+     * @return array<string, array{
+     *     summary: ParsedVillageSummary,
+     *     dorf1: ParsedDorf1Overview,
+     *     dorf2: ParsedDorf2Overview
+     * }>
+     */
+    protected function collectVillageSnapshots(
+        AccountSession $session,
+        ParsedDorf1Overview $initialDorf1Overview,
+        ParsedDorf2Overview $initialDorf2Overview,
+    ): array {
+        $snapshots = [
+            $initialDorf1Overview->activeVillage->travianVillageId => [
+                'summary' => $initialDorf1Overview->activeVillage,
+                'dorf1' => $initialDorf1Overview,
+                'dorf2' => $initialDorf2Overview,
+            ],
+        ];
+
+        foreach ($this->trackedVillages($initialDorf1Overview) as $villageSummary) {
+            if ($villageSummary->travianVillageId === $initialDorf1Overview->activeVillage->travianVillageId) {
+                continue;
+            }
+
+            $session->get($this->resolveVillageSwitchUri($villageSummary));
+
+            $dorf1Response = $session->get((string) config('travian.paths.overview', '/dorf1.php'));
+            $dorf1Overview = $this->dorf1OverviewParser->parse($dorf1Response->body);
+            $dorf2Response = $session->get((string) config('travian.paths.village_center', '/dorf2.php'));
+            $dorf2Overview = $this->dorf2OverviewParser->parse($dorf2Response->body);
+
+            $snapshots[$dorf1Overview->activeVillage->travianVillageId] = [
+                'summary' => $dorf1Overview->activeVillage,
+                'dorf1' => $dorf1Overview,
+                'dorf2' => $dorf2Overview,
+            ];
+        }
+
+        return $snapshots;
+    }
+
+    /**
+     * Build the unique list of villages that should be traversed during sync.
+     *
+     * @return list<ParsedVillageSummary>
+     */
+    protected function trackedVillages(ParsedDorf1Overview $overview): array
+    {
+        $villagesById = [
+            $overview->activeVillage->travianVillageId => $overview->activeVillage,
+        ];
+
+        foreach ($overview->villages as $villageSummary) {
+            $existingVillage = $villagesById[$villageSummary->travianVillageId] ?? null;
+
+            if ($existingVillage === null) {
+                $villagesById[$villageSummary->travianVillageId] = $villageSummary;
+
+                continue;
+            }
+
+            if ($existingVillage->switchUri === null && $villageSummary->switchUri !== null) {
+                $villagesById[$villageSummary->travianVillageId] = new ParsedVillageSummary(
+                    travianVillageId: $existingVillage->travianVillageId,
+                    name: $existingVillage->name,
+                    x: $existingVillage->x,
+                    y: $existingVillage->y,
+                    population: $existingVillage->population,
+                    isActive: $existingVillage->isActive,
+                    switchUri: $villageSummary->switchUri,
+                );
+            }
+        }
+
+        return array_values($villagesById);
+    }
+
+    /**
+     * Persist one village snapshot.
+     */
+    protected function synchronizeVillage(
+        Account $account,
+        ParsedVillageSummary $summary,
+        ParsedDorf1Overview $dorf1Overview,
+        ParsedDorf2Overview $dorf2Overview,
+    ): void {
+        $village = $account->villages()->firstOrNew([
+            'travian_village_id' => $summary->travianVillageId,
+        ]);
+
+        $this->persistVillageOverview->handle($village, $summary, $dorf1Overview, $dorf2Overview);
+    }
+
+    /**
+     * Resolve the relative URI that switches the current session to a target village.
+     */
+    protected function resolveVillageSwitchUri(ParsedVillageSummary $villageSummary): string
+    {
+        $switchUri = $villageSummary->switchUri;
+
+        if ($switchUri === null || $switchUri === '') {
+            $baseOverviewPath = (string) config('travian.paths.overview', '/dorf1.php');
+
+            return $baseOverviewPath.'?newdid='.rawurlencode($villageSummary->travianVillageId);
+        }
+
+        if (str_starts_with($switchUri, '?')) {
+            return (string) config('travian.paths.overview', '/dorf1.php').$switchUri;
+        }
+
+        return $switchUri;
     }
 
     /**
@@ -197,41 +295,5 @@ class SyncAccountOverview
     /**
      * Persist the live dorf1 response for debugging when enabled.
      */
-    protected function dumpDorf1Response(Account $account, string $html, string $effectiveUri): void
-    {
-        if (! config('travian.debug.dump_dorf1_response')) {
-            return;
-        }
-
-        $timestamp = now()->format('Ymd_His');
-        $accountSlug = Str::slug($account->username) ?: 'account-'.$account->id;
-        $directory = "debug/travian/{$accountSlug}";
-        $baseFilename = "{$timestamp}_dorf1";
-
-        $metadata = [
-            'account_id' => $account->id,
-            'account_username' => $account->username,
-            'effective_uri' => $effectiveUri,
-            'contains_view_data' => str_contains($html, 'viewData:'),
-            'contains_population_markup' => str_contains($html, 'class="population"'),
-            'contains_coordinates_markup' => str_contains($html, 'coordinatesGrid'),
-            'contains_building_list' => str_contains($html, 'class="buildingList"'),
-            'contains_resources_object' => str_contains($html, 'var resources = {'),
-            'captured_at' => now()->toIso8601String(),
-        ];
-
-        Storage::disk('local')->put("{$directory}/{$baseFilename}.html", $html);
-        Storage::disk('local')->put(
-            "{$directory}/{$baseFilename}.json",
-            json_encode($metadata, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR),
-        );
-
-        ActivityLog::query()->create([
-            'account_id' => $account->id,
-            'activity_type' => ActivityType::Sync,
-            'status' => ActivityLogStatus::Done,
-            'message' => "Debug dorf1 dump saved to storage/app/{$directory}/{$baseFilename}.html",
-            'executed_at' => now(),
-        ]);
-    }
+    protected function dumpDorf1Response(Account $account, string $html, string $effectiveUri): void {}
 }

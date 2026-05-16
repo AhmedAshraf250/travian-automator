@@ -25,6 +25,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class VillageSetting extends Model
 {
     /**
+     * Return the default per-resource field upgrade order.
+     *
+     * @return array{wood: int, clay: int, iron: int, crop: int}
+     */
+    public static function defaultFieldPriority(): array
+    {
+        return [
+            'wood' => 1,
+            'clay' => 2,
+            'iron' => 3,
+            'crop' => 4,
+        ];
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

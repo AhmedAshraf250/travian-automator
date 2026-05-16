@@ -17,7 +17,7 @@ class ImportBulkAccounts
     /**
      * Create or update accounts from textarea content.
      *
-     * @return array{imported:int, updated:int}
+     * @return array{imported:int, updated:int, archived:int}
      */
     public function handle(string $contents): array
     {
@@ -25,9 +25,14 @@ class ImportBulkAccounts
         $records = $parser->parse($contents);
         $importedCount = 0;
         $updatedCount = 0;
+        $archivedCount = 0;
 
-        DB::transaction(function () use ($records, &$importedCount, &$updatedCount): void {
+        DB::transaction(function () use ($records, &$importedCount, &$updatedCount, &$archivedCount): void {
+            $activeImportKeys = [];
+
             foreach ($records as $record) {
+                $activeImportKeys[$this->buildImportKey($record->serverUrl, $record->username)] = true;
+
                 $account = Account::query()->firstOrNew([
                     'server_url' => $record->serverUrl,
                     'username' => $record->username,
@@ -40,6 +45,8 @@ class ImportBulkAccounts
                     'proxy_ip' => $record->proxyIp,
                     'proxy_port' => $record->proxyPort,
                     'user_agent' => $record->userAgent,
+                    'managed_by_import' => true,
+                    'is_archived' => false,
                     'is_active' => true,
                     'status' => $account->status ?? AccountStatus::Paused,
                 ]);
@@ -73,11 +80,49 @@ class ImportBulkAccounts
                     $importedCount++;
                 }
             }
+
+            $managedAccounts = Account::query()
+                ->where('managed_by_import', true)
+                ->where('is_archived', false)
+                ->get();
+
+            foreach ($managedAccounts as $managedAccount) {
+                $managedAccountKey = $this->buildImportKey($managedAccount->server_url, $managedAccount->username);
+
+                if (isset($activeImportKeys[$managedAccountKey])) {
+                    continue;
+                }
+
+                $managedAccount->forceFill([
+                    'is_archived' => true,
+                    'is_active' => false,
+                    'status' => AccountStatus::Paused,
+                ])->save();
+
+                ActivityLog::query()->create([
+                    'account_id' => $managedAccount->id,
+                    'activity_type' => ActivityType::Import,
+                    'status' => ActivityLogStatus::Done,
+                    'message' => 'Account archived because it was removed from the latest bulk import snapshot.',
+                    'executed_at' => now(),
+                ]);
+
+                $archivedCount++;
+            }
         });
 
         return [
             'imported' => $importedCount,
             'updated' => $updatedCount,
+            'archived' => $archivedCount,
         ];
+    }
+
+    /**
+     * Build the unique reconciliation key for one import line.
+     */
+    protected function buildImportKey(string $serverUrl, string $username): string
+    {
+        return mb_strtolower($serverUrl).'|'.mb_strtolower($username);
     }
 }

@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable([
     'village_id',
     'slot_id',
+    'building_gid',
     'building_type',
     'target_level',
     'priority',
@@ -27,6 +28,10 @@ class VillageBuildingTarget extends Model
     protected function casts(): array
     {
         return [
+            'slot_id' => 'integer',
+            'building_gid' => 'integer',
+            'target_level' => 'integer',
+            'priority' => 'integer',
             'is_enabled' => 'boolean',
         ];
     }

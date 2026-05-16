@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable([
     'village_id',
     'slot_id',
+    'building_gid',
     'building_type',
     'current_level',
     'is_under_construction',
@@ -27,6 +28,9 @@ class VillageBuilding extends Model
     protected function casts(): array
     {
         return [
+            'slot_id' => 'integer',
+            'building_gid' => 'integer',
+            'current_level' => 'integer',
             'is_under_construction' => 'boolean',
             'finish_at' => 'immutable_datetime',
         ];

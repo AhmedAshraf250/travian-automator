@@ -7,7 +7,9 @@ use App\Application\Accounts\Sync\Data\ParsedDorf1Overview;
 use App\Application\Accounts\Sync\Data\ParsedVillageMovementEntry;
 use App\Application\Accounts\Sync\Data\ParsedVillageResourceState;
 use App\Application\Accounts\Sync\Data\ParsedVillageRuntimeState;
+use App\Application\Accounts\Sync\Data\ParsedVillageSlot;
 use App\Application\Accounts\Sync\Data\ParsedVillageSummary;
+use App\Application\Travian\TravianBuildingCatalog;
 use DOMDocument;
 use DOMElement;
 use DOMXPath;
@@ -32,10 +34,11 @@ class Dorf1OverviewParser
             throw new InvalidArgumentException('The provided HTML does not look like an authenticated dorf1 page.');
         }
 
-        $activeVillage = $this->parseActiveVillage($xpath, $html);
         $villages = $this->parseVillageList($xpath);
+        $activeVillage = $this->parseActiveVillage($xpath, $html, $villages);
         $resourceState = $this->parseResourceState($html);
         $runtimeState = $this->parseRuntimeState($xpath, $html, $activeVillage->travianVillageId);
+        $fieldSlots = $this->parseFieldSlots($xpath);
         $constructionQueue = $this->parseConstructionQueue($xpath);
 
         return new ParsedDorf1Overview(
@@ -43,14 +46,17 @@ class Dorf1OverviewParser
             resourceState: $resourceState,
             runtimeState: $runtimeState,
             villages: $villages,
+            fieldSlots: $fieldSlots,
             constructionQueue: $constructionQueue,
         );
     }
 
     /**
      * Parse the active village summary.
+     *
+     * @param  list<ParsedVillageSummary>  $villages
      */
-    protected function parseActiveVillage(DOMXPath $xpath, string $html): ParsedVillageSummary
+    protected function parseActiveVillage(DOMXPath $xpath, string $html, array $villages): ParsedVillageSummary
     {
         $villageNameInput = $xpath->query("//div[@id='villageName']//input[@name='villageName']")?->item(0);
 
@@ -75,6 +81,7 @@ class Dorf1OverviewParser
             y: $y,
             population: $population,
             isActive: true,
+            switchUri: $this->findVillageSwitchUri($villages, $travianVillageId),
         );
     }
 
@@ -93,6 +100,7 @@ class Dorf1OverviewParser
             }
 
             $nameNode = $xpath->query(".//span[contains(@class, 'name')]", $villageElement)?->item(0);
+            $linkNode = $xpath->query('.//a[@href]', $villageElement)?->item(0);
 
             $villages[] = new ParsedVillageSummary(
                 travianVillageId: trim((string) $villageElement->getAttribute('data-did')),
@@ -101,10 +109,53 @@ class Dorf1OverviewParser
                 y: null,
                 population: null,
                 isActive: str_contains((string) $villageElement->getAttribute('class'), 'active'),
+                switchUri: $linkNode instanceof DOMElement
+                    ? $this->normalizeVillageSwitchUri($linkNode->getAttribute('href'))
+                    : null,
             );
         }
 
         return $villages;
+    }
+
+    /**
+     * Parse the visible dorf1 resource field slots.
+     *
+     * @return list<ParsedVillageSlot>
+     */
+    protected function parseFieldSlots(DOMXPath $xpath): array
+    {
+        $slots = [];
+
+        foreach ($xpath->query("//a[contains(@class, 'resourceField')][@data-aid][@data-gid]") ?: [] as $slotNode) {
+            if (! $slotNode instanceof DOMElement) {
+                continue;
+            }
+
+            $slotId = (int) $slotNode->getAttribute('data-aid');
+            $buildingGid = (int) $slotNode->getAttribute('data-gid');
+
+            if ($slotId < 1 || $slotId > 18 || $buildingGid <= 0) {
+                continue;
+            }
+
+            $levelNode = $xpath->query(".//div[contains(@class, 'labelLayer')]", $slotNode)?->item(0);
+            $currentLevel = $levelNode instanceof DOMElement
+                ? ($this->extractInteger($levelNode->textContent) ?? 0)
+                : 0;
+
+            $slots[] = new ParsedVillageSlot(
+                slotId: $slotId,
+                buildingGid: $buildingGid,
+                buildingName: TravianBuildingCatalog::nameForGid($buildingGid),
+                currentLevel: $currentLevel,
+                kind: 'field',
+            );
+        }
+
+        usort($slots, static fn (ParsedVillageSlot $left, ParsedVillageSlot $right): int => $left->slotId <=> $right->slotId);
+
+        return array_values($slots);
     }
 
     /**
@@ -177,7 +228,7 @@ class Dorf1OverviewParser
     {
         $entries = [];
 
-        foreach ($xpath->query("//div[contains(@class, 'buildingList')]//ul/li") ?: [] as $index => $constructionNode) {
+        foreach ($xpath->query("//div[contains(@class, 'buildingList')]//ul/li") ?: [] as $constructionNode) {
             if (! $constructionNode instanceof DOMElement) {
                 continue;
             }
@@ -651,5 +702,35 @@ class Dorf1OverviewParser
         libxml_clear_errors();
 
         return new DOMXPath($document);
+    }
+
+    /**
+     * Normalize a relative village switch href into a reusable URI snippet.
+     */
+    protected function normalizeVillageSwitchUri(string $href): ?string
+    {
+        $normalizedHref = trim(html_entity_decode($href, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+
+        if ($normalizedHref === '' || $normalizedHref === '#') {
+            return null;
+        }
+
+        return $normalizedHref;
+    }
+
+    /**
+     * Find the switch URI that belongs to the active village row.
+     *
+     * @param  list<ParsedVillageSummary>  $villages
+     */
+    protected function findVillageSwitchUri(array $villages, string $travianVillageId): ?string
+    {
+        foreach ($villages as $village) {
+            if ($village->travianVillageId === $travianVillageId) {
+                return $village->switchUri;
+            }
+        }
+
+        return null;
     }
 }

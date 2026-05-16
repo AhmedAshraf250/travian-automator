@@ -21,6 +21,7 @@ class GuzzleAccountSession implements AccountSession
         protected Account $account,
         protected Client $client,
         protected CookieJar $cookieJar,
+        protected string $transportFingerprint,
     ) {}
 
     /**
@@ -58,6 +59,7 @@ class GuzzleAccountSession implements AccountSession
     {
         $this->account->forceFill([
             'session_cookies' => array_values($this->cookieJar->toArray()),
+            'session_transport_fingerprint' => $this->transportFingerprint,
         ])->save();
     }
 

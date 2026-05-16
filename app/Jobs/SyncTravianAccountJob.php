@@ -2,12 +2,15 @@
 
 namespace App\Jobs;
 
+use App\Application\Accounts\Construction\RunAccountAutomation;
 use App\Application\Accounts\Sync\SyncAccountOverview;
 use App\Enums\AccountStatus;
 use App\Enums\ActivityLogStatus;
 use App\Enums\ActivityType;
 use App\Models\Account;
 use App\Models\ActivityLog;
+use App\Models\SystemSetting;
+use App\Models\Village;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -35,24 +38,36 @@ class SyncTravianAccountJob implements ShouldQueue
      */
     public function __construct(
         public int $accountId,
+        public ?int $villageId = null,
+        public bool $runAutomation = true,
     ) {}
 
     /**
      * Execute the job.
      */
-    public function handle(SyncAccountOverview $syncAccountOverview): void
+    public function handle(SyncAccountOverview $syncAccountOverview, RunAccountAutomation $runAccountAutomation): void
     {
         $account = Account::query()->findOrFail($this->accountId);
+        $village = $this->villageId !== null
+            ? Village::query()->where('account_id', $account->id)->findOrFail($this->villageId)
+            : null;
 
         ActivityLog::query()->create([
             'account_id' => $account->id,
+            'village_id' => $village?->id,
             'activity_type' => ActivityType::Sync,
             'status' => ActivityLogStatus::Running,
-            'message' => 'Background sync job started.',
+            'message' => $village instanceof Village
+                ? 'Background village sync job started.'
+                : 'Background sync job started.',
             'executed_at' => now(),
         ]);
 
-        $syncAccountOverview->handle($account);
+        $syncAccountOverview->handle($account, $village);
+
+        if ($this->runAutomation && SystemSetting::automationEnabled()) {
+            $runAccountAutomation->handle($account->fresh(), $this->villageId);
+        }
     }
 
     /**
@@ -74,6 +89,7 @@ class SyncTravianAccountJob implements ShouldQueue
 
         ActivityLog::query()->create([
             'account_id' => $account->id,
+            'village_id' => $this->villageId,
             'activity_type' => ActivityType::Sync,
             'status' => ActivityLogStatus::Failed,
             'message' => $throwable?->getMessage() ?? 'Background sync job failed.',

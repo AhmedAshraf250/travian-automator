@@ -19,8 +19,13 @@ class GuzzleAccountSessionFactory implements AccountSessionFactory
      */
     public function for(Account $account): AccountSession
     {
+        $currentTransportFingerprint = $account->currentTransportFingerprint();
+        $canReusePersistedCookies = ! config('travian.transport.force_relogin_on_change', true)
+            || $account->session_transport_fingerprint === null
+            || hash_equals($account->session_transport_fingerprint, $currentTransportFingerprint);
+
         $cookieJar = CookieJar::fromArray(
-            $this->mapCookiesByName($account->session_cookies ?? []),
+            $this->mapCookiesByName($canReusePersistedCookies ? ($account->session_cookies ?? []) : []),
             parse_url($account->server_url, PHP_URL_HOST) ?: '',
         );
 
@@ -28,6 +33,7 @@ class GuzzleAccountSessionFactory implements AccountSessionFactory
             account: $account,
             client: new Client($this->buildOptions($account)),
             cookieJar: $cookieJar,
+            transportFingerprint: $currentTransportFingerprint,
         );
     }
 
@@ -39,12 +45,13 @@ class GuzzleAccountSessionFactory implements AccountSessionFactory
     protected function buildOptions(Account $account): array
     {
         $headers = [];
+        $effectiveUserAgent = $account->effectiveUserAgent();
 
-        if ($account->user_agent !== null && $account->user_agent !== '') {
-            $headers['User-Agent'] = $account->user_agent;
+        if ($effectiveUserAgent !== null && $effectiveUserAgent !== '') {
+            $headers['User-Agent'] = $effectiveUserAgent;
         }
 
-        $headers['Accept-Language'] = 'en-US,en;q=0.9';
+        $headers['Accept-Language'] = (string) config('travian.client.accept_language', 'en-US,en;q=0.9');
 
         return array_filter([
             'base_uri' => rtrim($account->server_url, '/').'/',

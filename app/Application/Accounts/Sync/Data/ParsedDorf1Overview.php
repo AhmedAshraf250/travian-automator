@@ -11,6 +11,7 @@ final readonly class ParsedDorf1Overview
      * Create a parsed dorf1 overview DTO.
      *
      * @param  list<ParsedVillageSummary>  $villages
+     * @param  list<ParsedVillageSlot>  $fieldSlots
      * @param  list<ParsedConstructionQueueEntry>  $constructionQueue
      */
     public function __construct(
@@ -18,6 +19,7 @@ final readonly class ParsedDorf1Overview
         public ParsedVillageResourceState $resourceState,
         public ParsedVillageRuntimeState $runtimeState,
         public array $villages,
+        public array $fieldSlots,
         public array $constructionQueue,
     ) {}
 }

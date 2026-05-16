@@ -5,6 +5,7 @@ namespace App\Application\Accounts\Session\Actions;
 use App\Application\Accounts\Session\Contracts\AccountSession;
 use App\Application\Accounts\Session\Exceptions\AuthenticationFailedException;
 use App\Models\Account;
+use Illuminate\Support\Facades\Log;
 use JsonException;
 
 /**
@@ -17,29 +18,35 @@ class TravianLoginAction
      */
     public function handle(Account $account, AccountSession $session): void
     {
-        $landingPage = $session->get('/');
-
+        $landingPage = $session->get((string) config('travian.paths.landing', '/dorf1.php'));
+        // Log::debug('1', ['start login']);
         if ($this->isAuthenticatedHtml($landingPage->body)) {
+            // Log::debug('2', ['Already authenticated']);
+
             $session->persist();
 
             return;
         }
-
+        // Log::debug('3', ['Not authenticated, starting login flow']);
         $loginResponse = $session->postJson(
-            '/api/v1/auth/login',
+            (string) config('travian.paths.auth_login', '/api/v1/auth/login'),
             $this->buildApiLoginPayload($account),
             $this->buildApiLoginOptions($landingPage->body),
         );
-
+        // Log::debug('4', ['response received', 'body' => $loginResponse->body]);
         if (! $loginResponse->successful()) {
+            // Log::debug('5', ['Login failed']);
             throw new AuthenticationFailedException('Travian login API rejected the provided credentials or request context.');
         }
 
         $authRedirectUri = $this->extractAuthRedirectUri($loginResponse->body);
+        // Log::debug('6', ['Auth redirect URI extracted', 'uri' => $authRedirectUri]);
         $authResponse = $session->get($authRedirectUri);
+        // Log::debug('7', ['body' => $authResponse]);
 
         if (! $this->isAuthenticatedHtml($authResponse->body)) {
-            $overviewResponse = $session->get('/dorf1.php');
+            // Log::debug('8', ['body' => '!!']);
+            $overviewResponse = $session->get((string) config('travian.paths.overview', '/dorf1.php'));
 
             if (! $this->isAuthenticatedHtml($overviewResponse->body)) {
                 throw new AuthenticationFailedException('Travian login completed, but the session did not reach an authenticated game page.');
@@ -70,8 +77,8 @@ class TravianLoginAction
         return [
             'name' => $account->username,
             'password' => $account->password,
-            'w' => '1920:1200',
-            'mobileOptimizations' => false,
+            'w' => (string) config('travian.client.window_size', '1920:1200'),
+            'mobileOptimizations' => (bool) config('travian.client.mobile_optimizations', false),
         ];
     }
 
@@ -148,7 +155,7 @@ class TravianLoginAction
      */
     protected function findRedirectUriInDecodedResponse(array $decoded): ?string
     {
-        $candidateKeys = ['redirectUrl', 'redirectUri', 'url', 'href', 'location'];
+        $candidateKeys = ['redirectTo', 'redirectUrl', 'redirectUri', 'url', 'href', 'location'];
 
         foreach ($candidateKeys as $candidateKey) {
             $candidate = $decoded[$candidateKey] ?? null;
@@ -161,12 +168,16 @@ class TravianLoginAction
         $code = $decoded['code'] ?? null;
 
         if (is_string($code) && $code !== '') {
-            return '/api/v1/auth?code='.rawurlencode($code).'&response_type=redirect';
+            return rtrim((string) config('travian.paths.auth_redirect', '/api/v1/auth'), '/')
+                .'?code='.rawurlencode($code).'&response_type=redirect';
         }
 
         $serializedResponse = json_encode($decoded);
 
-        if (is_string($serializedResponse) && preg_match('/(\/api\/v1\/auth\?code=[^"]+response_type=redirect)/', $serializedResponse, $matches) === 1) {
+        if (
+            is_string($serializedResponse)
+            && preg_match('/(\/api\/v1\/auth\?code=[^"]+response_type=redirect)/', $serializedResponse, $matches) === 1
+        ) {
             return html_entity_decode($matches[1], ENT_QUOTES);
         }
 
