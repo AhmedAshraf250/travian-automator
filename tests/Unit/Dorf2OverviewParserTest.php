@@ -4,7 +4,7 @@ use App\Application\Accounts\Sync\Parsers\Dorf2OverviewParser;
 
 test('dorf2 overview parser extracts village building slots and deduplicates the wall slot', function () {
     $parser = app(Dorf2OverviewParser::class);
-    $html = file_get_contents(base_path('may-help/travian-samples/dorf2.php.html'));
+    $html = file_get_contents(base_path('tests/Fixtures/travian-samples/dorf2.php.html'));
 
     expect($html)->not->toBeFalse();
 

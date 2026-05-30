@@ -134,7 +134,7 @@ function fakeDorf1Overview(
         ),
         runtimeState: new ParsedVillageRuntimeState(
             tribeId: $tribeId,
-            troopSlots: array_fill(0, 10, 0),
+            troopSlots: array_fill(0, 11, 0),
             incomingAttackCount: 0,
             incomingReinforcementCount: 0,
             outgoingMovementCount: 0,
@@ -270,13 +270,17 @@ test('roman village can issue one field order and one building order in the same
         /** @var list<string> */
         public array $requests = [];
 
+        /** @var array<string, array<string, mixed>> */
+        public array $requestOptions = [];
+
         public function get(string $uri, array $options = []): SessionResponse
         {
             $this->requests[] = $uri;
+            $this->requestOptions[$uri] = $options;
 
             return match ($uri) {
                 '/dorf1.php?newdid=23378' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php?newdid=23378'),
-                '/build.php?id=1&gid=1' => $this->response('<button onclick="this.disabled = true; window.location.href = \'/dorf1.php?id=1&amp;gid=1&amp;action=build&amp;checksum=field001\'; return false;"></button>', 'https://example.com/build.php?id=1&gid=1'),
+                '/build.php?id=1' => $this->response('<button onclick="this.disabled = true; window.location.href = \'/dorf1.php?id=1&amp;gid=1&amp;action=build&amp;checksum=field001\'; return false;"></button>', 'https://example.com/build.php?id=1&gid=1'),
                 '/dorf1.php?id=1&gid=1&action=build&checksum=field001' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php?id=1&gid=1&action=build&checksum=field001'),
                 '/build.php?id=26&gid=15' => $this->response('<button onclick="this.disabled = true; window.location.href = \'/dorf2.php?id=26&amp;gid=15&amp;action=build&amp;checksum=build015\'; return false;"></button>', 'https://example.com/build.php?id=26&gid=15'),
                 '/dorf2.php?id=26&gid=15&action=build&checksum=build015' => $this->response('<body class="village2"></body>', 'https://example.com/dorf2.php?id=26&gid=15&action=build&checksum=build015'),
@@ -314,6 +318,7 @@ test('roman village can issue one field order and one building order in the same
     app(ExecuteVillageConstruction::class)->handle($account->fresh(), $loadedVillage, $session);
 
     $finalVillage = $village->fresh();
+    $fieldLog = ActivityLog::query()->where('message', 'Field upgrade order issued successfully.')->latest('id')->first();
     $buildingLog = ActivityLog::query()->where('message', 'Building upgrade order issued successfully.')->latest('id')->first();
 
     expect(ActivityLog::query()->where('activity_type', ActivityType::Build)->where('status', 'done')->count())->toBe(2);
@@ -322,6 +327,16 @@ test('roman village can issue one field order and one building order in the same
     expect($session->requests)->toContain('/dorf1.php?newdid=23378');
     expect($session->requests)->toContain('/dorf1.php?id=1&gid=1&action=build&checksum=field001');
     expect($session->requests)->toContain('/dorf2.php?id=26&gid=15&action=build&checksum=build015');
+    expect($session->requests)->toContain('/build.php?id=1');
+    expect($session->requests)->not->toContain('/build.php?id=1&gid=1');
+    expect($session->requestOptions['/build.php?id=1']['headers']['Referer'] ?? null)->toBe('https://example.com/dorf1.php');
+    expect($session->requestOptions['/dorf1.php?id=1&gid=1&action=build&checksum=field001']['headers']['Referer'] ?? null)->toBe('https://example.com/build.php?id=1&gid=1');
+    expect($session->requestOptions['/build.php?id=26&gid=15']['headers']['Referer'] ?? null)->toBe('https://example.com/dorf2.php');
+    expect($fieldLog?->result['refresh_strategy'] ?? null)->toBe('action_response_dorf1');
+    expect($fieldLog?->result['dorf2_effective_uri'] ?? null)->toBeNull();
+    expect($buildingLog?->result['refresh_strategy'] ?? null)->toBe('action_response_dorf2_plus_dorf1');
+    expect($buildingLog?->payload['target_level'] ?? null)->toBe(11);
+    expect($buildingLog?->payload['final_target_level'] ?? null)->toBe(11);
     expect($finalVillage->runtimeState?->construction_entries)->toHaveCount(2);
     expect($finalVillage->runtimeState?->construction_entries[0]['building_name'] ?? null)->toBe('المبنى الرئيسي');
     expect($finalVillage->runtimeState?->construction_entries[0]['target_level'] ?? null)->toBe(11);
@@ -395,7 +410,7 @@ test('non roman village prioritizes the explicit building target when the shared
         'slot_id' => 26,
         'building_gid' => 15,
         'building_type' => 'المبنى الرئيسي',
-        'target_level' => 6,
+        'target_level' => 8,
         'priority' => 1,
         'is_enabled' => true,
     ]);
@@ -448,6 +463,10 @@ test('non roman village prioritizes the explicit building target when the shared
 
     expect(ActivityLog::query()->where('activity_type', ActivityType::Build)->where('status', 'done')->count())->toBe(1);
     expect(ActivityLog::query()->where('message', 'Building upgrade order issued successfully.')->exists())->toBeTrue();
+    $buildingLog = ActivityLog::query()->where('message', 'Building upgrade order issued successfully.')->latest('id')->first();
+
+    expect($buildingLog?->payload['target_level'] ?? null)->toBe(6);
+    expect($buildingLog?->payload['final_target_level'] ?? null)->toBe(8);
     expect($session->requests)->toContain('/build.php?id=26&gid=15');
     expect($session->requests)->not->toContain('/build.php?id=1&gid=1');
     expect($village->fresh()->runtimeState?->construction_entries)->toHaveCount(1);
@@ -551,7 +570,7 @@ test('roman village can still issue a field order while the building queue is al
 
             return match ($uri) {
                 '/dorf1.php?newdid=23380' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php?newdid=23380'),
-                '/build.php?id=1&gid=1' => $this->response('<button onclick="this.disabled = true; window.location.href = \'/dorf1.php?id=1&amp;gid=1&amp;action=build&amp;checksum=field101\'; return false;"></button>', 'https://example.com/build.php?id=1&gid=1'),
+                '/build.php?id=1' => $this->response('<button onclick="this.disabled = true; window.location.href = \'/dorf1.php?id=1&amp;gid=1&amp;action=build&amp;checksum=field101\'; return false;"></button>', 'https://example.com/build.php?id=1&gid=1'),
                 '/dorf1.php?id=1&gid=1&action=build&checksum=field101' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php?id=1&gid=1&action=build&checksum=field101'),
                 '/dorf1.php' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php'),
                 '/dorf2.php' => $this->response('<body class="village2"></body>', 'https://example.com/dorf2.php'),
@@ -588,7 +607,7 @@ test('roman village can still issue a field order while the building queue is al
 
     expect(ActivityLog::query()->where('activity_type', ActivityType::Build)->where('status', 'done')->count())->toBe(1);
     expect(ActivityLog::query()->where('message', 'Field upgrade order issued successfully.')->exists())->toBeTrue();
-    expect($session->requests)->toContain('/build.php?id=1&gid=1');
+    expect($session->requests)->toContain('/build.php?id=1');
     expect($session->requests)->not->toContain('/build.php?id=26&gid=15');
     expect($village->fresh()->runtimeState?->construction_entries)->toHaveCount(2);
 });
@@ -668,8 +687,8 @@ test('field automation can fall back to a lower priority field when the first ch
 
             return match ($uri) {
                 '/dorf1.php?newdid=23381' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php?newdid=23381'),
-                '/build.php?id=1&gid=1' => $this->response('<div class="contract">No available build action</div>', 'https://example.com/build.php?id=1&gid=1'),
-                '/build.php?id=2&gid=2' => $this->response('<button onclick="this.disabled = true; window.location.href = \'/dorf1.php?id=2&amp;gid=2&amp;action=build&amp;checksum=clay204\'; return false;"></button>', 'https://example.com/build.php?id=2&gid=2'),
+                '/build.php?id=1' => $this->response('<div class="contract">No available build action</div>', 'https://example.com/build.php?id=1&gid=1'),
+                '/build.php?id=2' => $this->response('<button onclick="this.disabled = true; window.location.href = \'/dorf1.php?id=2&amp;gid=2&amp;action=build&amp;checksum=clay204\'; return false;"></button>', 'https://example.com/build.php?id=2&gid=2'),
                 '/dorf1.php?id=2&gid=2&action=build&checksum=clay204' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php?id=2&gid=2&action=build&checksum=clay204'),
                 '/dorf1.php' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php'),
                 '/dorf2.php' => $this->response('<body class="village2"></body>', 'https://example.com/dorf2.php'),
@@ -706,8 +725,8 @@ test('field automation can fall back to a lower priority field when the first ch
 
     $buildLog = ActivityLog::query()->where('message', 'Field upgrade order issued successfully.')->latest('id')->first();
 
-    expect($session->requests)->toContain('/build.php?id=1&gid=1');
-    expect($session->requests)->toContain('/build.php?id=2&gid=2');
+    expect($session->requests)->toContain('/build.php?id=1');
+    expect($session->requests)->toContain('/build.php?id=2');
     expect($session->requests)->toContain('/dorf1.php?id=2&gid=2&action=build&checksum=clay204');
     expect($buildLog?->payload['field_key'] ?? null)->toBe('clay');
     expect($buildLog?->payload['building_name'] ?? null)->toBe('حفرة الطين');

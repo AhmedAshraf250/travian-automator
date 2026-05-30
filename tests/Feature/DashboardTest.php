@@ -67,8 +67,7 @@ test('village update queues the account overview sync job', function () {
 
     Queue::assertPushed(SyncTravianAccountJob::class, function (SyncTravianAccountJob $job) use ($account, $village) {
         return $job->accountId === $account->id
-            && $job->villageId === $village->id
-            && $job->runAutomation === true;
+            && $job->villageId === $village->id;
     });
 });
 
@@ -419,6 +418,78 @@ test('dashboard allows keeping the current building level as the final target', 
     )->toBe(5);
 });
 
+test('dashboard ignores stale completed building targets while saving another slot', function () {
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23378',
+        'name' => 'قرية Marshal25',
+        'is_active' => true,
+    ]);
+
+    $village->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+    ]);
+
+    $village->runtimeState()->create([
+        'tribe_id' => 1,
+        'troop_slots' => [],
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+
+    $village->buildings()->create([
+        'slot_id' => 19,
+        'building_gid' => 10,
+        'building_type' => 'المخزن',
+        'current_level' => 9,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 20,
+        'building_gid' => 23,
+        'building_type' => 'المخبأ',
+        'current_level' => 3,
+    ]);
+
+    $village->buildingTargets()->create([
+        'slot_id' => 19,
+        'building_gid' => 10,
+        'building_type' => 'المخزن',
+        'target_level' => 6,
+        'priority' => 1,
+        'is_enabled' => true,
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('openVillageSettingsModal', $village->id)
+        ->set('villageBuildingPlanDraft.20.building_gid', 23)
+        ->set('villageBuildingPlanDraft.20.target_level', 7)
+        ->set('villageBuildingPlanDraft.20.priority', 2)
+        ->set('villageBuildingPlanDraft.20.is_enabled', true)
+        ->call('saveVillageSettings')
+        ->assertHasNoErrors();
+
+    expect(
+        VillageBuildingTarget::query()
+            ->where('village_id', $village->id)
+            ->where('slot_id', 19)
+            ->exists()
+    )->toBeFalse();
+
+    expect(
+        VillageBuildingTarget::query()
+            ->where('village_id', $village->id)
+            ->where('slot_id', 20)
+            ->first()
+            ?->only(['building_gid', 'target_level', 'priority', 'is_enabled'])
+    )->toBe([
+        'building_gid' => 23,
+        'target_level' => 7,
+        'priority' => 2,
+        'is_enabled' => true,
+    ]);
+});
+
 test('dashboard shows construction countdown and finish time in the village row and activity log', function () {
     $now = now()->startOfSecond();
     Carbon::setTestNow($now);
@@ -463,7 +534,7 @@ test('dashboard shows construction countdown and finish time in the village row 
 
     $village->runtimeState()->create([
         'tribe_id' => 1,
-        'troop_slots' => array_fill(0, 10, 0),
+        'troop_slots' => array_fill(0, 11, 0),
         'movement_entries' => [],
         'construction_entries' => [
             [
@@ -495,7 +566,7 @@ test('dashboard shows construction countdown and finish time in the village row 
 
     Livewire::test(Index::class)
         ->set("expandedAccounts.{$account->id}", true)
-        ->assertSee('[0,0,0,0,0,0,0,0,0,0]')
+        ->assertSee('[0,0,0,0,0,0,0,0,0,0,0]')
         ->assertSee('W 1800/4000')
         ->assertSee('+140/h')
         ->assertSee('0:10:00')

@@ -24,6 +24,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class VillageRuntimeState extends Model
 {
+    private const int TROOP_SLOTS_INCLUDING_HERO = 11;
+
     /**
      * Get the attributes that should be cast.
      *
@@ -56,9 +58,15 @@ class VillageRuntimeState extends Model
     {
         $slots = is_array($this->troop_slots) ? $this->troop_slots : [];
 
-        return array_map(
+        $normalizedSlots = array_map(
             static fn (mixed $value): int => (int) $value,
             array_values($slots),
+        );
+
+        return array_slice(
+            array_pad($normalizedSlots, self::TROOP_SLOTS_INCLUDING_HERO, 0),
+            0,
+            self::TROOP_SLOTS_INCLUDING_HERO,
         );
     }
 }

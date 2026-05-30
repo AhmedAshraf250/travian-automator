@@ -29,7 +29,7 @@ final class TravianBuildingCatalog
         7 => ['english' => 'Iron Foundry', 'arabic' => 'مصنع الحديد', 'kind' => 'building', 'field_key' => null, 'build_category' => 3, 'aliases' => []],
         8 => ['english' => 'Grain Mill', 'arabic' => 'المطاحن', 'kind' => 'building', 'field_key' => null, 'build_category' => 3, 'aliases' => ['مطحنة الحبوب']],
         9 => ['english' => 'Bakery', 'arabic' => 'المخابز', 'kind' => 'building', 'field_key' => null, 'build_category' => 3, 'aliases' => ['المخبز']],
-        10 => ['english' => 'Warehouse', 'arabic' => 'المخزن', 'kind' => 'building', 'field_key' => null, 'build_category' => 1, 'aliases' => []],
+        10 => ['english' => 'Warehouse', 'arabic' => 'المخزن', 'kind' => 'building', 'field_key' => null, 'build_category' => 1, 'aliases' => ['مخزن']],
         11 => ['english' => 'Granary', 'arabic' => 'مخزن الحبوب', 'kind' => 'building', 'field_key' => null, 'build_category' => 1, 'aliases' => ['صومعة']],
         13 => ['english' => 'Smithy', 'arabic' => 'أفران صهر الحديد', 'kind' => 'building', 'field_key' => null, 'build_category' => 2, 'aliases' => ['الحدادة']],
         14 => ['english' => 'Tournament Square', 'arabic' => 'ساحة البطولة', 'kind' => 'building', 'field_key' => null, 'build_category' => 2, 'aliases' => []],

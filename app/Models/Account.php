@@ -30,6 +30,8 @@ use JsonException;
     'is_active',
     'status',
     'last_sync_at',
+    'next_automation_at',
+    'automation_dispatched_at',
     'last_login_at',
     'last_error_at',
     'last_error_message',
@@ -55,6 +57,8 @@ class Account extends Model
             'is_active' => 'boolean',
             'status' => AccountStatus::class,
             'last_sync_at' => 'immutable_datetime',
+            'next_automation_at' => 'immutable_datetime',
+            'automation_dispatched_at' => 'immutable_datetime',
             'last_login_at' => 'immutable_datetime',
             'last_error_at' => 'immutable_datetime',
         ];

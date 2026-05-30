@@ -23,6 +23,15 @@ return [
     'transport' => [
         'force_relogin_on_change' => env('TRAVIAN_FORCE_RELOGIN_ON_TRANSPORT_CHANGE', true),
     ],
+    'automation' => [
+        // Freshness guard only: automation jobs use this to decide whether
+        // they should sync before executing. It does not schedule jobs,
+        // poll Travian, or update accounts by itself.
+        'snapshot_stale_minutes' => (int) env('TRAVIAN_AUTOMATION_SNAPSHOT_STALE_MINUTES', 10),
+        'dispatcher_batch_size' => (int) env('TRAVIAN_AUTOMATION_DISPATCHER_BATCH_SIZE', 50),
+        'idle_minutes' => (int) env('TRAVIAN_AUTOMATION_IDLE_MINUTES', 10),
+        'timer_grace_seconds' => (int) env('TRAVIAN_AUTOMATION_TIMER_GRACE_SECONDS', 45),
+    ],
     'server' => [
         'timezone' => env('TRAVIAN_SERVER_TIMEZONE', 'Europe/London'),
     ],

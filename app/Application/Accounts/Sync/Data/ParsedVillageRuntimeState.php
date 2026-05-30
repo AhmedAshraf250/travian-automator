@@ -2,6 +2,8 @@
 
 namespace App\Application\Accounts\Sync\Data;
 
+use Carbon\CarbonImmutable;
+
 /**
  * Represents the synced runtime snapshot for village troops and movements.
  */
@@ -24,5 +26,6 @@ final readonly class ParsedVillageRuntimeState
         public array $constructionEntries,
         public ?string $heroStatus,
         public ?int $heroRemainingSeconds,
+        public ?CarbonImmutable $serverReportedAt = null,
     ) {}
 }

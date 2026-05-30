@@ -292,14 +292,21 @@ class Index extends Component
             'pause_buildings' => ! $this->villageBuildingsAutomationDraft,
         ])->save();
 
+        $currentSlots = $village->buildings->keyBy('slot_id');
+
         foreach ($this->villageBuildingPlanDraft as $draftKey => $row) {
             if (! is_array($row)) {
                 continue;
             }
 
             $slotId = (int) ($row['slot_id'] ?? $draftKey);
-            $currentGid = (int) ($row['current_gid'] ?? 0);
-            $currentLevel = (int) ($row['current_level'] ?? 0);
+            $currentSlot = $currentSlots->get($slotId);
+            $currentGid = $currentSlot instanceof VillageBuilding
+                ? (int) $currentSlot->building_gid
+                : (int) ($row['current_gid'] ?? 0);
+            $currentLevel = $currentSlot instanceof VillageBuilding
+                ? (int) $currentSlot->current_level
+                : (int) ($row['current_level'] ?? 0);
             $targetLevel = (int) ($row['target_level'] ?? 0);
             $buildingGid = (int) ($row['building_gid'] ?? 0);
             $fixedSlotGid = TravianBuildingCatalog::fixedSlotGidForSlot($slotId, $tribeId);
@@ -339,9 +346,9 @@ class Index extends Component
             }
 
             if ($currentGid !== 0 && $targetLevel < $currentLevel) {
-                throw ValidationException::withMessages([
-                    "villageBuildingPlanDraft.{$slotId}.target_level" => 'Target level cannot be lower than the current level.',
-                ]);
+                $village->buildingTargets()->where('slot_id', $slotId)->delete();
+
+                continue;
             }
 
             $buildingName = TravianBuildingCatalog::nameForGid($buildingGid);
@@ -581,9 +588,9 @@ class Index extends Component
             'scheduled_at' => now(),
         ]);
 
-        SyncTravianAccountJob::dispatch($village->account->id, $village->id, true);
+        SyncTravianAccountJob::dispatch($village->account->id, $village->id);
 
-        session()->flash('dashboard-banner', "Village {$village->name} was queued for a village-only sync plus eligible automation pass.");
+        session()->flash('dashboard-banner', "Village {$village->name} was queued for a village-only sync.");
     }
 
     /**

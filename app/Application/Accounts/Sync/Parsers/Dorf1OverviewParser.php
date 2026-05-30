@@ -10,6 +10,7 @@ use App\Application\Accounts\Sync\Data\ParsedVillageRuntimeState;
 use App\Application\Accounts\Sync\Data\ParsedVillageSlot;
 use App\Application\Accounts\Sync\Data\ParsedVillageSummary;
 use App\Application\Travian\TravianBuildingCatalog;
+use Carbon\CarbonImmutable;
 use DOMDocument;
 use DOMElement;
 use DOMXPath;
@@ -21,6 +22,8 @@ use JsonException;
  */
 class Dorf1OverviewParser
 {
+    private const int TROOP_SLOTS_INCLUDING_HERO = 11;
+
     /**
      * Parse a dorf1 overview page.
      */
@@ -216,6 +219,7 @@ class Dorf1OverviewParser
             constructionEntries: $constructionEntries,
             heroStatus: $heroStatus,
             heroRemainingSeconds: $heroRemainingSeconds,
+            serverReportedAt: $this->parseServerReportedAt($html),
         );
     }
 
@@ -267,7 +271,7 @@ class Dorf1OverviewParser
      */
     protected function parseTroopSlots(DOMXPath $xpath, ?string $heroStatus): array
     {
-        $slots = array_fill(0, 10, 0);
+        $slots = array_fill(0, self::TROOP_SLOTS_INCLUDING_HERO, 0);
 
         foreach ($xpath->query("//table[@id='troops']//tbody/tr") ?: [] as $troopNode) {
             if (! $troopNode instanceof DOMElement) {
@@ -302,11 +306,11 @@ class Dorf1OverviewParser
 
             $unitIndex = (int) $matches[1];
 
-            if ($unitIndex >= 10) {
+            if ($unitIndex < 1) {
                 continue;
             }
 
-            $slotIndex = $unitIndex;
+            $slotIndex = (($unitIndex - 1) % 10) + 1;
 
             if ($slotIndex >= count($slots)) {
                 $slots = array_pad($slots, $slotIndex + 1, 0);
@@ -385,6 +389,18 @@ class Dorf1OverviewParser
             'storage' => json_decode($matches[2], true, flags: JSON_THROW_ON_ERROR),
             'maxStorage' => json_decode($matches[3], true, flags: JSON_THROW_ON_ERROR),
         ];
+    }
+
+    /**
+     * Parse the server timestamp emitted by Travian's page bootstrap.
+     */
+    protected function parseServerReportedAt(string $html): ?CarbonImmutable
+    {
+        if (preg_match('/Travian\.Game\.timestamp\s*=\s*(\d+)\s*;/u', $html, $matches) !== 1) {
+            return null;
+        }
+
+        return CarbonImmutable::createFromTimestamp((int) $matches[1]);
     }
 
     /**

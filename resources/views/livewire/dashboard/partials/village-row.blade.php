@@ -4,8 +4,8 @@
     $settings = $village->settings;
     $coordinateText = $village->x !== null && $village->y !== null ? "[{$village->x}|{$village->y}]" : '[--|--]';
     $populationText = $village->population > 0 ? (string) $village->population : '--';
-    $troopSlots = $runtimeState?->normalizedTroopSlots() ?? array_fill(0, 10, 0);
-    $troopSlots = array_pad($troopSlots, 10, 0);
+    $troopSlots = $runtimeState?->normalizedTroopSlots() ?? array_fill(0, 11, 0);
+    $troopSlots = array_slice(array_pad($troopSlots, 11, 0), 0, 11);
     $troopVector = '[' . implode(',', $troopSlots) . ']';
     $incomingAttackCount = (int) ($runtimeState?->incoming_attack_count ?? 0);
     $incomingReinforcementCount = (int) ($runtimeState?->incoming_reinforcement_count ?? 0);

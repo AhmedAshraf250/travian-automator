@@ -26,6 +26,7 @@ class PersistVillageOverview
         ParsedDorf2Overview $dorf2Overview,
     ): void {
         $isNewVillage = ! $village->exists;
+        $serverReportedAt = $dorf1Overview->runtimeState->serverReportedAt ?? now();
 
         $village->fill([
             'name' => $summary->name,
@@ -59,7 +60,7 @@ class PersistVillageOverview
                 'warehouse_capacity' => $dorf1Overview->resourceState->warehouseCapacity,
                 'granary_capacity' => $dorf1Overview->resourceState->granaryCapacity,
                 'simulated_at' => now(),
-                'server_reported_at' => now(),
+                'server_reported_at' => $serverReportedAt,
             ],
         );
 
@@ -93,7 +94,7 @@ class PersistVillageOverview
                 ),
                 'hero_status' => $dorf1Overview->runtimeState->heroStatus,
                 'hero_remaining_seconds' => $dorf1Overview->runtimeState->heroRemainingSeconds,
-                'server_reported_at' => now(),
+                'server_reported_at' => $serverReportedAt,
             ],
         );
 

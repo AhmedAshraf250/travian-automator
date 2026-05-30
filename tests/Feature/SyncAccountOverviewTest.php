@@ -20,8 +20,8 @@ test('sync account overview stores villages and resource state from dorf1 html',
         'status' => AccountStatus::Paused,
     ]);
 
-    $dorf1Html = file_get_contents(base_path('may-help/travian-samples/dorf1.php.html'));
-    $dorf2Html = file_get_contents(base_path('may-help/travian-samples/dorf2.php.html'));
+    $dorf1Html = file_get_contents(base_path('tests/Fixtures/travian-samples/dorf1.php.html'));
+    $dorf2Html = file_get_contents(base_path('tests/Fixtures/travian-samples/dorf2.php.html'));
 
     expect($dorf1Html)->not->toBeFalse();
     expect($dorf2Html)->not->toBeFalse();
@@ -122,9 +122,9 @@ test('sync account overview can authenticate through the modern login api flow',
         'status' => AccountStatus::Paused,
     ]);
 
-    $loginHtml = file_get_contents(base_path('may-help/travian-samples/login.html'));
-    $dorf1Html = file_get_contents(base_path('may-help/travian-samples/dorf1.php.html'));
-    $dorf2Html = file_get_contents(base_path('may-help/travian-samples/dorf2.php.html'));
+    $loginHtml = file_get_contents(base_path('tests/Fixtures/travian-samples/login.html'));
+    $dorf1Html = file_get_contents(base_path('tests/Fixtures/travian-samples/dorf1.php.html'));
+    $dorf2Html = file_get_contents(base_path('tests/Fixtures/travian-samples/dorf2.php.html'));
 
     expect($loginHtml)->not->toBeFalse();
     expect($dorf1Html)->not->toBeFalse();
@@ -246,8 +246,8 @@ test('sync account overview preserves a paused account without reactivating it',
         'is_active' => false,
     ]);
 
-    $dorf1Html = file_get_contents(base_path('may-help/travian-samples/dorf1.php.html'));
-    $dorf2Html = file_get_contents(base_path('may-help/travian-samples/dorf2.php.html'));
+    $dorf1Html = file_get_contents(base_path('tests/Fixtures/travian-samples/dorf1.php.html'));
+    $dorf2Html = file_get_contents(base_path('tests/Fixtures/travian-samples/dorf2.php.html'));
 
     expect($dorf1Html)->not->toBeFalse();
     expect($dorf2Html)->not->toBeFalse();

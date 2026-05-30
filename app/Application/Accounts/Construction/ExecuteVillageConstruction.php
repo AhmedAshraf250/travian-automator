@@ -4,7 +4,11 @@ namespace App\Application\Accounts\Construction;
 
 use App\Application\Accounts\Session\Actions\TravianLoginAction;
 use App\Application\Accounts\Session\Contracts\AccountSession;
+use App\Application\Accounts\Session\Data\SessionResponse;
 use App\Application\Accounts\Sync\Data\ParsedConstructionQueueEntry;
+use App\Application\Accounts\Sync\Data\ParsedDorf1Overview;
+use App\Application\Accounts\Sync\Data\ParsedDorf2Overview;
+use App\Application\Accounts\Sync\Data\ParsedVillageSlot;
 use App\Application\Accounts\Sync\Parsers\Dorf1OverviewParser;
 use App\Application\Accounts\Sync\Parsers\Dorf2OverviewParser;
 use App\Application\Accounts\Sync\PersistVillageOverview;
@@ -64,7 +68,10 @@ class ExecuteVillageConstruction
                 return;
             }
 
-            $session->get($this->resolveVillageSwitchUri($village));
+            $session->get(
+                $this->resolveVillageSwitchUri($village),
+                $this->documentRequestOptions($this->absoluteUri((string) config('travian.paths.overview', '/dorf1.php'), $account)),
+            );
 
             $queueAvailability = $this->resolveQueueAvailability(
                 is_array($runtimeState->construction_entries) ? $runtimeState->construction_entries : [],
@@ -357,11 +364,14 @@ class ExecuteVillageConstruction
     {
         $slot = $candidate['slot'];
         $buildPageUri = (string) config('travian.paths.build', '/build.php')
-            .'?id='.(int) $slot->slot_id
-            .'&gid='.(int) $slot->building_gid;
-        $actionUri = $this->resolveActionUri($session, $buildPageUri);
+            .'?id='.(int) $slot->slot_id;
+        $resolvedAction = $this->resolveActionUri(
+            $session,
+            $buildPageUri,
+            $this->absoluteUri((string) config('travian.paths.overview', '/dorf1.php'), $account),
+        );
 
-        if ($actionUri === null) {
+        if ($resolvedAction === null) {
             return false;
         }
 
@@ -369,7 +379,7 @@ class ExecuteVillageConstruction
             account: $account,
             village: $village,
             session: $session,
-            actionUri: $actionUri,
+            actionUri: $resolvedAction['action_uri'],
             payload: [
                 'queue_kind' => 'field',
                 'slot_id' => (int) $slot->slot_id,
@@ -378,6 +388,7 @@ class ExecuteVillageConstruction
                 'current_level' => (int) $slot->current_level,
                 'target_level' => (int) $slot->current_level + 1,
                 'build_page_uri' => $buildPageUri,
+                'build_effective_uri' => $resolvedAction['build_effective_uri'],
                 'field_key' => $candidate['field_key'],
             ],
             successMessage: 'Field upgrade order issued successfully.',
@@ -416,9 +427,14 @@ class ExecuteVillageConstruction
             $buildPageUri .= '&category='.$buildCategory;
         }
 
-        $actionUri = $this->resolveActionUri($session, $buildPageUri, $candidate['mode'] === 'construct' ? $targetGid : null);
+        $resolvedAction = $this->resolveActionUri(
+            $session,
+            $buildPageUri,
+            $this->absoluteUri((string) config('travian.paths.village_center', '/dorf2.php'), $account),
+            $candidate['mode'] === 'construct' ? $targetGid : null,
+        );
 
-        if ($actionUri === null) {
+        if ($resolvedAction === null) {
             return false;
         }
 
@@ -426,16 +442,20 @@ class ExecuteVillageConstruction
             account: $account,
             village: $village,
             session: $session,
-            actionUri: $actionUri,
+            actionUri: $resolvedAction['action_uri'],
             payload: [
                 'queue_kind' => 'building',
                 'slot_id' => (int) $target->slot_id,
                 'building_gid' => $targetGid,
                 'building_name' => $target->building_type ?? TravianBuildingCatalog::nameForGid($targetGid),
                 'current_level' => (int) $currentSlot->current_level,
-                'target_level' => (int) $target->target_level,
+                'target_level' => $candidate['mode'] === 'construct'
+                    ? 1
+                    : (int) $currentSlot->current_level + 1,
+                'final_target_level' => (int) $target->target_level,
                 'mode' => $candidate['mode'],
                 'build_page_uri' => $buildPageUri,
+                'build_effective_uri' => $resolvedAction['build_effective_uri'],
             ],
             successMessage: $candidate['mode'] === 'construct'
                 ? 'Building construction order issued successfully.'
@@ -447,16 +467,31 @@ class ExecuteVillageConstruction
 
     /**
      * Resolve a clickable construction action URI from a build page.
+     *
+     * @return array{action_uri: string, build_effective_uri: string}|null
      */
-    protected function resolveActionUri(AccountSession $session, string $buildPageUri, ?int $targetGid = null): ?string
-    {
-        $response = $session->get($buildPageUri);
+    protected function resolveActionUri(
+        AccountSession $session,
+        string $buildPageUri,
+        string $referer,
+        ?int $targetGid = null,
+    ): ?array {
+        $response = $session->get($buildPageUri, $this->documentRequestOptions($referer));
 
         if (! $response->successful()) {
             return null;
         }
 
-        return $this->extractActionUriFromBuildPage($response->body, $targetGid);
+        $actionUri = $this->extractActionUriFromBuildPage($response->body, $targetGid);
+
+        if ($actionUri === null) {
+            return null;
+        }
+
+        return [
+            'action_uri' => $actionUri,
+            'build_effective_uri' => $response->effectiveUri,
+        ];
     }
 
     /**
@@ -519,13 +554,13 @@ class ExecuteVillageConstruction
         array $payload,
         string $successMessage,
     ): void {
-        $response = $session->get($actionUri);
+        $response = $session->get($actionUri, $this->documentRequestOptions($this->absoluteUri((string) ($payload['build_effective_uri'] ?? $payload['build_page_uri']), $account)));
 
         if (! $response->successful() || ! $this->travianLoginAction->isAuthenticatedHtml($response->body)) {
             throw new \RuntimeException('Travian rejected the construction action or returned an unauthenticated page.');
         }
 
-        $refreshResult = $this->refreshVillageSnapshot($village, $session, $payload);
+        $refreshResult = $this->refreshVillageSnapshot($account, $village, $session, $payload, $response);
         $payload = $refreshResult['payload'];
         $result = [
             'action_uri' => $actionUri,
@@ -554,13 +589,21 @@ class ExecuteVillageConstruction
      *     result: array<string, mixed>
      * }
      */
-    protected function refreshVillageSnapshot(Village $village, AccountSession $session, array $payload): array
-    {
+    protected function refreshVillageSnapshot(
+        Account $account,
+        Village $village,
+        AccountSession $session,
+        array $payload,
+        SessionResponse $actionResponse,
+    ): array {
         try {
-            $dorf1Response = $session->get((string) config('travian.paths.overview', '/dorf1.php'));
-            $dorf1Overview = $this->dorf1OverviewParser->parse($dorf1Response->body);
-            $dorf2Response = $session->get((string) config('travian.paths.village_center', '/dorf2.php'));
-            $dorf2Overview = $this->dorf2OverviewParser->parse($dorf2Response->body);
+            [$dorf1Overview, $dorf2Overview, $result] = $this->resolvePostBuildSnapshot(
+                account: $account,
+                village: $village,
+                session: $session,
+                payload: $payload,
+                actionResponse: $actionResponse,
+            );
 
             $this->persistVillageOverview->handle($village->fresh(), $dorf1Overview->activeVillage, $dorf1Overview, $dorf2Overview);
 
@@ -574,11 +617,7 @@ class ExecuteVillageConstruction
 
             return [
                 'payload' => $payload,
-                'result' => [
-                    'overview_refreshed' => true,
-                    'dorf1_effective_uri' => $dorf1Response->effectiveUri,
-                    'dorf2_effective_uri' => $dorf2Response->effectiveUri,
-                ],
+                'result' => $result,
             ];
         } catch (Throwable $throwable) {
             $this->recordFallbackConstructionState($village, $payload);
@@ -591,6 +630,147 @@ class ExecuteVillageConstruction
                 ],
             ];
         }
+    }
+
+    /**
+     * Resolve the smallest useful post-build snapshot from the final response first.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array{0: ParsedDorf1Overview, 1: ParsedDorf2Overview, 2: array<string, mixed>}
+     */
+    protected function resolvePostBuildSnapshot(
+        Account $account,
+        Village $village,
+        AccountSession $session,
+        array $payload,
+        SessionResponse $actionResponse,
+    ): array {
+        $queueKind = (string) ($payload['queue_kind'] ?? '');
+
+        if ($queueKind === 'field' && str_contains($actionResponse->body, 'body class="village1')) {
+            try {
+                $dorf1Overview = $this->dorf1OverviewParser->parse($actionResponse->body);
+
+                return [
+                    $dorf1Overview,
+                    $this->buildCurrentDorf2Overview($village),
+                    [
+                        'overview_refreshed' => true,
+                        'refresh_strategy' => 'action_response_dorf1',
+                        'dorf1_effective_uri' => $actionResponse->effectiveUri,
+                        'dorf2_effective_uri' => null,
+                    ],
+                ];
+            } catch (Throwable) {
+            }
+        }
+
+        if ($queueKind === 'building' && str_contains($actionResponse->body, 'body class="village2')) {
+            try {
+                $dorf2Overview = $this->dorf2OverviewParser->parse($actionResponse->body);
+                $dorf1Response = $session->get(
+                    (string) config('travian.paths.overview', '/dorf1.php'),
+                    $this->documentRequestOptions($actionResponse->effectiveUri),
+                );
+                $dorf1Overview = $this->dorf1OverviewParser->parse($dorf1Response->body);
+
+                return [
+                    $dorf1Overview,
+                    $dorf2Overview,
+                    [
+                        'overview_refreshed' => true,
+                        'refresh_strategy' => 'action_response_dorf2_plus_dorf1',
+                        'dorf1_effective_uri' => $dorf1Response->effectiveUri,
+                        'dorf2_effective_uri' => $actionResponse->effectiveUri,
+                    ],
+                ];
+            } catch (Throwable) {
+            }
+        }
+
+        $dorf1Response = $session->get(
+            (string) config('travian.paths.overview', '/dorf1.php'),
+            $this->documentRequestOptions($actionResponse->effectiveUri),
+        );
+        $dorf1Overview = $this->dorf1OverviewParser->parse($dorf1Response->body);
+        $dorf2Response = $session->get(
+            (string) config('travian.paths.village_center', '/dorf2.php'),
+            $this->documentRequestOptions($dorf1Response->effectiveUri),
+        );
+        $dorf2Overview = $this->dorf2OverviewParser->parse($dorf2Response->body);
+
+        return [
+            $dorf1Overview,
+            $dorf2Overview,
+            [
+                'overview_refreshed' => true,
+                'refresh_strategy' => 'fallback_full_refresh',
+                'dorf1_effective_uri' => $dorf1Response->effectiveUri,
+                'dorf2_effective_uri' => $dorf2Response->effectiveUri,
+            ],
+        ];
+    }
+
+    protected function buildCurrentDorf2Overview(Village $village): ParsedDorf2Overview
+    {
+        return new ParsedDorf2Overview(
+            buildingSlots: $village->buildings
+                ->filter(static fn (VillageBuilding $slot): bool => $slot->slot_id >= 19 && $slot->slot_id <= 40)
+                ->sortBy('slot_id')
+                ->map(static fn (VillageBuilding $slot): ParsedVillageSlot => new ParsedVillageSlot(
+                    slotId: (int) $slot->slot_id,
+                    buildingGid: (int) $slot->building_gid,
+                    buildingName: $slot->building_type,
+                    currentLevel: (int) $slot->current_level,
+                    kind: 'building',
+                    isEmpty: (int) $slot->building_gid === 0,
+                ))
+                ->values()
+                ->all(),
+        );
+    }
+
+    /**
+     * Build headers for top-level document navigation requests.
+     *
+     * @return array<string, mixed>
+     */
+    protected function documentRequestOptions(?string $referer = null): array
+    {
+        $headers = [
+            'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Cache-Control' => 'no-cache',
+            'Pragma' => 'no-cache',
+            'Sec-Fetch-Dest' => 'document',
+            'Sec-Fetch-Mode' => 'navigate',
+            'Sec-Fetch-Site' => 'same-origin',
+            'Sec-Fetch-User' => '?1',
+            'Upgrade-Insecure-Requests' => '1',
+        ];
+
+        if ($referer !== null && $referer !== '') {
+            $headers['Referer'] = $referer;
+        }
+
+        return [
+            'headers' => $headers,
+            'allow_redirects' => [
+                'max' => 5,
+                'strict' => false,
+                'referer' => true,
+                'protocols' => ['http', 'https'],
+                'track_redirects' => false,
+            ],
+        ];
+    }
+
+    protected function absoluteUri(string $uri, Account $account): string
+    {
+        if (preg_match('/^https?:\/\//i', $uri) === 1) {
+            return $uri;
+        }
+
+        return rtrim($account->server_url, '/').'/'.ltrim($uri, '/');
     }
 
     /**

@@ -1,0 +1,176 @@
+<?php
+
+namespace App\Jobs;
+
+use App\Application\Accounts\Automation\PlanNextAccountAutomation;
+use App\Application\Accounts\Construction\RunAccountAutomation;
+use App\Application\Accounts\Sync\SyncAccountOverview;
+use App\Enums\AccountStatus;
+use App\Enums\ActivityLogStatus;
+use App\Enums\ActivityType;
+use App\Models\Account;
+use App\Models\ActivityLog;
+use App\Models\SystemSetting;
+use App\Models\Village;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
+use Throwable;
+
+/**
+ * Runs one smart automation cycle for a single account.
+ *
+ * Dispatching this job is separate from importing, manual sync buttons, and
+ * scheduler timing. When it runs, it trusts the local snapshot if it is fresh
+ * enough, and performs a sync first only when that snapshot is stale.
+ */
+class RunTravianAutomationJob implements ShouldBeUnique, ShouldQueue
+{
+    use Queueable;
+
+    /**
+     * The maximum number of attempts for the job.
+     */
+    public int $tries = 2;
+
+    /**
+     * Keep duplicate account automation jobs out while one is pending or running.
+     */
+    public int $uniqueFor = 1800;
+
+    /**
+     * Create a new job instance.
+     *
+     * $syncWhenStale controls whether the job should refresh old local data
+     * before deciding what action, if any, should happen for this account.
+     */
+    public function __construct(
+        public int $accountId,
+        public ?int $villageId = null,
+        public bool $syncWhenStale = true,
+    ) {}
+
+    /**
+     * Identify duplicate automation jobs by account.
+     */
+    public function uniqueId(): string
+    {
+        return (string) $this->accountId;
+    }
+
+    /**
+     * Prevent two workers from automating the same account at the same time.
+     *
+     * @return list<object>
+     */
+    public function middleware(): array
+    {
+        return [
+            (new WithoutOverlapping("travian-account:{$this->accountId}"))
+                ->expireAfter(1800),
+        ];
+    }
+
+    /**
+     * Execute the job.
+     */
+    public function handle(
+        SyncAccountOverview $syncAccountOverview,
+        RunAccountAutomation $runAccountAutomation,
+        PlanNextAccountAutomation $planNextAccountAutomation,
+    ): void {
+        $account = Account::query()->findOrFail($this->accountId);
+        $village = $this->villageId !== null
+            ? Village::query()->where('account_id', $account->id)->findOrFail($this->villageId)
+            : null;
+
+        if (! SystemSetting::automationEnabled() || ! $account->is_active || $account->is_archived) {
+            return;
+        }
+
+        ActivityLog::query()->create([
+            'account_id' => $account->id,
+            'village_id' => $village?->id,
+            'activity_type' => ActivityType::Build,
+            'status' => ActivityLogStatus::Running,
+            'message' => $village instanceof Village
+                ? 'Smart village automation job started.'
+                : 'Smart account automation job started.',
+            'executed_at' => now(),
+        ]);
+
+        if ($this->syncWhenStale && $this->snapshotIsStale($account, $village)) {
+            $syncAccountOverview->handle($account, $village);
+        }
+
+        $runAccountAutomation->handle($account->fresh(), $this->villageId);
+
+        if ($this->villageId === null) {
+            $freshAccount = Account::query()
+                ->with('villages.runtimeState')
+                ->findOrFail($account->id);
+
+            $freshAccount->forceFill([
+                'next_automation_at' => $planNextAccountAutomation->handle($freshAccount),
+            ])->save();
+        }
+    }
+
+    /**
+     * Handle a job failure.
+     */
+    public function failed(?Throwable $throwable): void
+    {
+        $account = Account::query()->find($this->accountId);
+
+        if ($account === null) {
+            return;
+        }
+
+        $account->forceFill([
+            'status' => AccountStatus::Error,
+            'last_error_at' => now(),
+            'last_error_message' => $throwable?->getMessage(),
+        ])->save();
+
+        ActivityLog::query()->create([
+            'account_id' => $account->id,
+            'village_id' => $this->villageId,
+            'activity_type' => ActivityType::Build,
+            'status' => ActivityLogStatus::Failed,
+            'message' => $throwable?->getMessage() ?? 'Smart automation job failed.',
+            'executed_at' => now(),
+        ]);
+    }
+
+    /**
+     * Decide whether the stored account or village snapshot is too old to use.
+     *
+     * Account-level cycles also inspect active villages, because syncing one
+     * village can refresh the parent account timestamp while other villages are
+     * still old.
+     */
+    protected function snapshotIsStale(Account $account, ?Village $village): bool
+    {
+        $staleAfterMinutes = (int) config('travian.automation.snapshot_stale_minutes', 10);
+        $freshAfter = now()->subMinutes(max(1, $staleAfterMinutes));
+
+        if ($village instanceof Village) {
+            return $village->last_sync_at === null || $village->last_sync_at->lessThan($freshAfter);
+        }
+
+        if ($account->last_sync_at === null || $account->last_sync_at->lessThan($freshAfter)) {
+            return true;
+        }
+
+        return $account->villages()
+            ->where('is_active', true)
+            ->where(function ($query) use ($freshAfter): void {
+                $query
+                    ->whereNull('last_sync_at')
+                    ->orWhere('last_sync_at', '<', $freshAfter);
+            })
+            ->exists();
+    }
+}
