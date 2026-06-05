@@ -106,7 +106,7 @@
                             <div>
                                 <h3 class="font-semibold text-[var(--color-ink)]">Trading</h3>
                                 <p class="text-xs leading-5 text-[var(--color-muted)]">
-                                    Resource transfer rules use this village as a supplier only when sending is allowed.
+                                    Supplier rules for automatic top-ups between villages.
                                 </p>
                             </div>
 
@@ -115,6 +115,36 @@
                                 <input type="checkbox" wire:model.live="villageSendResourcesDraft"
                                     class="h-3.5 w-3.5 rounded border-[var(--color-line-strong)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]" />
                                 Allow sending resources
+                            </label>
+                        </div>
+
+                        <div class="mt-4 grid gap-3 md:grid-cols-2">
+                            <label class="grid gap-1 text-sm">
+                                <span class="font-medium text-[var(--color-ink)]">Minimum stock before sending</span>
+                                <div class="flex items-center overflow-hidden rounded-xl border border-[var(--color-line-strong)] bg-[var(--color-panel)] focus-within:border-[var(--color-accent)]">
+                                    <input type="number" min="0" max="100"
+                                        wire:model.live="villageSendMinResourcePercentageDraft"
+                                        @disabled(! $villageSendResourcesDraft)
+                                        class="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-sm text-[var(--color-ink)] outline-none disabled:opacity-50 focus:ring-0" />
+                                    <span class="shrink-0 px-3 text-xs font-semibold text-[var(--color-muted)]">%</span>
+                                </div>
+                                @error('villageSendMinResourcePercentageDraft')
+                                    <span class="text-[11px] font-medium text-red-700">{{ $message }}</span>
+                                @enderror
+                            </label>
+
+                            <label class="grid gap-1 text-sm">
+                                <span class="font-medium text-[var(--color-ink)]">Reserve after sending</span>
+                                <div class="flex items-center overflow-hidden rounded-xl border border-[var(--color-line-strong)] bg-[var(--color-panel)] focus-within:border-[var(--color-accent)]">
+                                    <input type="number" min="0" max="100"
+                                        wire:model.live="villageSendReserveResourcePercentageDraft"
+                                        @disabled(! $villageSendResourcesDraft)
+                                        class="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-sm text-[var(--color-ink)] outline-none disabled:opacity-50 focus:ring-0" />
+                                    <span class="shrink-0 px-3 text-xs font-semibold text-[var(--color-muted)]">%</span>
+                                </div>
+                                @error('villageSendReserveResourcePercentageDraft')
+                                    <span class="text-[11px] font-medium text-red-700">{{ $message }}</span>
+                                @enderror
                             </label>
                         </div>
                     </section>

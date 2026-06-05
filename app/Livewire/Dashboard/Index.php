@@ -205,6 +205,16 @@ class Index extends Component
     public bool $villageSendResourcesDraft = true;
 
     /**
+     * Stores the minimum stock percentage required before the edited village can send one resource.
+     */
+    public int $villageSendMinResourcePercentageDraft = 30;
+
+    /**
+     * Stores the stock percentage the edited village keeps after sending resources.
+     */
+    public int $villageSendReserveResourcePercentageDraft = 10;
+
+    /**
      * Stores whether celebration automation is enabled for the edited village.
      */
     public bool $villageCelebrationEnabledDraft = false;
@@ -428,6 +438,8 @@ class Index extends Component
         $this->villageBuildingsAutomationDraft = ! (bool) $settings->pause_buildings;
         $this->villageInheritProgramPriorityDraft = (bool) $settings->inherit_from_account;
         $this->villageSendResourcesDraft = (bool) $settings->send_enabled;
+        $this->villageSendMinResourcePercentageDraft = max(0, min(100, (int) ($settings->send_min_resource_percentage ?? 30)));
+        $this->villageSendReserveResourcePercentageDraft = max(0, min(100, (int) ($settings->send_reserve_resource_percentage ?? 10)));
         $this->villageCelebrationEnabledDraft = (bool) $settings->celebration_enabled;
         $this->villageCelebrationTypeDraft = ($settings->celebration_type instanceof VillageCelebrationType
             ? $settings->celebration_type
@@ -481,6 +493,8 @@ class Index extends Component
             'villageBuildingsAutomationDraft' => ['boolean'],
             'villageInheritProgramPriorityDraft' => ['boolean'],
             'villageSendResourcesDraft' => ['boolean'],
+            'villageSendMinResourcePercentageDraft' => ['required', 'integer', 'min:0', 'max:100'],
+            'villageSendReserveResourcePercentageDraft' => ['required', 'integer', 'min:0', 'max:100'],
             'villageCelebrationEnabledDraft' => ['boolean'],
             'villageCelebrationTypeDraft' => ['required', 'string', 'in:auto,small,great'],
             'villageCelebrationMinimumCulturePointsDraft' => ['required', 'integer', 'min:0', 'max:2000'],
@@ -517,6 +531,8 @@ class Index extends Component
             'pause_fields' => ! $this->villageFieldsAutomationDraft,
             'pause_buildings' => ! $this->villageBuildingsAutomationDraft,
             'send_enabled' => $this->villageSendResourcesDraft,
+            'send_min_resource_percentage' => max(0, min(100, (int) $this->villageSendMinResourcePercentageDraft)),
+            'send_reserve_resource_percentage' => max(0, min(100, (int) $this->villageSendReserveResourcePercentageDraft)),
             'celebration_enabled' => $this->villageCelebrationEnabledDraft,
             'celebration_type' => VillageCelebrationType::from($this->villageCelebrationTypeDraft),
             'celebration_min_culture_points' => $this->villageCelebrationMinimumCulturePointsDraft,
@@ -1261,6 +1277,8 @@ class Index extends Component
         $this->villageBuildingsAutomationDraft = true;
         $this->villageInheritProgramPriorityDraft = true;
         $this->villageSendResourcesDraft = true;
+        $this->villageSendMinResourcePercentageDraft = 30;
+        $this->villageSendReserveResourcePercentageDraft = 10;
         $this->villageCelebrationEnabledDraft = false;
         $this->villageCelebrationTypeDraft = VillageSetting::defaultCelebrationType()->value;
         $this->villageCelebrationMinimumCulturePointsDraft = VillageSetting::defaultCelebrationMinCulturePoints();
