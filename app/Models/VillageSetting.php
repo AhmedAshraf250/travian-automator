@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\VillageCelebrationType;
 use App\Enums\VillageTradeMode;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
@@ -17,10 +18,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'pause_buildings',
     'pause_fields',
     'trade_mode',
+    'prioritize_crop_fields_when_negative',
     'support_enabled',
     'send_enabled',
     'troop_training_enabled',
     'celebration_enabled',
+    'celebration_type',
+    'celebration_min_culture_points',
 ])]
 class VillageSetting extends Model
 {
@@ -31,12 +35,23 @@ class VillageSetting extends Model
      */
     public static function defaultFieldPriority(): array
     {
-        return [
-            'wood' => 1,
-            'clay' => 2,
-            'iron' => 3,
-            'crop' => 4,
-        ];
+        return SystemSetting::defaultFieldPriority();
+    }
+
+    /**
+     * Return the default celebration selection mode.
+     */
+    public static function defaultCelebrationType(): VillageCelebrationType
+    {
+        return VillageCelebrationType::Auto;
+    }
+
+    /**
+     * Return the default minimum celebration culture-points threshold.
+     */
+    public static function defaultCelebrationMinCulturePoints(): int
+    {
+        return 200;
     }
 
     /**
@@ -52,10 +67,13 @@ class VillageSetting extends Model
             'pause_buildings' => 'boolean',
             'pause_fields' => 'boolean',
             'trade_mode' => VillageTradeMode::class,
+            'prioritize_crop_fields_when_negative' => 'boolean',
             'support_enabled' => 'boolean',
             'send_enabled' => 'boolean',
             'troop_training_enabled' => 'boolean',
             'celebration_enabled' => 'boolean',
+            'celebration_type' => VillageCelebrationType::class,
+            'celebration_min_culture_points' => 'integer',
         ];
     }
 

@@ -28,7 +28,7 @@ class DispatchDueAccountAutomation
 
         $now = now();
         $query = Account::query()
-            ->with('villages.runtimeState')
+            ->with('settings', 'heroState', 'villages.runtimeState')
             ->where('is_active', true)
             ->where('is_archived', false)
             ->when(

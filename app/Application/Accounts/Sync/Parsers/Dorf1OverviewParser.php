@@ -2,6 +2,7 @@
 
 namespace App\Application\Accounts\Sync\Parsers;
 
+use App\Application\Accounts\Hero\Parsers\HeroTopBarParser;
 use App\Application\Accounts\Sync\Data\ParsedConstructionQueueEntry;
 use App\Application\Accounts\Sync\Data\ParsedDorf1Overview;
 use App\Application\Accounts\Sync\Data\ParsedVillageMovementEntry;
@@ -205,6 +206,7 @@ class Dorf1OverviewParser
             $movementEntries,
         ));
         [$heroStatus, $heroRemainingSeconds] = $this->parseHeroStatus($xpath);
+        $heroState = app(HeroTopBarParser::class)->parse($html);
 
         return new ParsedVillageRuntimeState(
             tribeId: $tribeId,
@@ -220,6 +222,7 @@ class Dorf1OverviewParser
             heroStatus: $heroStatus,
             heroRemainingSeconds: $heroRemainingSeconds,
             serverReportedAt: $this->parseServerReportedAt($html),
+            heroState: $heroState,
         );
     }
 

@@ -22,8 +22,8 @@ use Throwable;
  * Runs one smart automation cycle for a single account.
  *
  * Dispatching this job is separate from importing, manual sync buttons, and
- * scheduler timing. When it runs, it trusts the local snapshot if it is fresh
- * enough, and performs a sync first only when that snapshot is stale.
+ * scheduler timing. When it runs, it trusts complete local snapshots and
+ * performs a sync first only when required data is missing or timers elapsed.
  */
 class RunTravianAutomationJob implements ShouldBeUnique, ShouldQueue
 {
@@ -68,6 +68,8 @@ class RunTravianAutomationJob implements ShouldBeUnique, ShouldQueue
     {
         return [
             (new WithoutOverlapping("travian-account:{$this->accountId}"))
+                ->shared()
+                ->releaseAfter(30)
                 ->expireAfter(1800),
         ];
     }
@@ -108,7 +110,7 @@ class RunTravianAutomationJob implements ShouldBeUnique, ShouldQueue
 
         if ($this->villageId === null) {
             $freshAccount = Account::query()
-                ->with('villages.runtimeState')
+                ->with('settings', 'heroState', 'villages.runtimeState')
                 ->findOrFail($account->id);
 
             $freshAccount->forceFill([
@@ -145,32 +147,65 @@ class RunTravianAutomationJob implements ShouldBeUnique, ShouldQueue
     }
 
     /**
-     * Decide whether the stored account or village snapshot is too old to use.
+     * Decide whether the stored account or village snapshot is too incomplete to use.
      *
-     * Account-level cycles also inspect active villages, because syncing one
-     * village can refresh the parent account timestamp while other villages are
-     * still old.
+     * Automation should avoid fixed dorf1/dorf2 refreshes merely because time
+     * passed. It refreshes before running only when required data is missing or
+     * a saved construction timer has elapsed and needs confirmation.
      */
     protected function snapshotIsStale(Account $account, ?Village $village): bool
     {
-        $staleAfterMinutes = (int) config('travian.automation.snapshot_stale_minutes', 10);
-        $freshAfter = now()->subMinutes(max(1, $staleAfterMinutes));
-
         if ($village instanceof Village) {
-            return $village->last_sync_at === null || $village->last_sync_at->lessThan($freshAfter);
+            $village->loadMissing('runtimeState', 'resourceState');
+
+            return $this->villageSnapshotIsMissing($village)
+                || $this->hasElapsedConstructionTimer($village);
         }
 
-        if ($account->last_sync_at === null || $account->last_sync_at->lessThan($freshAfter)) {
+        if ($account->last_sync_at === null || ! $account->villages()->where('is_active', true)->exists()) {
             return true;
         }
 
         return $account->villages()
+            ->with('runtimeState', 'resourceState')
             ->where('is_active', true)
-            ->where(function ($query) use ($freshAfter): void {
-                $query
-                    ->whereNull('last_sync_at')
-                    ->orWhere('last_sync_at', '<', $freshAfter);
-            })
-            ->exists();
+            ->get()
+            ->contains(function (Village $village): bool {
+                return $this->villageSnapshotIsMissing($village)
+                    || $this->hasElapsedConstructionTimer($village);
+            });
+    }
+
+    /**
+     * Determine whether core village data needed for automation is missing.
+     */
+    protected function villageSnapshotIsMissing(Village $village): bool
+    {
+        return $village->last_sync_at === null
+            || $village->runtimeState === null
+            || $village->resourceState === null;
+    }
+
+    /**
+     * Treat completed stored build timers as stale, because levels/resources
+     * only become trustworthy after opening the village again.
+     */
+    protected function hasElapsedConstructionTimer(Village $village): bool
+    {
+        $runtimeState = $village->runtimeState;
+
+        if ($runtimeState === null || $runtimeState->server_reported_at === null) {
+            return false;
+        }
+
+        $elapsedSeconds = max(0, now()->getTimestamp() - $runtimeState->server_reported_at->getTimestamp());
+
+        foreach ($runtimeState->construction_entries ?? [] as $entry) {
+            if (isset($entry['remaining_seconds']) && (int) $entry['remaining_seconds'] <= $elapsedSeconds) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

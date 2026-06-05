@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html
+    id="mainLayout"
+    lang="ar-AE"
+    style="--readingDirection: rtl; --readingDirectionFrom: right; --readingDirectionTo: left; --scaleXFactor: -1;"
+>
+	<head>
+		<title>Arabics 7</title>
+<meta charset="" />
+<meta name="viewport" content="width=device-width"/>
+<meta name="theme-color" content="#F4EFE4" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png"/>
+<link href="https://cdn.legends.travian.com/gpack/467.7/css_rtl/imports_compressed.css" rel="stylesheet" type="text/css" />
+<script type="application/javascript" src="https://cdn.legends.travian.com/gpack/467.7/js/jquery-4.0.0.min.js"></script>
+<script type="application/javascript" src="https://cdn.legends.travian.com/gpack/467.7/js/jquery.md5.min.js"></script>
+<script type="application/javascript" src="https://cdn.legends.travian.com/gpack/467.7/js/d3/d3.min.js"></script>
+<script type="application/javascript" src="https://cdn.legends.travian.com/gpack/467.7/js/d3/d3pie.min.js"></script>
+<script type="application/javascript" src="https://cdn.legends.travian.com/gpack/467.7/js/ChartJs/Chart.min.js"></script>
+<script type="application/javascript" src="https://cdn.legends.travian.com/gpack/467.7/js/gsap/TweenMax.min.js"></script>
+<script type="application/javascript" src="https://cdn.legends.travian.com/gpack/467.7/js/gsap/plugins/MorphSVGPlugin.min.js"></script>
+<script type="application/javascript" src="https://cdn.legends.travian.com/gpack/467.7/js/simplebar.min.js"></script>
+<script type="application/javascript" src="https://cdn.legends.travian.com/gpack/467.7/js/popper.min.js"></script>
+<script type="application/javascript" src="https://cdn.legends.travian.com/gpack/467.7/js/tippy.min.js"></script>
+<script type="application/javascript" src="https://cdn.legends.travian.com/gpack/467.7/js/PixiJS/pixi.min.js"></script>
+<script type="application/javascript" src="https://cdn.legends.travian.com/gpack/467.7/js/deepmerge.js"></script>
+<script type="application/javascript">window.Travian = {};</script>
+<script type="application/javascript" src="/js/Constants.js"></script>
+<script type="application/javascript" src="/js/Variables.js?467.7"></script>
+<script type="application/javascript" src="/js/ar-AE/Strings.js?467.7"></script>
+<script defer type='application/javascript' src='https://cdn.legends.travian.com/gpack/467.7/js/bundle/vendor.js'></script>
+<script defer type='application/javascript' src='https://cdn.legends.travian.com/gpack/467.7/js/bundle/runtime.js'></script>
+<script defer type='application/javascript' src='https://cdn.legends.travian.com/gpack/467.7/js/bundle/main.js'></script>
+<script type="application/javascript" src="https://cdn.legends.travian.com/gpack/467.7/js/bundle/crypt.js"></script>
+<script type="application/javascript">
+    Travian.Game.language = "ar-AE";
+    Travian.Game.timestamp = 1780163189;
+    Travian.Game.timeZone = "Europe/London";
+    Travian.Game.timezoneOffsetToUTC = -3600;
+    Travian.Game.timeFormat = 0;
+</script>
+<script type="application/javascript">
+    Travian.Game.Preferences.initialize({"auctionsBuy_viewGroupedByItemType":"true","auctionsOverviewSold_listLayout":"compact","auctionsOverviewSold_showMore":"true","entriesPerPage":"10","flagAttributesBoxOpen":"1","marketplaceOffersPerPage":"10","minimap-expanded":"false","ongoingSellList_listLayout":"compact","troopMovementsPerPage":"10"});
+</script>
+	</head>
+	<body class="village1 rtl mobileOptimized"
+        data-browser="chrome" data-browser-engine="blink" data-theme="default" data-language="ar-AE" data-village-perspective="perspectiveResources"     >
+        <script>window.cmp_minimaltracking=true;window.cmp_disable_spa=true;window.cmp_noscreen=true;</script><script>window.gdprAppliesGlobally=true;if(!("cmp_id" in window)||window.cmp_id<1){window.cmp_id=0}if(!("cmp_cdid" in window)){window.cmp_cdid="40dcf06677fd"}if(!("cmp_params" in window)){window.cmp_params=""}if(!("cmp_host" in window)){window.cmp_host="d.delivery.consentmanager.net"}if(!("cmp_cdn" in window)){window.cmp_cdn="cdn.consentmanager.net"}if(!("cmp_proto" in window)){window.cmp_proto="https:"}if(!("cmp_codesrc" in window)){window.cmp_codesrc="1"}window.cmp_getsupportedLangs=function(){var b=["DE","EN","FR","IT","NO","DA","FI","ES","PT","RO","BG","ET","EL","GA","HR","LV","LT","MT","NL","PL","SV","SK","SL","CS","HU","RU","SR","ZH","TR","UK","AR","BS"];if("cmp_customlanguages" in window){for(var a=0;a<window.cmp_customlanguages.length;a++){b.push(window.cmp_customlanguages[a].l.toUpperCase())}}return b};window.cmp_getRTLLangs=function(){var a=["AR"];if("cmp_customlanguages" in window){for(var b=0;b<window.cmp_customlanguages.length;b++){if("r" in window.cmp_customlanguages[b]&&window.cmp_customlanguages[b].r){a.push(window.cmp_customlanguages[b].l)}}}return a};window.cmp_getlang=function(j){if(typeof(j)!="boolean"){j=true}if(j&&typeof(cmp_getlang.usedlang)=="string"&&cmp_getlang.usedlang!==""){return cmp_getlang.usedlang}var g=window.cmp_getsupportedLangs();var c=[];var f=location.hash;var e=location.search;var a="languages" in navigator?navigator.languages:[];if(f.indexOf("cmplang=")!=-1){c.push(f.substr(f.indexOf("cmplang=")+8,2).toUpperCase())}else{if(e.indexOf("cmplang=")!=-1){c.push(e.substr(e.indexOf("cmplang=")+8,2).toUpperCase())}else{if("cmp_setlang" in window&&window.cmp_setlang!=""){c.push(window.cmp_setlang.toUpperCase())}else{if(a.length>0){for(var d=0;d<a.length;d++){c.push(a[d])}}}}}if("language" in navigator){c.push(navigator.language)}if("userLanguage" in navigator){c.push(navigator.userLanguage)}var h="";for(var d=0;d<c.length;d++){var b=c[d].toUpperCase();if(g.indexOf(b)!=-1){h=b;break}if(b.indexOf("-")!=-1){b=b.substr(0,2)}if(g.indexOf(b)!=-1){h=b;break}}if(h==""&&typeof(cmp_getlang.defaultlang)=="string"&&cmp_getlang.defaultlang!==""){return cmp_getlang.defaultlang}else{if(h==""){h="EN"}}h=h.toUpperCase();return h};(function(){var i=document;var b=window;var a="";var g="_en";if("cmp_getlang" in b){a=b.cmp_getlang().toLowerCase();g="_"+a}var f=("cmp_proto" in b)?b.cmp_proto:"https:";if(f!="http:"&&f!="https:"){f="https:"}var c=i.createElement("script");c.setAttribute("data-cmp-ab","1");c.src=f+"//"+b.cmp_cdn+"/delivery/autocdn/cmp-web."+("cmp_id" in b&&b.cmp_id>0?b.cmp_id:"")+("cmp_cdid" in b?"x"+b.cmp_cdid:"")+"."+a.replace("_","").toLowerCase()+".js";c.type="text/javascript";c.async=true;if(i.body){i.body.appendChild(c)}else{if(i.currentScript&&i.currentScript.parentElement){i.currentScript.parentElement.appendChild(c)}else{var h=i.getElementsByTagName("body");if(h.length==0){h=i.getElementsByTagName("div")}if(h.length==0){h=i.getElementsByTagName("span")}if(h.length==0){h=i.getElementsByTagName("ins")}if(h.length==0){h=i.getElementsByTagName("script")}if(h.length==0){h=i.getElementsByTagName("head")}if(h.length>0){h[0].appendChild(c)}}}var c=i.createElement("script");c.src=f+"//"+b.cmp_cdn+"/delivery/js/cmp"+g+".min.js";c.type="text/javascript";c.setAttribute("data-cmp-ab","1");c.async=true;if(i.body){i.body.appendChild(c)}else{if(i.currentScript&&i.currentScript.parentElement){i.currentScript.parentElement.appendChild(c)}else{var h=i.getElementsByTagName("body");if(h.length==0){h=i.getElementsByTagName("div")}if(h.length==0){h=i.getElementsByTagName("span")}if(h.length==0){h=i.getElementsByTagName("ins")}if(h.length==0){h=i.getElementsByTagName("script")}if(h.length==0){h=i.getElementsByTagName("head")}if(h.length>0){h[0].appendChild(c)}}}})();window.cmp_addFrame=function(b){if(!window.frames[b]){if(document.body){var a=document.createElement("iframe");a.style.cssText="display:none";if("cmp_cdn" in window&&"cmp_ultrablocking" in window&&window.cmp_ultrablocking>0){a.src="//"+window.cmp_cdn+"/delivery/empty.html"}a.name=b;document.body.appendChild(a)}else{window.setTimeout(window.cmp_addFrame,10,b)}}};window.cmp_rc=function(h){var b=document.cookie;var f="";var d=0;while(b!=""&&d<100){d++;while(b.substr(0,1)==" "){b=b.substr(1,b.length)}var g=b.substring(0,b.indexOf("="));if(b.indexOf(";")!=-1){var c=b.substring(b.indexOf("=")+1,b.indexOf(";"))}else{var c=b.substr(b.indexOf("=")+1,b.length)}if(h==g){f=c}var e=b.indexOf(";")+1;if(e==0){e=b.length}b=b.substring(e,b.length)}return(f)};window.cmp_stub=function(){var a=arguments;__cmp.a=__cmp.a||[];if(!a.length){return __cmp.a}else{if(a[0]==="ping"){if(a[1]===2){a[2]({gdprApplies:gdprAppliesGlobally,cmpLoaded:false,cmpStatus:"stub",displayStatus:"hidden",apiVersion:"2.0",cmpId:31},true)}else{a[2](false,true)}}else{if(a[0]==="getUSPData"){a[2]({version:1,uspString:window.cmp_rc("")},true)}else{if(a[0]==="getTCData"){__cmp.a.push([].slice.apply(a))}else{if(a[0]==="addEventListener"||a[0]==="removeEventListener"){__cmp.a.push([].slice.apply(a))}else{if(a.length==4&&a[3]===false){a[2]({},false)}else{__cmp.a.push([].slice.apply(a))}}}}}}};window.cmp_gpp_ping=function(){return{gppVersion:"1.0",cmpStatus:"stub",cmpDisplayStatus:"hidden",supportedAPIs:["tcfca","usnat","usca","usva","usco","usut","usct"],cmpId:31}};window.cmp_gppstub=function(){var a=arguments;__gpp.q=__gpp.q||[];if(!a.length){return __gpp.q}var g=a[0];var f=a.length>1?a[1]:null;var e=a.length>2?a[2]:null;if(g==="ping"){return window.cmp_gpp_ping()}else{if(g==="addEventListener"){__gpp.e=__gpp.e||[];if(!("lastId" in __gpp)){__gpp.lastId=0}__gpp.lastId++;var c=__gpp.lastId;__gpp.e.push({id:c,callback:f});return{eventName:"listenerRegistered",listenerId:c,data:true,pingData:window.cmp_gpp_ping()}}else{if(g==="removeEventListener"){var h=false;__gpp.e=__gpp.e||[];for(var d=0;d<__gpp.e.length;d++){if(__gpp.e[d].id==e){__gpp.e[d].splice(d,1);h=true;break}}return{eventName:"listenerRemoved",listenerId:e,data:h,pingData:window.cmp_gpp_ping()}}else{if(g==="getGPPData"){return{sectionId:3,gppVersion:1,sectionList:[],applicableSections:[0],gppString:"",pingData:window.cmp_gpp_ping()}}else{if(g==="hasSection"||g==="getSection"||g==="getField"){return null}else{__gpp.q.push([].slice.apply(a))}}}}}};window.cmp_msghandler=function(d){var a=typeof d.data==="string";try{var c=a?JSON.parse(d.data):d.data}catch(f){var c=null}if(typeof(c)==="object"&&c!==null&&"__cmpCall" in c){var b=c.__cmpCall;window.__cmp(b.command,b.parameter,function(h,g){var e={__cmpReturn:{returnValue:h,success:g,callId:b.callId}};d.source.postMessage(a?JSON.stringify(e):e,"*")})}if(typeof(c)==="object"&&c!==null&&"__uspapiCall" in c){var b=c.__uspapiCall;window.__uspapi(b.command,b.version,function(h,g){var e={__uspapiReturn:{returnValue:h,success:g,callId:b.callId}};d.source.postMessage(a?JSON.stringify(e):e,"*")})}if(typeof(c)==="object"&&c!==null&&"__tcfapiCall" in c){var b=c.__tcfapiCall;window.__tcfapi(b.command,b.version,function(h,g){var e={__tcfapiReturn:{returnValue:h,success:g,callId:b.callId}};d.source.postMessage(a?JSON.stringify(e):e,"*")},b.parameter)}if(typeof(c)==="object"&&c!==null&&"__gppCall" in c){var b=c.__gppCall;window.__gpp(b.command,function(h,g){var e={__gppReturn:{returnValue:h,success:g,callId:b.callId}};d.source.postMessage(a?JSON.stringify(e):e,"*")},"parameter" in b?b.parameter:null,"version" in b?b.version:1)}};window.cmp_setStub=function(a){if(!(a in window)||(typeof(window[a])!=="function"&&typeof(window[a])!=="object"&&(typeof(window[a])==="undefined"||window[a]!==null))){window[a]=window.cmp_stub;window[a].msgHandler=window.cmp_msghandler;window.addEventListener("message",window.cmp_msghandler,false)}};window.cmp_setGppStub=function(a){if(!(a in window)||(typeof(window[a])!=="function"&&typeof(window[a])!=="object"&&(typeof(window[a])==="undefined"||window[a]!==null))){window[a]=window.cmp_gppstub;window[a].msgHandler=window.cmp_msghandler;window.addEventListener("message",window.cmp_msghandler,false)}};window.cmp_addFrame("__cmpLocator");if(!("cmp_disableusp" in window)||!window.cmp_disableusp){window.cmp_addFrame("__uspapiLocator")}if(!("cmp_disabletcf" in window)||!window.cmp_disabletcf){window.cmp_addFrame("__tcfapiLocator")}if(!("cmp_disablegpp" in window)||!window.cmp_disablegpp){window.cmp_addFrame("__gppLocator")}window.cmp_setStub("__cmp");if(!("cmp_disabletcf" in window)||!window.cmp_disabletcf){window.cmp_setStub("__tcfapi")}if(!("cmp_disableusp" in window)||!window.cmp_disableusp){window.cmp_setStub("__uspapi")}if(!("cmp_disablegpp" in window)||!window.cmp_disablegpp){window.cmp_setGppStub("__gpp")};</script>        <div id="reactPortalRoot"></div>
+        <div id="reactDialogWrapper"></div>
+
+		<div id="background" class=" ">
+			<div id="topBar">
+    <a id="logo" href="https://www.travian.com/ae" target="_blank" title="ترافيان">
+		<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 172.7 60">
+  <path d="M52.9 34.4c-.2-.3-.3-.7-.3-1.3 0-.8-.1-1.2-.1-1.3l-.1-3.9.1-6.6c0-1.1.1-2.2.1-3.3.1-1.5.2-2.4.3-2.8.1 0 .3 0 .6-.1h.4c2.6 0 4.1.3 4.4.8.1.1.1.4.3.8.1.4.2.5.2.5s.1 0 .2-.1V17c0-.4.1-.9.2-1.4.2-.5.3-1 .5-1.6l-.4-.1c-.9.2-1.9.4-3.1.4h-5l-6.5-.3c-.3 0-.5.4-.8 1.2-.1.5-.3 1-.4 1.4-.2.5-.3.8-.3.8v.2h.2c.1-.4.3-.7.6-1 .3-.3.6-.5.9-.6.3-.1.9-.2 2.1-.4 1.3-.2 2.1-.3 2.5-.3.3 0 .4 1.5.4 4.5l-.1 8.6c-.1 2.2-.3 3.7-.3 4.6-.1.9-.2 1.5-.4 1.8-.1.1-.2.2-.4.2-.2.1-.3.2-.3.3l.5.1c.2-.1.4-.1.5-.1 1.1-.1 1.8-.2 1.9-.2l2.8.2c.2 0 .3-.1.4-.2 0 0-.3-.1-.8-.2-.4-.2-.7-.3-.8-.5zm19.7-.1c.6.7 1.4 1 2.3 1h.9c1.2-.1 1.8-.2 1.9-.3-.1 0-.4-.1-.8-.3-.2-.1-.5-.2-.6-.4-.5-.4-1.1-1.2-1.7-2.2-.5-.9-1-1.8-1.4-2.7-.3-.5-.7-1.3-1.4-2.4-.4-.8-.7-1.2-.7-1.2 0-.1.4-.5 1-1.1.7-.7 1.3-1.4 1.6-2.1.6-1 .9-2.2.9-3.4 0-1.8-.7-3.1-2.1-3.9-1-.6-2.3-1-3.7-1l-2.8.1c-.9 0-1.6.1-2.1.1l-1.5.1c-.1 0-.3.1-.6.2l.3.1c.2.1.2.1.3.2.4 1 .6 2 .6 3l.1 3.9v2s0 .3-.1.8c0 .5-.1.7-.1.8v2l-.2 4.2c0 1.9-.1 3-.2 3.3-.3.4-.5.6-.6.7 1.2-.2 2-.3 2.3-.3h2.2s.3-.1.9-.2c-.1-.1-.2-.1-.4-.1-.9 0-1.4-1-1.4-3v-5.4c0-.2.1-.4.3-.4 1.2 0 2 .2 2.4.6.5.5 1 1.3 1.5 2.1.4.7.8 1.5 1.2 2.2.8 1.7 1.4 2.7 1.7 3zm-5.2-8.2h-1.8l.1-11.3h.9c1.4 0 2.6.8 3.6 2.5.9 1.5 1.4 2.9 1.4 4.3 0 1.9-.3 3.1-.9 3.6-.4.7-1.5.9-3.3.9zm33.6 8.6c-.4-.2-.7-.5-.9-.9-1.2-2-2.5-4.9-3.8-8.6-.9-2.6-1.7-5.1-2.6-7.7-.2-.7-.5-1.3-.7-2-.4-1-.9-1.5-1.3-1.5h-3.2c-.2 0-.4.1-.6.1-.2 0-.3.1-.3.2.1.1.2.1.2.1h.5c.3 0 .5.1.8.3.2.2.3.5.3.8 0 .5-.9 3-2.6 7.5-1.6 4.1-2.7 6.9-3.4 8.5-.7 1.6-1.5 2.8-2.5 3.6.3 0 .8 0 1.4.1.7.1 1.1.1 1.4.1l3.6-.5c-.7-.2-1.4-.5-2.1-.8-.6-.3-.9-.8-.9-1.7 0-.8.4-2.2 1.1-4.1l.6-1.8c.4-1 .8-1.6 1-1.6h5.4c.8 1.8 1.4 3.2 1.8 4.2.4 1.1.9 2.3 1.3 3.5.8 1.7 1.7 2.6 2.7 2.6l3-.2c.3.1.1 0-.2-.2zm-8.5-10.3h-5.4l2.8-7.4c.4.7.6 1.3.8 1.7l1.8 5.4v.3zm20.7-10.2c.3-.1.6.2.8.7.2.4.2.8.2 1.3 0 1.3-.8 4.2-2.3 8.5-1 2.8-1.8 4.9-2.5 6.4-1.6-3.7-2.8-6.9-3.8-9.4-.8-2.3-1.5-4-1.8-5.1-.5-1.4-.8-2.1-.8-2.1-.3-.1-.8-.2-1.6-.2h-2.6c-.3 0-.5.1-.6.3.2.1.4.1.6.2.2.1.3.2.5.3 1.1 1.5 2.3 3.7 3.5 6.7.7 1.5 1.6 3.9 2.8 7.1 1.1 3 1.7 4.6 1.8 4.9.6 1.2.9 1.8 1 1.9 2.8-7.3 5.8-14.6 9-21.8h-4.2v.3zm7.8 3.6c0 .3.1.6.1.8v6.8l-.1 4.9-.5 5.1h4.2c.1-.1.1-.2.1-.2-.5-.2-.7-.3-.7-.3-.2-.2-.3-.5-.3-.9 0-.3-.1-.6-.1-1l.1-9.6c.1-3.6.2-6.7.5-9.4h-.3c.1 0-.1 0-.6.1s-1 .1-1.7.1h-1.5c.5.5.7 1.1.8 1.8-.1.5-.1 1.2 0 1.8zm27 16.9c-.4-.2-.7-.5-.9-.9-1.2-2-2.5-4.9-3.8-8.6-.9-2.6-1.7-5.1-2.6-7.7-.2-.7-.5-1.3-.7-2-.4-1-.9-1.5-1.3-1.5l-3.1.1c-.2 0-.4.1-.6.1-.2 0-.3.1-.3.2.1.1.2.1.2.1h.5c.3 0 .5.1.8.3.2.2.3.5.3.8 0 .5-.9 3-2.6 7.5-1.6 4.1-2.7 6.9-3.4 8.5-.7 1.6-1.5 2.8-2.5 3.6.3 0 .8 0 1.4.1.7.1 1.1.1 1.4.1l3.6-.5c-.7-.2-1.4-.5-2.1-.8-.6-.3-.9-.8-.9-1.7 0-.8.4-2.2 1.1-4.1l.6-1.8c.4-1 .8-1.6 1-1.6h5.4c.8 1.8 1.4 3.2 1.8 4.2.4 1.1.9 2.3 1.3 3.5.8 1.7 1.7 2.6 2.7 2.6l3-.2c.2 0 .1-.1-.3-.3zm-8.4-10.3h-5.4L137 17c.4.7.6 1.3.8 1.7l1.8 5.4v.3zm29.7-10.2c-.4 0-1 .2-2 .5-.8.3-1.3.5-1.4.6.2 0 .8 0 1.7-.1.2 0 .3.1.3.2.1 1.4.2 2.5.2 3.2.1 2.1.2 4.4.3 6.6l.1 4.6c0 .2 0 .3-.1.4-3.4-3.8-5.7-6.3-6.8-7.6-2.8-3.3-4.8-6.1-6.2-8.6-2.1.2-3.8.3-4.9.5 1.3.6 2.1 1.4 2.5 2.4.3.6.4 1.6.4 3l-.2 3.7v1.7c0 3.8-.2 6.4-.6 7.9-.1.4-.3.7-.7 1-.5.4-.8.7-.9.7.5.1 1.1.2 2 .2.7 0 1.5-.1 2.5-.3 1.3-.3 2-.5 2-.5-.6-.1-1.1-.2-1.4-.2-.5 0-.9-.1-1.4-.4-.1-.1-.2-.3-.3-.5 0-.1-.1-.3-.1-.7-.2-1.9-.3-3.2-.3-4-.1-3.9-.1-7.1 0-9.7 1.1 1.3 3.1 3.5 5.8 6.7 1.8 2.1 4.3 4.9 7.5 8.4.9.9 1.3 1.4 1.4 1.4.1 0 .1 0 .2-.1.1-1.8.2-3.7.3-5.5.2-3.6.3-5.6.3-6.1v-1.4c0-.3.2-2.6.6-6.9.2-.1.7-.3 1.3-.5.6-.2.9-.3 1.1-.5l-3.2-.1zm-112 27.6H56v9.5h6v-1.2h-4.7m14.5-3.2h5.3v-1.1h-5.3v-2.9h5.7v-1.1h-7v9.5h7.2v-1.2h-5.9m19.1-2.6h2.8v1.8c-.3.2-.7.5-1.2.7s-1.1.3-1.6.3c-.6 0-1.2-.1-1.8-.4-.6-.3-1-.7-1.3-1.3-.3-.6-.4-1.3-.4-2.1 0-.7.1-1.3.4-1.9.1-.3.3-.7.6-.9.3-.3.6-.5 1-.7.4-.2.9-.3 1.5-.3.5 0 .9.1 1.3.2s.7.4.9.7c.2.3.4.7.5 1.1l1.2-.3c-.2-.6-.4-1.2-.7-1.6s-.8-.7-1.3-.9c-.6-.2-1.2-.3-1.9-.3-1 0-1.8.2-2.5.6s-1.3 1-1.7 1.8c-.4.8-.6 1.7-.6 2.6 0 .9.2 1.8.6 2.5s1 1.3 1.8 1.7 1.6.6 2.6.6c.7 0 1.4-.1 2.1-.4.7-.2 1.3-.6 1.9-1.1v-3.5H91v1.1zm14.2-.6h5.4v-1.1h-5.4v-2.9h5.7v-1.1h-7v9.5h7.3v-1.2h-6m21-.9l-5.1-7.4h-1.3v9.5h1.3v-7.5l5 7.5h1.3v-9.5h-1.2m16.8.8c-.4-.3-.9-.6-1.4-.7-.4-.1-1-.1-1.7-.1h-3.3v9.5h3.5c.6 0 1.1-.1 1.6-.2s.8-.3 1.2-.5c.3-.2.6-.5.9-.9.3-.4.5-.8.7-1.4.2-.6.3-1.2.3-1.9 0-.8-.1-1.6-.4-2.3-.5-.5-.9-1.1-1.4-1.5zm-.1 5.7c-.2.5-.4.9-.7 1.2-.2.2-.5.4-.9.5s-.9.2-1.5.2h-2.1V43h2c.8 0 1.3.1 1.7.2.5.2.9.5 1.2 1.1.3.5.5 1.3.5 2.3.1.6 0 1.2-.2 1.7zm15.9-2c-.4-.2-1.1-.4-2.1-.6-1-.2-1.7-.5-1.9-.7-.2-.2-.4-.5-.4-.8 0-.4.2-.7.5-1 .4-.3.9-.4 1.7-.4.7 0 1.3.2 1.7.5.4.3.6.8.7 1.4l1.2-.1c0-.6-.2-1.1-.5-1.5-.3-.4-.7-.8-1.3-1-.5-.2-1.2-.3-1.9-.3-.6 0-1.2.1-1.8.3-.5.2-.9.5-1.2.9-.3.4-.4.9-.4 1.3s.1.8.3 1.2c.2.4.6.6 1 .9.4.2 1 .4 1.9.6.9.2 1.5.4 1.7.5.4.2.7.3.9.6.2.2.3.5.3.8 0 .3-.1.6-.3.8-.2.2-.5.4-.8.6-.4.1-.8.2-1.3.2s-1-.1-1.5-.3-.8-.4-1-.7c-.2-.3-.3-.7-.4-1.2l-1.2.1c0 .6.2 1.2.5 1.7s.8.9 1.4 1.1 1.3.4 2.2.4c.7 0 1.3-.1 1.9-.4.6-.2 1-.6 1.3-1 .3-.4.4-.9.4-1.4 0-.5-.1-1-.4-1.3-.2-.7-.6-1-1.2-1.2z"></path>
+  <image width="156" height="250" transform="matrix(.24 0 0 .24 .22 .14)" xlink:href="https://cdn.legends.travian.com/gpack/467.7/logo.png"></image>
+</svg>
+	</a>
+			<div id="header" class="referAFriend ">
+            <input type="checkbox" id="mobileMenuState" />
+    
+			<div id="navigation">
+			<a class="village resourceView " href="/dorf1.php" accesskey="1" title="الموارد||"></a>
+			<a class="village buildingView " href="/dorf2.php" accesskey="2" title="مركز القرية||"></a>
+
+			<a class="map" href="/karte.php" accesskey="3" title="خريطة||"></a>
+			<a class="statistics" href="/statistics" accesskey="4" title="إحصائيات||"></a>
+			<a class="reports" href="/report" accesskey="5" title="تقارير||تقارير جديدة: 5">
+									<div class="indicator">5</div>
+							</a>
+			<a class="messages" href="/messages" accesskey="6" title="رسائل||رسائل جديدة: 0">
+							</a>
+
+            <a class="dailyQuests" href="#" accesskey="7" title="المهام اليومية" onclick="Travian.React.openDailyQuestsDialog(); return false;">
+                            </a>
+
+            
+								<label class="mobileMenuButton" for="mobileMenuState">
+											</label>
+					<a class="mobileShopButton" href="#" accesskey="8" title="" onclick="Travian.React.openPaymentWizard({}); this.blur(); return false;"></a>
+					</div>
+
+		<div class="currency">
+            <svg viewBox="0 0 50 50" class="goldCoin" onClick="Travian.React.openPaymentWizard({activeTab: 'advantages'}); return false;">
+    <defs>
+        <linearGradient id="gold-coin-linear-gradient" x1="25" x2="25" y1="2" y2="48" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#ffdc79"></stop>
+            <stop offset=".47" stop-color="#fcbf60"></stop>
+            <stop offset=".8" stop-color="#af7029"></stop>
+            <stop offset="1" stop-color="#c09957"></stop>
+        </linearGradient>
+        <linearGradient id="gold-coin-linear-gradient-2" x1="25" x2="25" y1="7.9" y2="42.19" gradientUnits="userSpaceOnUse">
+            <stop offset=".06" stop-color="#81481b"></stop>
+            <stop offset="1" stop-color="#fef6a9"></stop>
+        </linearGradient>
+    </defs>
+    <circle cx="25" cy="25" r="25" fill="#522d1c"><title>&#1575;&#1604;&#1584;&#1607;&#1576;</title></circle>
+    <circle cx="25" cy="25" r="23" fill="url(#gold-coin-linear-gradient)"><title>&#1575;&#1604;&#1584;&#1607;&#1576;</title></circle>
+    <circle cx="25" cy="25" r="17" fill="url(#gold-coin-linear-gradient-2)"><title>&#1575;&#1604;&#1584;&#1607;&#1576;</title></circle>
+    <path fill="#b4772a" d="M41 25C40.62 3.67 9.38 3.67 9 25c.38 21.33 31.62 21.33 32 0Z"><title>&#1575;&#1604;&#1584;&#1607;&#1576;</title></path>
+    <path fill="#a06327" d="M14.84 12.41c.63-.49 1.29-.94 1.99-1.32l6.58 7.14v2.01l-8.57-7.83Zm20.9 10.4c.22-.05.91-.05.91-.05s2.01-1.26 3.66-2.53c-.11-.38-.22-.76-.35-1.12-.03-.06-.06-.13-.09-.2-1.69 1.71-3.63 3.58-4.12 3.89Zm-24.72-5.9c2.85 2.36 8.53 5.55 13.36 5.45-.49.1 1.95.1 1.36 0 4.87 0 10.42-3.05 13.24-5.42-.39-.69-.88-1.38-1.36-2.07-12.05 9.83-13.24 9.75-25.24-.03-.5.64-.96 1.32-1.37 2.07Zm14.14-1.24-3.38-6.36c-.42.08-.84.17-1.25.28 1.18 1.77 4.07 5.33 4.63 6.08Zm-1.25-6.62 1.25 1.6 1.24-1.59c-.83-.07-1.66-.06-2.49-.01Zm1.34 6.62s.69-1.18 1.96-2.66c.71-.81 1.75-2.27 2.51-3.35-.37-.11-.75-.19-1.13-.27l-3.35 6.28ZM9.07 23.94c-.02.35-.06.69-.07 1.06.01.67.05 1.31.12 1.94l2.5-3H9.06Zm17.75-3.84 8.47-7.59c-.62-.5-1.28-.95-1.96-1.35l-6.51 7.06v1.87Zm-12.37 2.66c-.38-.19-2.46-2.2-4.29-3.95-.16.42-.31.85-.43 1.29 2.51 1.71 3.48 2.85 4.72 2.66Zm24.21 10.89c-5.93-6.46-11.45-8.13-11.45-8.13 4.43 3.21 8.18 7.47 10.15 9.95.47-.56.91-1.16 1.31-1.82Zm-3.76-9.81h-4.48v.1c3.94 1.36 7.68 4.15 9.84 6.02.11-.38.23-.77.31-1.17-2.24-2.25-5.67-4.95-5.67-4.95Zm-8.37 6.8-.19 1.58c2.17 1.34 4.6 4.69 6.17 7.05.96-.47 1.86-1.05 2.71-1.71-4.64-4.57-8.68-6.91-8.68-6.91Zm-6.82-6.8h-4.38v.1s-3.51 2.78-5.85 5.03c.09.37.19.74.29 1.09 2.16-1.87 5.9-4.77 9.94-6.22Zm21.22.1H38.5l2.38 2.8c.06-.56.1-1.14.11-1.74 0-.36-.04-.71-.07-1.06Zm-17.91 1.58c-.68-.1-5.16 1.38-11.59 8.27.4.65.84 1.25 1.32 1.81 1.96-2.38 5.73-6.76 10.27-10.08Zm-5.33 13.84c1.57-2.44 3.97-5.74 6.21-7.15l-.19-1.48s-4.01 2.32-8.73 6.96c.85.65 1.76 1.21 2.71 1.67Zm12.93-.15-4.09-4.33H24l-4.09 4.33c1.56.59 2.92-1.97 5.36-3.64 2.34 1.67 3.7 4.24 5.36 3.64Z"><title>&#1575;&#1604;&#1584;&#1607;&#1576;</title></path>
+    <path fill="#703e19" d="M34.65 15.43h-1.8l-.4.6h-14.9l-.4-.6h-1.8l-1 5.8.9 1 2.1-3.1h4.8v14.6c0 1.7-2.6 2.1-2.6 2.1v2.3h11v-2.3s-2.6-.4-2.6-2.1v-14.6h4.8l2.1 3.1.7-1.1-.9-5.7Z"><title>&#1575;&#1604;&#1584;&#1607;&#1576;</title></path>
+    <path fill="#f7ce7c" d="m34.95 21.25.7-1.1-1-5.8h-1.8l-.4.6h-14.9l-.4-.6h-1.8l-1 5.8.9 1.1 2.1-3.1h5.3v14.6c0 1.7-3.1 2.1-3.1 2.1v1.4l.8.8h9.5l.7-.8v-1.5s-3.1-.4-3.1-2.1v-14.6h5.4l2.1 3.2Z"><title>&#1575;&#1604;&#1584;&#1607;&#1576;</title></path>
+    <path fill="#faf28a" d="m14.45 20.25-.1-.1 1-5.8h1.8l.4.6h14.9l.4-.6h1.8l1 5.8-.1.1-.9-5.3h-1.8l-.4.6h-14.9l-.4-.6h-1.8l-.9 5.3Zm5.1 15.17c.2.1 3.7-.8 3.1-2.7 0 1.7-3.1 2.1-3.1 2.1v.6Zm7.9-2.76c-.6 2 2.8 2.8 3.1 2.7v-.6s-3.1-.5-3.1-2.1Z"><title>&#1575;&#1604;&#1584;&#1607;&#1576;</title></path>
+    <path fill="#a87134" d="M25.05 4c1.48 0 1.48 2.26 0 2.26S23.57 4 25.05 4ZM21.7 6.56c1.48-.2 1.08-2.46-.39-2.16-1.38.2-.98 2.46.39 2.16Zm-3.14.78c1.38-.49.59-2.66-.79-2.07-1.28.49-.49 2.66.79 2.07Zm-2.95 1.38c1.28-.69.1-2.66-1.08-1.97-1.28.79-.1 2.75 1.08 1.97Zm-2.66 1.87c1.08-.89-.3-2.66-1.48-1.67-1.08.89.39 2.66 1.48 1.67Zm-2.26 2.36c.98-1.08-.79-2.56-1.67-1.48-.98 1.08.69 2.56 1.67 1.48Zm-1.97 2.66c.79-1.28-1.18-2.36-1.97-1.08-.69 1.18 1.28 2.36 1.97 1.08Zm-1.38 2.95c.59-1.38-1.57-2.07-2.07-.79-.49 1.38 1.67 2.16 2.07.79Zm-.78 3.14c.3-1.38-1.97-1.77-2.16-.39-.3 1.48 1.87 1.87 2.16.39Zm-.3 3.25c0-1.48-2.26-1.48-2.26 0s2.26 1.48 2.26 0Zm.3 3.35c-.2-1.48-2.46-1.08-2.16.39.2 1.38 2.36.98 2.16-.39Zm.78 3.14c-.49-1.38-2.66-.59-2.07.79.49 1.28 2.66.49 2.07-.79Zm1.38 2.95c-.69-1.28-2.66-.1-1.97 1.08.79 1.28 2.75.1 1.97-1.08Zm1.87 2.66c-.89-1.08-2.66.39-1.67 1.48.89 1.08 2.66-.39 1.67-1.48Zm2.36 2.36c-1.08-.98-2.56.79-1.48 1.67 1.08.98 2.56-.79 1.48-1.67Zm2.66 1.87c-1.28-.79-2.36 1.18-1.08 1.97 1.18.69 2.36-1.28 1.08-1.97Zm2.95 1.38c-1.38-.49-2.16 1.67-.79 2.07 1.38.49 2.16-1.57.79-2.07Zm3.14.78c-1.38-.3-1.77 1.97-.39 2.16 1.48.39 1.87-1.87.39-2.16Zm3.25.3c-1.48 0-1.48 2.26 0 2.26s1.48-2.26 0-2.26Zm3.25-.3c-1.48.2-1.08 2.46.39 2.16 1.48-.2 1.08-2.36-.39-2.16Zm3.14-.78c-1.38.49-.59 2.66.79 2.07 1.38-.49.59-2.56-.79-2.07Zm3.05-1.38c-1.28.69-.1 2.66 1.08 1.97 1.28-.79.1-2.75-1.08-1.97Zm2.66-1.87c-1.08.89.3 2.66 1.48 1.67 1.08-.89-.39-2.66-1.48-1.67Zm2.26-2.36c-.98 1.08.79 2.56 1.67 1.48.98-1.08-.69-2.56-1.67-1.48Zm1.87-2.66c-.79 1.28 1.18 2.36 1.97 1.08.79-1.18-1.18-2.36-1.97-1.08Zm1.38-2.95c-.49 1.38 1.57 2.16 2.07.79.59-1.38-1.57-2.16-2.07-.79Zm.88-3.14c-.3 1.38 1.97 1.77 2.16.39.3-1.48-1.97-1.87-2.16-.39Zm.3-3.25c0 1.48 2.26 1.48 2.26 0s-2.26-1.48-2.26 0Zm-.3-3.25c.2 1.48 2.46 1.08 2.16-.39-.2-1.48-2.46-1.08-2.16.39Zm-.78-3.14c.49 1.38 2.66.59 2.07-.79-.49-1.38-2.66-.59-2.07.79Zm-1.38-3.05c.69 1.28 2.66.1 1.97-1.08-.79-1.28-2.75-.1-1.97 1.08Zm-1.97-2.66c.89 1.08 2.66-.3 1.67-1.48-.79-1.08-2.56.39-1.67 1.48Zm-2.26-2.26c1.08.98 2.56-.79 1.48-1.67-1.18-.98-2.56.69-1.48 1.67Zm-2.66-1.87c1.28.79 2.36-1.18 1.08-1.97-1.18-.79-2.36 1.18-1.08 1.97Zm-2.95-1.38c1.38.49 2.16-1.67.79-2.07-1.38-.59-2.16 1.57-.79 2.07Zm-3.14-.88c1.38.3 1.77-1.97.39-2.16-1.48-.3-1.87 1.97-.39 2.16Z"><title>&#1575;&#1604;&#1584;&#1607;&#1576;</title></path>
+</svg>
+            <div class="value ajaxReplaceableGoldAmount">
+                &#x202d;150&#x202c;            </div>
+            <svg viewBox="0 0 50 50" class="silverCoin" onClick="Travian.React.openPaymentWizard({activeTab: 'advantages'}); return false;">
+    <defs>
+        <linearGradient id="linear-gradient" x1="25" x2="25" y1="2" y2="48" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#c4e0f5"></stop>
+            <stop offset=".48" stop-color="#b7ceeb"></stop>
+            <stop offset=".77" stop-color="#6383a8"></stop>
+            <stop offset="1" stop-color="#98b7db"></stop>
+        </linearGradient>
+        <linearGradient id="linear-gradient-2" x1="25" x2="25" y1="7.9" y2="42.19" gradientUnits="userSpaceOnUse">
+            <stop offset=".06" stop-color="#4b6f7d"></stop>
+            <stop offset="1" stop-color="#fafbfb"></stop>
+        </linearGradient>
+    </defs>
+    <circle cx="25" cy="25" r="25" fill="#303a4c"><title>&#1601;&#1590;&#1577;</title></circle>
+    <circle cx="25" cy="25" r="23" fill="url(#linear-gradient)"><title>&#1601;&#1590;&#1577;</title></circle>
+    <circle cx="25" cy="25" r="17" fill="url(#linear-gradient-2)"><title>&#1601;&#1590;&#1577;</title></circle>
+    <path fill="#7991bc" d="M41 25C40.62 3.67 9.38 3.67 9 25c.38 21.33 31.62 21.33 32 0Z"><title>&#1601;&#1590;&#1577;</title></path>
+    <path fill="#5a7493" d="M14.84 12.41c.63-.49 1.29-.94 1.99-1.32l6.58 7.14v2.01l-8.57-7.83Zm20.9 10.4c.22-.05.91-.05.91-.05s2.01-1.26 3.66-2.53c-.11-.38-.22-.76-.35-1.12-.03-.06-.06-.13-.09-.2-1.69 1.71-3.63 3.58-4.12 3.89Zm-24.72-5.9c2.85 2.36 8.53 5.55 13.36 5.45-.49.1 1.95.1 1.36 0 4.87 0 10.42-3.05 13.24-5.42-.39-.69-.88-1.38-1.36-2.07-12.05 9.83-13.24 9.75-25.24-.03-.5.64-.96 1.32-1.37 2.07Zm14.14-1.24-3.38-6.36c-.42.08-.84.17-1.25.28 1.18 1.77 4.07 5.33 4.63 6.08Zm-1.25-6.62 1.25 1.6 1.24-1.59c-.83-.07-1.66-.06-2.49-.01Zm1.34 6.62s.69-1.18 1.96-2.66c.71-.81 1.75-2.27 2.51-3.35-.37-.11-.75-.19-1.13-.27l-3.35 6.28ZM9.07 23.94c-.02.35-.06.69-.07 1.06.01.67.05 1.31.12 1.94l2.5-3H9.06Zm17.75-3.84 8.47-7.59c-.62-.5-1.28-.95-1.96-1.35l-6.51 7.06v1.87Zm-12.37 2.66c-.38-.19-2.46-2.2-4.29-3.95-.16.42-.31.85-.43 1.29 2.51 1.71 3.48 2.85 4.72 2.66Zm24.21 10.89c-5.93-6.46-11.45-8.13-11.45-8.13 4.43 3.21 8.18 7.47 10.15 9.95.47-.56.91-1.16 1.31-1.82Zm-3.76-9.81h-4.48v.1c3.94 1.36 7.68 4.15 9.84 6.02.11-.38.23-.77.31-1.17-2.24-2.25-5.67-4.95-5.67-4.95Zm-8.37 6.8-.19 1.58c2.17 1.34 4.6 4.69 6.17 7.05.96-.47 1.86-1.05 2.71-1.71-4.64-4.57-8.68-6.91-8.68-6.91Zm-6.82-6.8h-4.38v.1s-3.51 2.78-5.85 5.03c.09.37.19.74.29 1.09 2.16-1.87 5.9-4.77 9.94-6.22Zm21.22.1H38.5l2.38 2.8c.06-.56.1-1.14.11-1.74 0-.36-.04-.71-.07-1.06Zm-17.91 1.58c-.68-.1-5.16 1.38-11.59 8.27.4.65.84 1.25 1.32 1.81 1.96-2.38 5.73-6.76 10.27-10.08Zm-5.33 13.84c1.57-2.44 3.97-5.74 6.21-7.15l-.19-1.48s-4.01 2.32-8.73 6.96c.85.65 1.76 1.21 2.71 1.67Zm12.93-.15-4.09-4.33H24l-4.09 4.33c1.56.59 2.92-1.97 5.36-3.64 2.34 1.67 3.7 4.24 5.36 3.64Z"><title>&#1601;&#1590;&#1577;</title></path>
+    <path fill="#445c6b" d="M34.65 15.43h-1.8l-.4.6h-14.9l-.4-.6h-1.8l-1 5.8.9 1 2.1-3.1h4.8v14.6c0 1.7-2.6 2.1-2.6 2.1v2.3h11v-2.3s-2.6-.4-2.6-2.1v-14.6h4.8l2.1 3.1.7-1.1-.9-5.7Z"><title>&#1601;&#1590;&#1577;</title></path>
+    <path fill="#c4e0f5" d="m34.95 21.25.7-1.1-1-5.8h-1.8l-.4.6h-14.9l-.4-.6h-1.8l-1 5.8.9 1.1 2.1-3.1h5.3v14.6c0 1.7-3.1 2.1-3.1 2.1v1.4l.8.8h9.5l.7-.8v-1.5s-3.1-.4-3.1-2.1v-14.6h5.4l2.1 3.2Z"><title>&#1601;&#1590;&#1577;</title></path>
+    <path fill="#eff7fd" d="m14.45 20.25-.1-.1 1-5.8h1.8l.4.6h14.9l.4-.6h1.8l1 5.8-.1.1-.9-5.3h-1.8l-.4.6h-14.9l-.4-.6h-1.8l-.9 5.3Zm5.1 15.17c.2.1 3.7-.8 3.1-2.7 0 1.7-3.1 2.1-3.1 2.1v.6Zm7.9-2.76c-.6 2 2.8 2.8 3.1 2.7v-.6s-3.1-.5-3.1-2.1Z"><title>&#1601;&#1590;&#1577;</title></path>
+    <path fill="#6f89a4" d="M25.05 4c1.48 0 1.48 2.26 0 2.26S23.57 4 25.05 4ZM21.7 6.56c1.48-.2 1.08-2.46-.39-2.16-1.38.2-.98 2.46.39 2.16Zm-3.14.78c1.38-.49.59-2.66-.79-2.07-1.28.49-.49 2.66.79 2.07Zm-2.95 1.38c1.28-.69.1-2.66-1.08-1.97-1.28.79-.1 2.75 1.08 1.97Zm-2.66 1.87c1.08-.89-.3-2.66-1.48-1.67-1.08.89.39 2.66 1.48 1.67Zm-2.26 2.36c.98-1.08-.79-2.56-1.67-1.48-.98 1.08.69 2.56 1.67 1.48Zm-1.97 2.66c.79-1.28-1.18-2.36-1.97-1.08-.69 1.18 1.28 2.36 1.97 1.08Zm-1.38 2.95c.59-1.38-1.57-2.07-2.07-.79-.49 1.38 1.67 2.16 2.07.79Zm-.78 3.14c.3-1.38-1.97-1.77-2.16-.39-.3 1.48 1.87 1.87 2.16.39Zm-.3 3.25c0-1.48-2.26-1.48-2.26 0s2.26 1.48 2.26 0Zm.3 3.35c-.2-1.48-2.46-1.08-2.16.39.2 1.38 2.36.98 2.16-.39Zm.78 3.14c-.49-1.38-2.66-.59-2.07.79.49 1.28 2.66.49 2.07-.79Zm1.38 2.95c-.69-1.28-2.66-.1-1.97 1.08.79 1.28 2.75.1 1.97-1.08Zm1.87 2.66c-.89-1.08-2.66.39-1.67 1.48.89 1.08 2.66-.39 1.67-1.48Zm2.36 2.36c-1.08-.98-2.56.79-1.48 1.67 1.08.98 2.56-.79 1.48-1.67Zm2.66 1.87c-1.28-.79-2.36 1.18-1.08 1.97 1.18.69 2.36-1.28 1.08-1.97Zm2.95 1.38c-1.38-.49-2.16 1.67-.79 2.07 1.38.49 2.16-1.57.79-2.07Zm3.14.78c-1.38-.3-1.77 1.97-.39 2.16 1.48.39 1.87-1.87.39-2.16Zm3.25.3c-1.48 0-1.48 2.26 0 2.26s1.48-2.26 0-2.26Zm3.25-.3c-1.48.2-1.08 2.46.39 2.16 1.48-.2 1.08-2.36-.39-2.16Zm3.14-.78c-1.38.49-.59 2.66.79 2.07 1.38-.49.59-2.56-.79-2.07Zm3.05-1.38c-1.28.69-.1 2.66 1.08 1.97 1.28-.79.1-2.75-1.08-1.97Zm2.66-1.87c-1.08.89.3 2.66 1.48 1.67 1.08-.89-.39-2.66-1.48-1.67Zm2.26-2.36c-.98 1.08.79 2.56 1.67 1.48.98-1.08-.69-2.56-1.67-1.48Zm1.87-2.66c-.79 1.28 1.18 2.36 1.97 1.08.79-1.18-1.18-2.36-1.97-1.08Zm1.38-2.95c-.49 1.38 1.57 2.16 2.07.79.59-1.38-1.57-2.16-2.07-.79Zm.88-3.14c-.3 1.38 1.97 1.77 2.16.39.3-1.48-1.97-1.87-2.16-.39Zm.3-3.25c0 1.48 2.26 1.48 2.26 0s-2.26-1.48-2.26 0Zm-.3-3.25c.2 1.48 2.46 1.08 2.16-.39-.2-1.48-2.46-1.08-2.16.39Zm-.78-3.14c.49 1.38 2.66.59 2.07-.79-.49-1.38-2.66-.59-2.07.79Zm-1.38-3.05c.69 1.28 2.66.1 1.97-1.08-.79-1.28-2.75-.1-1.97 1.08Zm-1.97-2.66c.89 1.08 2.66-.3 1.67-1.48-.79-1.08-2.56.39-1.67 1.48Zm-2.26-2.26c1.08.98 2.56-.79 1.48-1.67-1.18-.98-2.56.69-1.48 1.67Zm-2.66-1.87c1.28.79 2.36-1.18 1.08-1.97-1.18-.79-2.36 1.18-1.08 1.97Zm-2.95-1.38c1.38.49 2.16-1.67.79-2.07-1.38-.59-2.16 1.57-.79 2.07Zm-3.14-.88c1.38.3 1.77-1.97.39-2.16-1.48-.3-1.87 1.97-.39 2.16Z"><title>&#1601;&#1590;&#1577;</title></path>
+</svg>
+            <div class="value ajaxReplaceableSilverAmount" title="فضة" data-load-tooltip="free-silver">
+                &#x202d;16.056&#x202c;            </div>
+		</div>
+
+		<a class="shop" href="#" accesskey="8" title="شراء الذهب" onclick="Travian.React.openPaymentWizard({}); this.blur(); return false;"></a>
+
+		
+		
+					<a id="button6a1b227591a88"
+   	class="layoutButton buttonFramed withIcon round referAFriend green    "
+	title="اُدع صديقًا"
+        			href="/referAFriend"
+	        	>
+					<svg viewBox="0 0 18.08 20" class="referAFriend"><g class="outline">
+  <path class="human" d="M5.86 9a1.26 1.26 0 01-1.14-1.31V6.36a.72.72 0 01.55-.75.67.67 0 000-.42 4.87 4.87 0 01.2-2.51 1.63 1.63 0 01.28-.52c.29-.38.63-.73.94-1.09A3.84 3.84 0 0111.4.58a4.16 4.16 0 011.86 4.2 5.2 5.2 0 000 1c.63.3.41.88.39 1.38 0 .2-.05.41 0 .63a1.76 1.76 0 01-.09.75c-.15.43-.17.45-.59.6a3.31 3.31 0 01-.71 1.6c-.24.28-.16.65-.24 1s-.13.61-.21.91a1.56 1.56 0 00.83 2 6.14 6.14 0 011.63 1.14 4.54 4.54 0 01.91 1.38c.19.42.06.61-.4.61H.5c-.46 0-.51 0-.5-.52a4.13 4.13 0 012-3.48A6.1 6.1 0 013.57 13a4.77 4.77 0 002.07-1.21 1.2 1.2 0 00.36-1c-.06-.56-.1-1.16-.14-1.79z"></path>
+  <path class="plus" d="M8.38 16.43v-2.56a.71.71 0 01.77-.57h2.27v-2.32c0-.53.17-.68.69-.68h2.09c.7 0 .88.15.89.9v2.1h2.17c.62 0 .81.19.82.81v2c0 .71-.17.88-.87.88h-2.12v2.21c0 .72-.19.8-.81.81h-2c-.69 0-.85-.17-.85-.85v-2.17H9.25c-.42.01-.75-.1-.87-.56z"></path>
+</g><g class="icon">
+  <path class="human" d="M5.86 9a1.26 1.26 0 01-1.14-1.31V6.36a.72.72 0 01.55-.75.67.67 0 000-.42 4.87 4.87 0 01.2-2.51 1.63 1.63 0 01.28-.52c.29-.38.63-.73.94-1.09A3.84 3.84 0 0111.4.58a4.16 4.16 0 011.86 4.2 5.2 5.2 0 000 1c.63.3.41.88.39 1.38 0 .2-.05.41 0 .63a1.76 1.76 0 01-.09.75c-.15.43-.17.45-.59.6a3.31 3.31 0 01-.71 1.6c-.24.28-.16.65-.24 1s-.13.61-.21.91a1.56 1.56 0 00.83 2 6.14 6.14 0 011.63 1.14 4.54 4.54 0 01.91 1.38c.19.42.06.61-.4.61H.5c-.46 0-.51 0-.5-.52a4.13 4.13 0 012-3.48A6.1 6.1 0 013.57 13a4.77 4.77 0 002.07-1.21 1.2 1.2 0 00.36-1c-.06-.56-.1-1.16-.14-1.79z"></path>
+  <path class="plus" d="M8.38 16.43v-2.56a.71.71 0 01.77-.57h2.27v-2.32c0-.53.17-.68.69-.68h2.09c.7 0 .88.15.89.9v2.1h2.17c.62 0 .81.19.82.81v2c0 .71-.17.88-.87.88h-2.12v2.21c0 .72-.19.8-.81.81h-2c-.69 0-.85-.17-.85-.85v-2.17H9.25c-.42.01-.75-.1-.87-.56z"></path>
+</g></svg>
+		</a>
+
+<script type="text/javascript">
+    jQuery('#button6a1b227591a88').on('click', function (event) {
+        jQuery(window).trigger('buttonClicked', [event.delegateTarget, {"type":"green","loadTooltip":null,"boxId":"","disabled":false,"attention":false,"colorBlind":false,"class":"","id":"button6a1b227591a88","redirectUrl":"\/referAFriend","redirectUrlExternal":"","svg":"topBar\/referAFriend.svg","content":""}]);
+    });
+</script>
+		
+					<div id="stockBar">
+
+    <div class="warehouse">
+
+        <div class="capacity" title="مستودع">
+            <i class="warehouse_medium"></i>
+            <div class="value">&#x202d;9.600&#x202c;</div>
+        </div>
+		                    <a class="stockBarButton resource1" href="/production.php?t=lumber" title="الخشب||انتاج: 355&lt;br /&gt;الامتلاء خلال: 12:01:11&lt;br /&gt;... اضغط هنا لمزيد من المعلومات">
+                <i class="lumber_small"></i>
+                <svg viewBox="0 0 160 180" class=" advantageBonusArrow productionBoost">
+    <path class="border" d="M158.78 106.45 85.17 2.72C84.06 1.01 82.14 0 80.03 0S76 1.01 74.79 2.72L1.17 106.45c-1.41 1.91-1.51 4.53-.5 6.64 1.11 2.11 3.23 3.42 5.65 3.42h31.76v57.15c0 3.52 2.82 6.34 6.35 6.34h70.89c3.53 0 6.35-2.82 6.35-6.34v-57.15h31.97c2.42 0 4.54-1.31 5.65-3.42 1.11-2.11.91-4.63-.5-6.64Z"></path>
+    <path class="sideShadow" d="m20.6 103.48-14.07 6.78c.17.3.48.51.87.51h35.86c.55 0 1 .45 1 1v61.81c0 .55.45 1 1 1h69.48c.55 0 1-.45 1-1V111.8c0-.55.45-1 1-1l35.34.29c.41 0 .74-.23.9-.55l-14.1-7-118.28-.06Z"></path>
+    <path class="bottomShadow" d="m51.45 167.41-6.88 6.88c.18.18.42.28.69.28h69.48c.26 0 .49-.11.67-.27l-6.96-6.9H51.44Z"></path>
+    <path class="topShadow" d="m6.54 110.26 13.98-6.74 59.44-85.03 59.02 85.1 14.01 6.95c.15-.3.15-.68-.07-1.01L80.83 5.35c-.39-.57-1.24-.57-1.64 0L6.59 109.21c-.35.5-.16 1.14.3 1.42-.15-.09-.26-.22-.35-.37Z"></path>
+    <path class="inner" d="M108.45 167.41h-57v-63.89H20.52l59.44-85.03 59.02 85.1-30.53-.05v63.87z"></path>
+</svg>
+
+                <div id="l1" class="value">&#x202d;5.333&#x202c;</div>
+				<div class="barBox">
+					<div id="lbar1"
+						 class="bar"
+						 style="width:56%;"></div>
+				</div>
+            </a>
+                    <a class="stockBarButton resource2" href="/production.php?t=clay" title="طين||انتاج: 331&lt;br /&gt;الامتلاء خلال: 18:05:05&lt;br /&gt;... اضغط هنا لمزيد من المعلومات">
+                <i class="clay_small"></i>
+                <svg viewBox="0 0 160 180" class=" advantageBonusArrow productionBoost">
+    <path class="border" d="M158.78 106.45 85.17 2.72C84.06 1.01 82.14 0 80.03 0S76 1.01 74.79 2.72L1.17 106.45c-1.41 1.91-1.51 4.53-.5 6.64 1.11 2.11 3.23 3.42 5.65 3.42h31.76v57.15c0 3.52 2.82 6.34 6.35 6.34h70.89c3.53 0 6.35-2.82 6.35-6.34v-57.15h31.97c2.42 0 4.54-1.31 5.65-3.42 1.11-2.11.91-4.63-.5-6.64Z"></path>
+    <path class="sideShadow" d="m20.6 103.48-14.07 6.78c.17.3.48.51.87.51h35.86c.55 0 1 .45 1 1v61.81c0 .55.45 1 1 1h69.48c.55 0 1-.45 1-1V111.8c0-.55.45-1 1-1l35.34.29c.41 0 .74-.23.9-.55l-14.1-7-118.28-.06Z"></path>
+    <path class="bottomShadow" d="m51.45 167.41-6.88 6.88c.18.18.42.28.69.28h69.48c.26 0 .49-.11.67-.27l-6.96-6.9H51.44Z"></path>
+    <path class="topShadow" d="m6.54 110.26 13.98-6.74 59.44-85.03 59.02 85.1 14.01 6.95c.15-.3.15-.68-.07-1.01L80.83 5.35c-.39-.57-1.24-.57-1.64 0L6.59 109.21c-.35.5-.16 1.14.3 1.42-.15-.09-.26-.22-.35-.37Z"></path>
+    <path class="inner" d="M108.45 167.41h-57v-63.89H20.52l59.44-85.03 59.02 85.1-30.53-.05v63.87z"></path>
+</svg>
+
+                <div id="l2" class="value">&#x202d;3.614&#x202c;</div>
+				<div class="barBox">
+					<div id="lbar2"
+						 class="bar"
+						 style="width:38%;"></div>
+				</div>
+            </a>
+                    <a class="stockBarButton resource3" href="/production.php?t=iron" title="الحديد||انتاج: 355&lt;br /&gt;الامتلاء خلال: 21:22:19&lt;br /&gt;... اضغط هنا لمزيد من المعلومات">
+                <i class="iron_small"></i>
+                <svg viewBox="0 0 160 180" class=" advantageBonusArrow productionBoost">
+    <path class="border" d="M158.78 106.45 85.17 2.72C84.06 1.01 82.14 0 80.03 0S76 1.01 74.79 2.72L1.17 106.45c-1.41 1.91-1.51 4.53-.5 6.64 1.11 2.11 3.23 3.42 5.65 3.42h31.76v57.15c0 3.52 2.82 6.34 6.35 6.34h70.89c3.53 0 6.35-2.82 6.35-6.34v-57.15h31.97c2.42 0 4.54-1.31 5.65-3.42 1.11-2.11.91-4.63-.5-6.64Z"></path>
+    <path class="sideShadow" d="m20.6 103.48-14.07 6.78c.17.3.48.51.87.51h35.86c.55 0 1 .45 1 1v61.81c0 .55.45 1 1 1h69.48c.55 0 1-.45 1-1V111.8c0-.55.45-1 1-1l35.34.29c.41 0 .74-.23.9-.55l-14.1-7-118.28-.06Z"></path>
+    <path class="bottomShadow" d="m51.45 167.41-6.88 6.88c.18.18.42.28.69.28h69.48c.26 0 .49-.11.67-.27l-6.96-6.9H51.44Z"></path>
+    <path class="topShadow" d="m6.54 110.26 13.98-6.74 59.44-85.03 59.02 85.1 14.01 6.95c.15-.3.15-.68-.07-1.01L80.83 5.35c-.39-.57-1.24-.57-1.64 0L6.59 109.21c-.35.5-.16 1.14.3 1.42-.15-.09-.26-.22-.35-.37Z"></path>
+    <path class="inner" d="M108.45 167.41h-57v-63.89H20.52l59.44-85.03 59.02 85.1-30.53-.05v63.87z"></path>
+</svg>
+
+                <div id="l3" class="value">&#x202d;2.013&#x202c;</div>
+				<div class="barBox">
+					<div id="lbar3"
+						 class="bar"
+						 style="width:21%;"></div>
+				</div>
+            </a>
+        
+    </div>
+
+    <div class="granary">
+        <div class="capacity" title="صومعة">
+            <i class="granary_medium"></i>
+            <div class="value">&#x202d;6.300&#x202c;</div>
+        </div>
+
+        <a class="stockBarButton resource4" href="/production.php?t=crop" title="القمح||الإنتاج منقوصاً منه استهلاك المباني: 212&lt;br /&gt;الامتلاء خلال: 130:52:56&lt;br /&gt;... اضغط هنا لمزيد من المعلومات">
+            <i class="crop_small"></i>
+            <svg viewBox="0 0 160 180" class=" advantageBonusArrow productionBoost">
+    <path class="border" d="M158.78 106.45 85.17 2.72C84.06 1.01 82.14 0 80.03 0S76 1.01 74.79 2.72L1.17 106.45c-1.41 1.91-1.51 4.53-.5 6.64 1.11 2.11 3.23 3.42 5.65 3.42h31.76v57.15c0 3.52 2.82 6.34 6.35 6.34h70.89c3.53 0 6.35-2.82 6.35-6.34v-57.15h31.97c2.42 0 4.54-1.31 5.65-3.42 1.11-2.11.91-4.63-.5-6.64Z"></path>
+    <path class="sideShadow" d="m20.6 103.48-14.07 6.78c.17.3.48.51.87.51h35.86c.55 0 1 .45 1 1v61.81c0 .55.45 1 1 1h69.48c.55 0 1-.45 1-1V111.8c0-.55.45-1 1-1l35.34.29c.41 0 .74-.23.9-.55l-14.1-7-118.28-.06Z"></path>
+    <path class="bottomShadow" d="m51.45 167.41-6.88 6.88c.18.18.42.28.69.28h69.48c.26 0 .49-.11.67-.27l-6.96-6.9H51.44Z"></path>
+    <path class="topShadow" d="m6.54 110.26 13.98-6.74 59.44-85.03 59.02 85.1 14.01 6.95c.15-.3.15-.68-.07-1.01L80.83 5.35c-.39-.57-1.24-.57-1.64 0L6.59 109.21c-.35.5-.16 1.14.3 1.42-.15-.09-.26-.22-.35-.37Z"></path>
+    <path class="inner" d="M108.45 167.41h-57v-63.89H20.52l59.44-85.03 59.02 85.1-30.53-.05v63.87z"></path>
+</svg>
+
+            <div id="l4" class="value">&#x202d;1.850&#x202c;</div>
+			<div class="barBox">
+				<div id="lbar4"
+					 class="bar"
+					 style="width:29%;"></div>
+			</div>
+        </a>
+
+        <a class="stockBarButton" href="/production.php?t=balance" title="قمح احتياطي لمزيد من الأبنية||ميزانية القمح: &amp;#x202d;34&amp;#x202c;&lt;br /&gt;... اضغط هنا لمزيد من المعلومات">
+            <i class="freeCrop_small"></i>
+			<div id="stockBarFreeCrop" class="value">&#x202d;107&#x202c;</div>
+        </a>
+
+    </div>
+
+</div>
+
+<script type="text/javascript">
+    var resources = {
+        production: {"l1": 355,"l2": 331,"l3": 355,"l4": 34,"l5": 107},
+        storage: {"l1": 5333,"l2": 3614,"l3": 2013,"l4": 1850},
+        maxStorage: {"l1": 9600,"l2": 9600,"l3": 9600,"l4": 6300}
+    };
+</script>
+		            <nav id="mobileMenu">
+        <ul>
+                            <li>
+                    <a class="dailyQuests" href="#" accesskey="7" title="المهام اليومية" onclick="Travian.React.openDailyQuestsDialog(); return false;">
+                        <div class="inlineIcon " title=""><svg viewBox="0 0 40 130.22" class="dailyQuests ">
+    <rect width="40" height="89.11" rx="10.33"></rect>
+    <ellipse cx="19.67" cy="115.67" rx="17.22" ry="14.56"></ellipse>
+</svg>
+<span class="value ">المهام اليومية</span></div>                    </a>
+                </li>
+                <li>
+                    <a class="statistics" href="/statistics" title="إحصائيات||">
+                        <div class="inlineIcon " title=""><svg viewBox="0 0 120.56 137.33" class="statistics">
+    <path d="M1.67 70.67h32.67V130H1.67zM43.56 35.56h32.67V130H43.56zM86.46 0h32.67v130H86.46zM0 133.56h120.56v3.78H0z"></path>
+</svg>
+<span class="value ">إحصائيات</span></div>                    </a>
+                </li>
+<!--                // TODO: TL-15781 Add seasonal rewards to mobile menu-->
+									<li>
+						<a class="referAFriend" href="/referAFriend" title="اُدع صديقًا">
+							<div class="inlineIcon " title=""><svg viewBox="0 0 18.08 20" class="referAFriend">
+  <path class="human" d="M5.86 9a1.26 1.26 0 01-1.14-1.31V6.36a.72.72 0 01.55-.75.67.67 0 000-.42 4.87 4.87 0 01.2-2.51 1.63 1.63 0 01.28-.52c.29-.38.63-.73.94-1.09A3.84 3.84 0 0111.4.58a4.16 4.16 0 011.86 4.2 5.2 5.2 0 000 1c.63.3.41.88.39 1.38 0 .2-.05.41 0 .63a1.76 1.76 0 01-.09.75c-.15.43-.17.45-.59.6a3.31 3.31 0 01-.71 1.6c-.24.28-.16.65-.24 1s-.13.61-.21.91a1.56 1.56 0 00.83 2 6.14 6.14 0 011.63 1.14 4.54 4.54 0 01.91 1.38c.19.42.06.61-.4.61H.5c-.46 0-.51 0-.5-.52a4.13 4.13 0 012-3.48A6.1 6.1 0 013.57 13a4.77 4.77 0 002.07-1.21 1.2 1.2 0 00.36-1c-.06-.56-.1-1.16-.14-1.79z"></path>
+  <path class="plus" d="M8.38 16.43v-2.56a.71.71 0 01.77-.57h2.27v-2.32c0-.53.17-.68.69-.68h2.09c.7 0 .88.15.89.9v2.1h2.17c.62 0 .81.19.82.81v2c0 .71-.17.88-.87.88h-2.12v2.21c0 .72-.19.8-.81.81h-2c-.69 0-.85-.17-.85-.85v-2.17H9.25c-.42.01-.75-.1-.87-.56z"></path>
+</svg>
+<span class="value ">اُدع صديقًا</span></div>						</a>
+					</li>
+				                <li>
+                    <a class="profile" href="/profile" title="بطاقة العضوية||تحرير الوصف">
+                        <div class="inlineIcon " title=""><svg viewBox="0 0 15.76 21" class="profile">
+  <path d="M7.88 1.77c2.1 0 3.8 2.09 3.8 4.65s-1.7 4.65-3.8 4.65S4.08 9 4.08 6.42s1.71-4.65 3.8-4.65m0-1.77c-3 0-5.49 2.88-5.49 6.42s2.46 6.42 5.49 6.42 5.49-2.84 5.49-6.42S10.92 0 7.88 0zm7.88 21a11.81 11.81 0 0 0-2.51-7 7.17 7.17 0 0 1-5.37 2.46A7.17 7.17 0 0 1 2.52 14 11.82 11.82 0 0 0 0 21z"></path>
+</svg>
+<span class="value ">بطاقة العضوية</span></div>                    </a>
+                </li>
+                <li>
+                                            <a class="options" href="/options" title="خيارات||تعديل إعدادات العضوية.">
+                            <div class="inlineIcon " title=""><svg viewBox="0 0 20 20" class="settings">
+  <path d="M9 20l-.24-3.26-.57-.16A7.21 7.21 0 0 1 6.66 16l-.52-.29-2.47 2.1-1.48-1.48 2.14-2.47-.33-.52a7.21 7.21 0 0 1-.62-1.49l-.16-.57L0 11V9l3.26-.24.16-.57A7.21 7.21 0 0 1 4 6.66l.29-.52-2.1-2.47 1.48-1.48 2.47 2.14.52-.33a7.21 7.21 0 0 1 1.49-.62l.57-.16L9 0h2l.24 3.26.57.16a7.21 7.21 0 0 1 1.53.58l.52.29 2.47-2.14 1.48 1.48-2.14 2.51.29.52a7.21 7.21 0 0 1 .62 1.49l.16.57L20 9v2l-3.26.24-.16.57a7.21 7.21 0 0 1-.58 1.53l-.29.52 2.14 2.47-1.48 1.48-2.47-2.14-.52.29a7.21 7.21 0 0 1-1.49.62l-.57.16L11 20zm1-15a5 5 0 1 0 5 5 5 5 0 0 0-5-5z"></path>
+</svg>
+<span class="value ">خيارات</span></div>                        </a>
+                                    </li>
+                <li>
+                    <a class="help" onclick="Travian.React.openHelpDialog()" title="مساعدة||دليل اللعبة، أجوبة ترافيان والدعم">
+                        <div class="inlineIcon " title=""><svg viewBox="0 0 12.24 20" class="answers">
+  <path d="M3.73 13.1v-.52c0-2.8 1.47-3.8 2.89-4.76 1-.72 2.14-1.46 2.14-2.9s-1.13-2.55-3-2.55A5.39 5.39 0 0 0 2 4.12L0 2.61A8.15 8.15 0 0 1 6.24 0c3 0 6 1.4 6 4.52 0 2.42-1.4 3.38-2.88 4.4-1.33.91-2.7 1.85-2.7 3.82v.36zm3.61 4.8a2.09 2.09 0 0 0-2.1-2.07 2.09 2.09 0 0 0 0 4.17 2.1 2.1 0 0 0 2.1-2.1z"></path>
+</svg>
+<span class="value ">مساعدة</span></div>                    </a>
+                </li>
+                <li>
+                    <a class="discord" target="_blank" href="https://discord.gg/travianlegends" title="ديسكورد||تقابل مع لاعبين آخرين على سيرفرنا الرسمي على ديسكورد">
+                        <div class="inlineIcon " title=""><svg viewBox="0 0 20 18.71" class="discord">
+  <path d="M0 2.91v10.18A2.92 2.92 0 002.91 16h12.71a.93.93 0 01.65.27l2.17 2.17a.91.91 0 001.56-.65V2.91A2.92 2.92 0 0017.09 0H2.91A2.92 2.92 0 000 2.91zm15.72 9.59H4.28a.78.78 0 01-.78-.78V4.28a.78.78 0 01.78-.78h11.44a.78.78 0 01.78.78v7.44a.78.78 0 01-.78.78z"></path>
+</svg>
+<span class="value ">ديسكورد</span></div>                    </a>
+                </li>
+                                <li>
+                                        <a class="logout" href="/logout" onclick="Travian.api('auth/logout'); return false;" title="تسجيل الخروج||عودة إلى المنصّة">
+                        <div class="inlineIcon " title=""><svg viewBox="0 0 20 20" class="logout">
+  <path d="M0 17.01L7.01 10 .14 3.13 3.13.14 10 7.01 17.01 0 20 2.99 12.99 10l6.87 6.87-2.99 2.99L10 12.99 2.99 20 0 17.01z"></path>
+</svg>
+<span class="value ">تسجيل الخروج</span></div>                    </a>
+                </li>
+                                                </ul>
+
+        
+        <svg viewBox="0 0 200 10" class="divider">
+    <path d="m200 5-78.7-2.5c.2.75.54 1.57.67 2.35h-2.49c-.08-1.31-1.16-2.35-2.48-2.35s-2.41 1.04-2.48 2.35h-9.67L100 0l-4.85 4.85h-9.67C85.4 3.54 84.32 2.5 83 2.5s-2.41 1.04-2.48 2.35h-2.49c.13-.78.47-1.6.67-2.35L0 5l78.7 2.5c-.22-.74-.55-1.58-.67-2.35h2.49C80.6 6.46 81.68 7.5 83 7.5s2.41-1.04 2.48-2.35h9.67L100 10l4.85-4.85h9.67c.08 1.31 1.16 2.35 2.48 2.35s2.41-1.04 2.48-2.35h2.49c-.12.77-.46 1.61-.67 2.35L200 5Z"></path>
+</svg>
+
+        <ul>
+            <li>
+                <a class="mainpage" href="https://www.travian.com/ae" target="_blank" title="">الصفحة الرئيسية</a>
+            </li>
+            <li>
+                <a class="terms" href="https://agb.traviangames.com/terms-ar.pdf" target="_blank" title="">الشروط</a>
+            </li>
+            <li>
+                <a class="imprint" href="https://www.travian.com/ae/imprint" target="_blank" title="">من نحن</a>
+            </li>
+                            <li>
+                    <a class="imprint" href="#" onclick="__cmapi('showScreenAdvanced',null,null); return false" target="_blank" title="">إعدادات الخصوصية</a>
+                </li>
+                    </ul>
+
+        <p class="copyright">© 2004-2026 Travian Games GmbH</p>
+    </nav>
+    
+    
+    </div>
+	            <nav id="outOfGame">
+            
+        <a id="button6a1b227591dc3"
+   	class="layoutButton buttonFramed withIcon round profile grey    "
+	title="بطاقة العضوية||تحرير الوصف"
+        			href="/profile"
+	        	>
+					<svg viewBox="0 0 15.76 21" class="profile"><g class="outline">
+  <path d="M7.88 1.77c2.1 0 3.8 2.09 3.8 4.65s-1.7 4.65-3.8 4.65S4.08 9 4.08 6.42s1.71-4.65 3.8-4.65m0-1.77c-3 0-5.49 2.88-5.49 6.42s2.46 6.42 5.49 6.42 5.49-2.84 5.49-6.42S10.92 0 7.88 0zm7.88 21a11.81 11.81 0 0 0-2.51-7 7.17 7.17 0 0 1-5.37 2.46A7.17 7.17 0 0 1 2.52 14 11.82 11.82 0 0 0 0 21z"></path>
+</g><g class="icon">
+  <path d="M7.88 1.77c2.1 0 3.8 2.09 3.8 4.65s-1.7 4.65-3.8 4.65S4.08 9 4.08 6.42s1.71-4.65 3.8-4.65m0-1.77c-3 0-5.49 2.88-5.49 6.42s2.46 6.42 5.49 6.42 5.49-2.84 5.49-6.42S10.92 0 7.88 0zm7.88 21a11.81 11.81 0 0 0-2.51-7 7.17 7.17 0 0 1-5.37 2.46A7.17 7.17 0 0 1 2.52 14 11.82 11.82 0 0 0 0 21z"></path>
+</g></svg>
+		</a>
+
+<script type="text/javascript">
+    jQuery('#button6a1b227591dc3').on('click', function (event) {
+        jQuery(window).trigger('buttonClicked', [event.delegateTarget, {"type":"grey","loadTooltip":null,"boxId":"","disabled":false,"attention":false,"colorBlind":false,"class":"","id":"button6a1b227591dc3","redirectUrl":"\/profile","redirectUrlExternal":"","svg":"outOfGame\/profile.svg","content":""}]);
+    });
+</script>
+
+        <a id="button6a1b227591e19"
+   	class="layoutButton buttonFramed withIcon round options grey    "
+	title="خيارات||تعديل إعدادات العضوية."
+        			href="/options"
+	        	>
+					<svg viewBox="0 0 20 20" class="options"><g class="outline">
+  <path d="M9 20l-.24-3.26-.57-.16A7.21 7.21 0 0 1 6.66 16l-.52-.29-2.47 2.1-1.48-1.48 2.14-2.47-.33-.52a7.21 7.21 0 0 1-.62-1.49l-.16-.57L0 11V9l3.26-.24.16-.57A7.21 7.21 0 0 1 4 6.66l.29-.52-2.1-2.47 1.48-1.48 2.47 2.14.52-.33a7.21 7.21 0 0 1 1.49-.62l.57-.16L9 0h2l.24 3.26.57.16a7.21 7.21 0 0 1 1.53.58l.52.29 2.47-2.14 1.48 1.48-2.14 2.51.29.52a7.21 7.21 0 0 1 .62 1.49l.16.57L20 9v2l-3.26.24-.16.57a7.21 7.21 0 0 1-.58 1.53l-.29.52 2.14 2.47-1.48 1.48-2.47-2.14-.52.29a7.21 7.21 0 0 1-1.49.62l-.57.16L11 20zm1-15a5 5 0 1 0 5 5 5 5 0 0 0-5-5z"></path>
+</g><g class="icon">
+  <path d="M9 20l-.24-3.26-.57-.16A7.21 7.21 0 0 1 6.66 16l-.52-.29-2.47 2.1-1.48-1.48 2.14-2.47-.33-.52a7.21 7.21 0 0 1-.62-1.49l-.16-.57L0 11V9l3.26-.24.16-.57A7.21 7.21 0 0 1 4 6.66l.29-.52-2.1-2.47 1.48-1.48 2.47 2.14.52-.33a7.21 7.21 0 0 1 1.49-.62l.57-.16L9 0h2l.24 3.26.57.16a7.21 7.21 0 0 1 1.53.58l.52.29 2.47-2.14 1.48 1.48-2.14 2.51.29.52a7.21 7.21 0 0 1 .62 1.49l.16.57L20 9v2l-3.26.24-.16.57a7.21 7.21 0 0 1-.58 1.53l-.29.52 2.14 2.47-1.48 1.48-2.47-2.14-.52.29a7.21 7.21 0 0 1-1.49.62l-.57.16L11 20zm1-15a5 5 0 1 0 5 5 5 5 0 0 0-5-5z"></path>
+</g></svg>
+		</a>
+
+<script type="text/javascript">
+    jQuery('#button6a1b227591e19').on('click', function (event) {
+        jQuery(window).trigger('buttonClicked', [event.delegateTarget, {"type":"grey","loadTooltip":null,"boxId":"","disabled":false,"attention":false,"colorBlind":false,"class":"","id":"button6a1b227591e19","redirectUrl":"\/options","redirectUrlExternal":"","svg":"outOfGame\/settings.svg","content":""}]);
+    });
+</script>
+
+        <a id="button6a1b227591e63"
+   	class="layoutButton buttonFramed withIcon round help grey    "
+	title="مساعدة||دليل اللعبة، أجوبة ترافيان والدعم"
+        	            onclick="Travian.React.openHelpDialog()"
+        	>
+					<svg viewBox="0 0 12.24 20" class="help"><g class="outline">
+  <path d="M3.73 13.1v-.52c0-2.8 1.47-3.8 2.89-4.76 1-.72 2.14-1.46 2.14-2.9s-1.13-2.55-3-2.55A5.39 5.39 0 0 0 2 4.12L0 2.61A8.15 8.15 0 0 1 6.24 0c3 0 6 1.4 6 4.52 0 2.42-1.4 3.38-2.88 4.4-1.33.91-2.7 1.85-2.7 3.82v.36zm3.61 4.8a2.09 2.09 0 0 0-2.1-2.07 2.09 2.09 0 0 0 0 4.17 2.1 2.1 0 0 0 2.1-2.1z"></path>
+</g><g class="icon">
+  <path d="M3.73 13.1v-.52c0-2.8 1.47-3.8 2.89-4.76 1-.72 2.14-1.46 2.14-2.9s-1.13-2.55-3-2.55A5.39 5.39 0 0 0 2 4.12L0 2.61A8.15 8.15 0 0 1 6.24 0c3 0 6 1.4 6 4.52 0 2.42-1.4 3.38-2.88 4.4-1.33.91-2.7 1.85-2.7 3.82v.36zm3.61 4.8a2.09 2.09 0 0 0-2.1-2.07 2.09 2.09 0 0 0 0 4.17 2.1 2.1 0 0 0 2.1-2.1z"></path>
+</g></svg>
+		</a>
+
+<script type="text/javascript">
+    jQuery('#button6a1b227591e63').on('click', function (event) {
+        jQuery(window).trigger('buttonClicked', [event.delegateTarget, {"type":"grey","loadTooltip":null,"boxId":"","disabled":false,"attention":false,"colorBlind":false,"class":"","id":"button6a1b227591e63","redirectUrl":"","redirectUrlExternal":"","svg":"outOfGame\/answers.svg","content":"","onclick":"Travian.React.openHelpDialog()"}]);
+    });
+</script>
+            <a id="button6a1b227591ea1"
+   	class="layoutButton buttonFramed withIcon round logout grey    "
+	title="تسجيل الخروج||عودة إلى المنصّة"
+        	            onclick="Travian.api('auth/logout'); return false;"
+        	>
+					<svg viewBox="0 0 20 20" class="logout"><g class="outline">
+  <path d="M0 17.01L7.01 10 .14 3.13 3.13.14 10 7.01 17.01 0 20 2.99 12.99 10l6.87 6.87-2.99 2.99L10 12.99 2.99 20 0 17.01z"></path>
+</g><g class="icon">
+  <path d="M0 17.01L7.01 10 .14 3.13 3.13.14 10 7.01 17.01 0 20 2.99 12.99 10l6.87 6.87-2.99 2.99L10 12.99 2.99 20 0 17.01z"></path>
+</g></svg>
+		</a>
+
+<script type="text/javascript">
+    jQuery('#button6a1b227591ea1').on('click', function (event) {
+        jQuery(window).trigger('buttonClicked', [event.delegateTarget, {"type":"grey","loadTooltip":null,"boxId":"","disabled":false,"attention":false,"colorBlind":false,"class":"","id":"button6a1b227591ea1","redirectUrl":"","redirectUrlExternal":"","svg":"misc\/cross.svg","content":"","onclick":"Travian.api('auth\/logout'); return false;"}]);
+    });
+</script>
+</nav>
+<script type="text/javascript">
+    jQuery('#outOfGame li.logout a').on('click', function() {
+        var windows = Travian.WindowManager.getWindows();
+        for (var i = 0; i < windows.length; i++) {
+            Travian.WindowManager.unregister(windows[i]);
+        }
+    });
+</script>
+    </div>
+    <div id="topBarHeroWrapper">
+        <div id="topBarHero" class="heroV2">
+			<svg class="health" viewBox="0 0 110 110">
+			<defs>
+				<clipPath id="healthMask" maskContentUnits="objectBoundingBox">
+					<path d="M55 55L47.35 109.46A 55 55 0 0 0 109.99 56.06" fill="white" />
+				</clipPath>
+			</defs>
+
+			<image xlink:href="https://cdn.legends.travian.com/gpack/467.7/img_rtl/hud/topBar/hero/frame/health.png" x="0" y="0" width="110" height="110" style="clip-path: url(#healthMask);" />
+
+			<path class="title" d="M55 55L47.35 109.46A 55 55 0 0 0 109.87 51.16" fill="transparent">
+				<title>الحالة الصحية: &#x202e;&#x202d;95&#x202c;&#37;&#x202c;</title>
+			</path>
+		</svg>
+			<svg class="experience" viewBox="0 0 110 110">
+			<defs>
+				<clipPath id="experienceMask" maskContentUnits="objectBoundingBox">
+					<path d="M55 55L32.63 105.25A 55 55 0 0 1 4.66 77.16" fill="white" />
+				</clipPath>
+			</defs>
+
+			<image xlink:href="https://cdn.legends.travian.com/gpack/467.7/img_rtl/hud/topBar/hero/frame/experience.png" x="0" y="0" width="110" height="110" style="clip-path: url(#experienceMask);" />
+
+			<path class="title" d="M55 55L32.63 105.25A 55 55 0 0 1 4 34.4" fill="transparent">
+				<title>خبرة &amp;#x202e;&amp;#x202d;48&amp;#x202c;&amp;#37;&amp;#x202c;||يحتاج بطلك لـ 208 خبرة لبلوغ المستوى 8.</title>
+			</path>
+		</svg>
+	
+	<a id="heroImageButton" href="/hero" class="heroImageButton" type="button" title="استعراض البطل||بطلك موجود حاليّاً في القرية &lt;a href=&quot;/karte.php?d=56350&quot;&gt;AMH7&lt;/a&gt;.">
+        <div class="heroImageHover">
+            <img class="heroImage heroImageMale" src="/heroV2/head/df2e94eb4371d91276ea6987c9387672c949fb2b.1530.1.png"  title="بطل" alt="بطل" />
+        </div>
+	</a>
+
+	<div class="heroStatus" title="استعراض البطل||بطلك موجود حاليّاً في القرية &lt;a href=&quot;/karte.php?d=56350&quot;&gt;AMH7&lt;/a&gt;.">
+        <a href="/build.php?newdid=23378&id=39&&tt=2" title="" class=""><i class="heroHome" ></i></a>
+        <span class="hide"><i class="heroHome" ></i></span>
+	</div>
+
+    <i class="levelUp show" title="نقاط الخبرة المتوفّرة || اضغط على صورة بطلك حتى تستطيع توزيعها"></i>
+
+	<a id="button6a1b227592505"
+   	class="layoutButton buttonFramed withIcon round auction green    "
+	title="مزادات||تحميل أداة النصيحة..."
+    data-load-tooltip="hero"    data-load-tooltip-data="{&quot;boxId&quot;:&quot;hero&quot;,&quot;buttonId&quot;:&quot;auction&quot;}"			href="/auctions"
+	        	>
+					<svg viewBox="0 0 20.18 19.44" class="auction"><g class="outline">
+  <path d="M20 9.44l-6.14 6.16a.54.54 0 0 1-.78 0L11 13.5a.56.56 0 0 1 0-.78l1.64-1.64-.64-.64h-1.24l-7.38 8.7L0 15.76l8.67-7.41V7.13l-.57-.57-.74.75a.49.49 0 0 1-.69 0L4.19 4.83a.49.49 0 0 1 0-.69l4-4a.49.49 0 0 1 .69 0l2.45 2.45a.52.52 0 0 1 0 .74l-.45.46.65.65h3.14v3.14l.73.73 1.75-1.75a.54.54 0 0 1 .78 0L20 8.66a.54.54 0 0 1 0 .78zm-9.35 7v3h9v-3z"></path>
+</g><g class="icon">
+  <path d="M20 9.44l-6.14 6.16a.54.54 0 0 1-.78 0L11 13.5a.56.56 0 0 1 0-.78l1.64-1.64-.64-.64h-1.24l-7.38 8.7L0 15.76l8.67-7.41V7.13l-.57-.57-.74.75a.49.49 0 0 1-.69 0L4.19 4.83a.49.49 0 0 1 0-.69l4-4a.49.49 0 0 1 .69 0l2.45 2.45a.52.52 0 0 1 0 .74l-.45.46.65.65h3.14v3.14l.73.73 1.75-1.75a.54.54 0 0 1 .78 0L20 8.66a.54.54 0 0 1 0 .78zm-9.35 7v3h9v-3z"></path>
+</g></svg>
+		</a>
+
+<script type="text/javascript">
+    jQuery('#button6a1b227592505').on('click', function (event) {
+        jQuery(window).trigger('buttonClicked', [event.delegateTarget, {"type":"green","loadTooltip":"hero","boxId":"hero","disabled":false,"attention":false,"colorBlind":false,"class":"","id":"button6a1b227592505","redirectUrl":"\/auctions","redirectUrlExternal":"","svg":"topBar\/auction.svg","content":"","title":"\u0645\u0632\u0627\u062f\u0627\u062a||\u062a\u062d\u0645\u064a\u0644 \u0623\u062f\u0627\u0629 \u0627\u0644\u0646\u0635\u064a\u062d\u0629..."}]);
+    });
+</script>
+<a id="button6a1b227592581"
+   	class="layoutButton buttonFramed withIcon round adventure green    attention"
+	title="مغامرة||تحميل أداة النصيحة..."
+    data-load-tooltip="hero"    data-load-tooltip-data="{&quot;boxId&quot;:&quot;hero&quot;,&quot;buttonId&quot;:&quot;adventure&quot;}"			href="/hero/adventures"
+	        	>
+					<div class="content">2</div>
+		</a>
+
+<script type="text/javascript">
+    jQuery('#button6a1b227592581').on('click', function (event) {
+        jQuery(window).trigger('buttonClicked', [event.delegateTarget, {"type":"green","loadTooltip":"hero","boxId":"hero","disabled":false,"attention":true,"colorBlind":false,"class":"","id":"button6a1b227592581","redirectUrl":"\/hero\/adventures","redirectUrlExternal":"","svg":false,"content":2,"title":"\u0645\u063a\u0627\u0645\u0631\u0629||\u062a\u062d\u0645\u064a\u0644 \u0623\u062f\u0627\u0629 \u0627\u0644\u0646\u0635\u064a\u062d\u0629..."}]);
+    });
+</script>
+</div>
+    </div>
+
+			<div id="center">
+                
+                <div id="sidebarBeforeContent" class="sidebar beforeContent">
+                    <div class="sidebarBoxWrapper">
+                    <div id="servertime">
+    <span>وقت الخادم</span>
+    <span><span  format="24h" class="timer" counting="up" value="1780163189">18:46:29</span>&nbsp;(UTC&nbsp;+01:00)</span>
+</div>
+                    <div id="sidebarBoxInfobox" class="sidebarBox toggleable expanded">
+	<div class="header">
+			</div>
+	<div class="content">
+		<div class="boxTitleWrapper">
+    <div class="boxTitle">صندوق المعلومات</div>
+
+    <div class="inlineIcon messageShortInfo" title="مجموع الرسائل: 3&lt;br /&gt;رسائل جديدة: 2"><svg viewBox="0 0 20 14.28" class="messageNew">
+  <path d="M.72.93A1.69 1.69 0 0 1 .33.21L.54 0h19a1.56 1.56 0 0 1 .16.2 1.73 1.73 0 0 1-.39.73l-7.2 7.78a2.79 2.79 0 0 1-4.18 0zm13.59 7.89l3.55 2.5-4.92-1.06a4.31 4.31 0 0 1-5.84 0l-4.89 1.06 3.53-2.49L0 2.62v10.06a1.54 1.54 0 0 0 1.47 1.6h17.06a1.54 1.54 0 0 0 1.47-1.6v-10z"></path>
+</svg>
+<span class="value ">&#x202e;&#x202d;2&#x202c;&times;&#x202c;</span></div></div>
+
+<ul>
+        <li id=infoID_99671 class="infoType_35 firstElement active unreaded">
+            <p>
+	<a class ="infoboxDeleteButton" href="#" data-id="99671">
+<img src="/img/x.gif" class="del" alt="del">
+</a>
+	انتهت فترة السلام في 29.05.26, 22:00. ستقاتل القوات المهاجمة من جديد، لكن الموت جوعًا سيقى معطّلًا لغاية 30.05.26, 22:00.</p>
+        </li>
+                <li id=infoID_76569 class="infoType_47">
+            <p>
+	<a class ="infoboxDeleteButton" href="#" data-id="76569">
+<img src="/img/x.gif" class="del" alt="del">
+</a>
+	<br/>
+	زيادة إنتاج الموارد في جميع قراك مقابل الذهب (+25%) أو من خلال مشاهدة فيديو (+15%)</p>
+<button type="button" value="افتح المتجر" id="button6a1b227592b38" class="textButtonV1 green " onclick="Travian.React.openPaymentWizard({activeTab: 'advantages'}); return false;" version="textButtonV1">
+	افتح المتجر</button>
+<script type="text/javascript" id="button6a1b227592b38_script">
+	jQuery(function() {
+        jQuery('button#button6a1b227592b38').on('click', function () {
+            jQuery(window).trigger('buttonClicked', [this, {"type":"button","value":"\u0627\u0641\u062a\u062d \u0627\u0644\u0645\u062a\u062c\u0631","name":"","id":"button6a1b227592b38","class":"textButtonV1 green ","title":"","confirm":"","onclick":"Travian.React.openPaymentWizard({activeTab: \u0027advantages\u0027}); return false;","version":"textButtonV1"}]);
+        });
+	});
+</script>
+        </li>
+                <li id=infoID_88764 class="infoType_48 unreaded active">
+            <p>
+	<a class ="infoboxDeleteButton" href="#" data-id="88764">
+<img src="/img/x.gif" class="del" alt="del">
+</a>
+	<br/>
+	يمكنك الآن تفعيل مكافأة الموارد +15% خاصتك مرة أخرى من خلال مشاهدة فيديو.</p>
+<button type="button" value="افتح المتجر" id="button6a1b227592b61" class="textButtonV1 green " onclick="Travian.React.openPaymentWizard({activeTab: 'advantages'}); return false;" version="textButtonV1">
+	افتح المتجر</button>
+<script type="text/javascript" id="button6a1b227592b61_script">
+	jQuery(function() {
+        jQuery('button#button6a1b227592b61').on('click', function () {
+            jQuery(window).trigger('buttonClicked', [this, {"type":"button","value":"\u0627\u0641\u062a\u062d \u0627\u0644\u0645\u062a\u062c\u0631","name":"","id":"button6a1b227592b61","class":"textButtonV1 green ","title":"","confirm":"","onclick":"Travian.React.openPaymentWizard({activeTab: \u0027advantages\u0027}); return false;","version":"textButtonV1"}]);
+        });
+	});
+</script>
+        </li>
+        </ul>
+
+
+<script type="text/javascript">
+	jQuery(function() {
+		Travian.Game.Layout.setupInfoboxItemsDeletionWithMessage('حذف هذه الرسالة بشكل دائم؟', 'تأكيد');
+	});
+</script>
+
+	</div>
+				<div class="toggle">
+		<button type="button" class="toggleBox" onclick="" title="تصغير | تحديد كل الرسائل لاعتبارها مقروءة">
+			<svg class="toggleArrow" viewBox="0 0 18 11">
+				<filter id="insetShadow">
+					<feFlood flood-color="#a2e25e"/>
+					<feComposite in2="SourceAlpha" operator="out"/>
+					<feGaussianBlur stdDeviation="2" result="blur"/>
+					<feComposite operator="atop" in2="SourceGraphic"/>
+				</filter>
+				<path class="caret" d="M1 10H17L9 1z" />
+				<path class="glow" d="M1 10H17L9 1z" />
+			</svg>
+		</button>
+	</div>
+
+	<script type="text/javascript">
+		jQuery(function() {
+			Travian.Translation.add({
+				'infobox_collapsed': 'تكبير',
+				'infobox_expanded': 'تصغير | تحديد كل الرسائل لاعتبارها مقروءة'
+			});
+
+			var box = jQuery('#sidebarBoxInfobox');
+			box.find('button.toggleBox').on('click', function(e) {
+				Travian.Game.Layout.toggleBox(box, 'travian_toggle', 'infobox');
+			});
+		});
+	</script>
+	</div>
+<div id="sidebarBoxLinklist" class="sidebarBox  expanded">
+	<div class="header">
+		<div class="buttonsWrapper">
+    <a id="button6a1b227592bad"
+   	class="layoutButton buttonFramed withIcon round edit gold    "
+	title="قائمة الروابط || ترافيان بلاس يخوّلك عمل قائمة روابط"
+        			href="#"
+	            onclick="new Travian.Game.PlusDialog({featureKey: 'linkList', cssClass: 'premiumFeaturePackage premiumFeaturePlus paymentShopV5', premiumFeatureDialogVersion: 2, version: 2}); return false;"
+        	>
+					<svg viewBox="0 0 15.59 20" class="edit"><g class="outline">
+  <path d="M15.59 18.55V20H0v-1.45zM11.52 0L1.05 13.47.92 17.4l3.65-1.21L15 2.73zm.25 7L8.16 4.33 9 3.2l3.6 2.62z"></path>
+</g><g class="icon">
+  <path d="M15.59 18.55V20H0v-1.45zM11.52 0L1.05 13.47.92 17.4l3.65-1.21L15 2.73zm.25 7L8.16 4.33 9 3.2l3.6 2.62z"></path>
+</g></svg>
+		</a>
+
+<script type="text/javascript">
+    jQuery('#button6a1b227592bad').on('click', function (event) {
+        jQuery(window).trigger('buttonClicked', [event.delegateTarget, {"type":"gold","loadTooltip":null,"boxId":"","disabled":false,"attention":false,"colorBlind":false,"class":"","id":"button6a1b227592bad","redirectUrl":"#","redirectUrlExternal":"","svg":"sideBar\/editUnderlined.svg","content":"","title":"\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0631\u0648\u0627\u0628\u0637 || \u062a\u0631\u0627\u0641\u064a\u0627\u0646 \u0628\u0644\u0627\u0633 \u064a\u062e\u0648\u0651\u0644\u0643 \u0639\u0645\u0644 \u0642\u0627\u0626\u0645\u0629 \u0631\u0648\u0627\u0628\u0637","onclick":"new Travian.Game.PlusDialog({featureKey: 'linkList', cssClass: 'premiumFeaturePackage premiumFeaturePlus paymentShopV5', premiumFeatureDialogVersion: 2, version: 2}); return false;"}]);
+    });
+</script>
+</div>
+	</div>
+	<div class="content">
+		<div class="boxTitle">قائمة الروابط</div>
+
+	<div class="linklistNotice">ترافيان بلاس يخوّلك عمل قائمة روابط</div>
+	</div>
+	</div>
+                    </div>
+				</div>
+
+				<div id="contentOuterContainer" class="">
+                                            <div class="village1">
+    <div id="resourceFieldContainer" class="resourceField3 tribe1 ">
+        <a href="/dorf2.php" class="villageCenter"></a>
+<a href="/build.php?id=1"
+                     class="good level colorLayer resourceField gid1 buildingSlot1  level6"
+                    data-aid="1" data-gid="1"
+                    title="الحطاب &lt;span class=&quot;level&quot;&gt;المستوى 6&lt;/span&gt;||تكلفة البناء للمستوى 7:&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r1Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;870&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r2Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;2170&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r3Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1085&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r4Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1300&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon duration&quot; title=&quot;&quot;&gt;&lt;i class=&quot;clock_medium&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1:43:20&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;"><div class="labelLayer">6</div></a>
+<a href="/build.php?id=2"
+                     class="good level colorLayer resourceField gid4 buildingSlot2  level6"
+                    data-aid="2" data-gid="4"
+                    title="حقل القمح &lt;span class=&quot;level&quot;&gt;المستوى 6&lt;/span&gt;||تكلفة البناء للمستوى 7:&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r1Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1520&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r2Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1950&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r3Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1520&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r4Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;435&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon duration&quot; title=&quot;&quot;&gt;&lt;i class=&quot;clock_medium&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1:23:30&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;"><div class="labelLayer">6</div></a>
+<a href="/build.php?id=3"
+                     class="good level colorLayer resourceField gid1 buildingSlot3  level6"
+                    data-aid="3" data-gid="1"
+                    title="الحطاب &lt;span class=&quot;level&quot;&gt;المستوى 6&lt;/span&gt;||تكلفة البناء للمستوى 7:&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r1Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;870&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r2Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;2170&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r3Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1085&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r4Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1300&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon duration&quot; title=&quot;&quot;&gt;&lt;i class=&quot;clock_medium&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1:43:20&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;"><div class="labelLayer">6</div></a>
+<a href="/build.php?id=4"
+                     class="good level colorLayer resourceField gid3 buildingSlot4  level5"
+                    data-aid="4" data-gid="3"
+                    title="منجم حديد &lt;span class=&quot;level&quot;&gt;المستوى 5&lt;/span&gt;||تكلفة البناء للمستوى 6:&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r1Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1300&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r2Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1040&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r3Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;390&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r4Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;780&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon duration&quot; title=&quot;&quot;&gt;&lt;i class=&quot;clock_medium&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1:24:40&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;"><div class="labelLayer">5</div></a>
+<a href="/build.php?id=5"
+                     class="good level colorLayer resourceField gid2 buildingSlot5  level6"
+                    data-aid="5" data-gid="2"
+                    title="حفرة الطين &lt;span class=&quot;level&quot;&gt;المستوى 6&lt;/span&gt;||تكلفة البناء للمستوى 7:&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r1Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1735&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r2Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;870&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r3Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1735&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r4Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1085&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon duration&quot; title=&quot;&quot;&gt;&lt;i class=&quot;clock_medium&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1:36:00&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;"><div class="labelLayer">6</div></a>
+<a href="/build.php?id=6"
+                     class="good level colorLayer resourceField gid2 buildingSlot6  level6"
+                    data-aid="6" data-gid="2"
+                    title="حفرة الطين &lt;span class=&quot;level&quot;&gt;المستوى 6&lt;/span&gt;||تكلفة البناء للمستوى 7:&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r1Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1735&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r2Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;870&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r3Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1735&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r4Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1085&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon duration&quot; title=&quot;&quot;&gt;&lt;i class=&quot;clock_medium&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1:36:00&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;"><div class="labelLayer">6</div></a>
+<a href="/build.php?id=7"
+                     class="good level colorLayer resourceField gid3 buildingSlot7  level6"
+                    data-aid="7" data-gid="3"
+                    title="منجم حديد &lt;span class=&quot;level&quot;&gt;المستوى 6&lt;/span&gt;||تكلفة البناء للمستوى 7:&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r1Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;2170&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r2Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1735&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r3Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;650&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r4Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1300&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon duration&quot; title=&quot;&quot;&gt;&lt;i class=&quot;clock_medium&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;2:17:30&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;"><div class="labelLayer">6</div></a>
+<a href="/build.php?id=8"
+                     class="good level colorLayer resourceField gid4 buildingSlot8  level6"
+                    data-aid="8" data-gid="4"
+                    title="حقل القمح &lt;span class=&quot;level&quot;&gt;المستوى 6&lt;/span&gt;||تكلفة البناء للمستوى 7:&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r1Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1520&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r2Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1950&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r3Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1520&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r4Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;435&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon duration&quot; title=&quot;&quot;&gt;&lt;i class=&quot;clock_medium&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1:23:30&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;"><div class="labelLayer">6</div></a>
+<a href="/build.php?id=9"
+                     class="good level colorLayer resourceField gid4 buildingSlot9  level5"
+                    data-aid="9" data-gid="4"
+                    title="حقل القمح &lt;span class=&quot;level&quot;&gt;المستوى 5&lt;/span&gt;||تكلفة البناء للمستوى 6:&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r1Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;910&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r2Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1170&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r3Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;910&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r4Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;260&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon duration&quot; title=&quot;&quot;&gt;&lt;i class=&quot;clock_medium&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;0:50:50&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;"><div class="labelLayer">5</div></a>
+<a href="/build.php?id=10"
+                     class="good level colorLayer resourceField gid3 buildingSlot10  level6"
+                    data-aid="10" data-gid="3"
+                    title="منجم حديد &lt;span class=&quot;level&quot;&gt;المستوى 6&lt;/span&gt;||تكلفة البناء للمستوى 7:&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r1Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;2170&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r2Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1735&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r3Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;650&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r4Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1300&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon duration&quot; title=&quot;&quot;&gt;&lt;i class=&quot;clock_medium&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;2:17:30&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;"><div class="labelLayer">6</div></a>
+<a href="/build.php?id=11"
+                     class="good level colorLayer resourceField gid3 buildingSlot11  level6"
+                    data-aid="11" data-gid="3"
+                    title="منجم حديد &lt;span class=&quot;level&quot;&gt;المستوى 6&lt;/span&gt;||تكلفة البناء للمستوى 7:&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r1Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;2170&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r2Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1735&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r3Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;650&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r4Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1300&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon duration&quot; title=&quot;&quot;&gt;&lt;i class=&quot;clock_medium&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;2:17:30&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;"><div class="labelLayer">6</div></a>
+<a href="/build.php?id=12"
+                     class="good level colorLayer resourceField gid4 buildingSlot12  level5"
+                    data-aid="12" data-gid="4"
+                    title="حقل القمح &lt;span class=&quot;level&quot;&gt;المستوى 5&lt;/span&gt;||تكلفة البناء للمستوى 6:&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r1Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;910&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r2Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1170&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r3Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;910&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r4Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;260&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon duration&quot; title=&quot;&quot;&gt;&lt;i class=&quot;clock_medium&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;0:50:50&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;"><div class="labelLayer">5</div></a>
+<a href="/build.php?id=13"
+                     class="good level colorLayer resourceField gid4 buildingSlot13  level5"
+                    data-aid="13" data-gid="4"
+                    title="حقل القمح &lt;span class=&quot;level&quot;&gt;المستوى 5&lt;/span&gt;||تكلفة البناء للمستوى 6:&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r1Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;910&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r2Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1170&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r3Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;910&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r4Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;260&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon duration&quot; title=&quot;&quot;&gt;&lt;i class=&quot;clock_medium&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;0:50:50&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;"><div class="labelLayer">5</div></a>
+<a href="/build.php?id=14"
+                     class="good level colorLayer resourceField gid1 buildingSlot14  level5"
+                    data-aid="14" data-gid="1"
+                    title="الحطاب &lt;span class=&quot;level&quot;&gt;المستوى 5&lt;/span&gt;||تكلفة البناء للمستوى 6:&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r1Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;520&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r2Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1300&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r3Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;650&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r4Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;780&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon duration&quot; title=&quot;&quot;&gt;&lt;i class=&quot;clock_medium&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1:03:10&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;"><div class="labelLayer">5</div></a>
+<a href="/build.php?id=15"
+                     class="good level colorLayer resourceField gid4 buildingSlot15  level5"
+                    data-aid="15" data-gid="4"
+                    title="حقل القمح &lt;span class=&quot;level&quot;&gt;المستوى 5&lt;/span&gt;||تكلفة البناء للمستوى 6:&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r1Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;910&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r2Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1170&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r3Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;910&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r4Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;260&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon duration&quot; title=&quot;&quot;&gt;&lt;i class=&quot;clock_medium&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;0:50:50&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;"><div class="labelLayer">5</div></a>
+<a href="/build.php?id=16"
+                     class="good level colorLayer resourceField gid2 buildingSlot16  level5"
+                    data-aid="16" data-gid="2"
+                    title="حفرة الطين &lt;span class=&quot;level&quot;&gt;المستوى 5&lt;/span&gt;||تكلفة البناء للمستوى 6:&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r1Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1040&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r2Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;520&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r3Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1040&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r4Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;650&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon duration&quot; title=&quot;&quot;&gt;&lt;i class=&quot;clock_medium&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;0:58:40&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;"><div class="labelLayer">5</div></a>
+<a href="/build.php?id=17"
+                     class="good level colorLayer resourceField gid1 buildingSlot17  level6"
+                    data-aid="17" data-gid="1"
+                    title="الحطاب &lt;span class=&quot;level&quot;&gt;المستوى 6&lt;/span&gt;||تكلفة البناء للمستوى 7:&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r1Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;870&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r2Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;2170&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r3Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1085&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r4Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1300&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon duration&quot; title=&quot;&quot;&gt;&lt;i class=&quot;clock_medium&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1:43:20&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;"><div class="labelLayer">6</div></a>
+<a href="/build.php?id=18"
+                     class="good level colorLayer resourceField gid2 buildingSlot18  level5"
+                    data-aid="18" data-gid="2"
+                    title="حفرة الطين &lt;span class=&quot;level&quot;&gt;المستوى 5&lt;/span&gt;||تكلفة البناء للمستوى 6:&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r1Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1040&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r2Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;520&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r3Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1040&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r4Big&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;650&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon duration&quot; title=&quot;&quot;&gt;&lt;i class=&quot;clock_medium&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;0:58:40&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;"><div class="labelLayer">5</div></a>        <svg class="resourceField resourceField3" viewBox="0 0 473 304">
+  <path class="buildingSlot1" d="M145.5 5.1c-2.2.4-4.4.5-4.8.2-.4-.3-1.6-.2-2.5.2-.9.4-4.2.7-7.3.6-3.2-.2-6 .2-6.3.8-.4.5-2 .9-3.7.9-1.7-.1-3.5.5-3.9 1.3-.6.8-2.4 1.3-4.9 1.2-2.2-.1-4.3.2-4.6.8-.4.5-2.3.9-4.3.9s-4.6.7-5.6 1.5-2.3 1.2-2.7.9c-.5-.2-2.6.4-4.8 1.5-2.1 1.1-5.8 2.3-8 2.7-2.3.4-4.1 1-4.1 1.5s-1.4.9-3 .9c-1.9 0-3.3.6-3.7 1.6-.4 1.1-1.4 1.4-3.4 1-2.1-.4-3.6.1-5.9 2-1.6 1.4-3 2.2-3 1.7 0-.6-3-.8-7.2-.4-.5.1-.8.9-.8 1.9 0 1.6-5.4 7.6-7.2 7.8-.4.1-1.2.2-1.7.3-.5 0-1.2 1.4-1.6 3.1-.4 1.6-1.1 3.2-1.6 3.5-.5.4-.9 1.4-.9 2.5 0 1.3-.5 1.7-1.9 1.3-2.3-.6-6.1 2.5-6.1 4.9 0 1 .7 1.8 1.6 1.8.9 0 1.8.9 2.1 2 .7 2.6 1.2 2.5 5.8-.6 2.1-1.4 4.6-2.3 5.6-2.1 1.2.3 3.2-.8 5.5-3 2-1.9 4.8-4.1 6-5 2.2-1.4 2.6-1.3 5.9 1.6 4 3.4 4.6 3.6 6.3 1.9.9-.9 1.7-.5 3.6 1.5 3.1 3.3 4.2 3.3 8.6.4 1.9-1.3 5.5-2.9 7.8-3.7 3.2-1 5.9-3.1 10.2-7.8l5.8-6.5 4.9 4c2.6 2.1 6.5 5 8.5 6.4 2.1 1.3 3.8 2.8 3.8 3.2 0 1.1 6.4 3.7 9.2 3.7 1.2 0 3.2-1 4.5-2.2 1.7-1.6 2.8-1.9 3.7-1.3 9.5 6.9 12.8 8.7 13.9 7.6 1.6-1.6 3.4-1.4 6.5.9 1.5 1.1 5.1 2.3 8 2.7 2.9.3 5.5 1 5.8 1.5.3.4 3.3.6 6.7.2 4.3-.4 7.8-.2 11.4.9 2.8.9 5.4 1.3 5.6 1 .3-.2 1.4 0 2.5.6 1.5.8 2.2.8 2.6-.2.3-.9.9-.7 1.9.5 2.7 3.4 7 2 9.3-2.8 1.7-3.6 1.4-6.6-.9-9.9-1.3-1.7-1.8-1.8-4.2-.7-1.6.7-2.4.8-2 .2.4-.6.1-1.7-.5-2.5-.7-.8-1-2.2-.6-3 .3-.9 0-1.8-.8-2.1-1.8-.7-2.8-6.1-1.6-8.5.6-1.1 2.1-1.9 3.5-1.9 4.8 0 7.3-2 7.7-6.1.2-2.2 0-4.3-.5-4.8-.4-.4-.1-1.4.8-2.1 1.7-1.4 2-4 .5-4-.5 0-1-.9-1-2 0-2-4.6-5.8-5.7-4.7-.3.4-1.8-.2-3.2-1.2-2.5-1.7-8.1-1.9-12.1-.4-.8.3-2.5.5-3.7.4-1.2-.1-3.2.3-4.4.9-1.5.9-2.4.9-3.2.1-.6-.6-2.9-1.1-5.1-1.1-2.2 0-5.4-.5-7.2-1.2-2.9-1-3.6-.9-5.3.6-1.6 1.4-2.3 1.5-4.1.6-1.3-.7-3.7-.9-5.8-.5-1.9.3-3.8.3-4.1-.2-.3-.5-2.4-.6-4.6-.2zM203 57.4c0 .2-.7.7-1.6 1-.8.3-1.2.2-.9-.4.6-1 2.5-1.4 2.5-.6z" onclick="window.location.href='/build.php?id=1'"><title>&#1575;&#1604;&#1581;&#1591;&#1575;&#1576; &lt;span class="level"&gt;&#1575;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 6&lt;/span&gt;||&#1578;&#1603;&#1604;&#1601;&#1577; &#1575;&#1604;&#1576;&#1606;&#1575;&#1569; &#1604;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 7:&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r1Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;870&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r2Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;2170&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r3Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1085&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r4Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1300&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon duration" title=""&gt;&lt;i class="clock_medium"&gt;&lt;/i&gt;&lt;span class="value "&gt;1:43:20&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;</title></path>
+  <path class="buildingSlot2" d="M239.5 9.1c-2.7 1.7-8.6 4.5-13 6.1-4.4 1.6-8.8 3.7-9.7 4.5-1.9 1.7-2.2 5.9-1.1 15.3.6 5.2 1 5.8 8 12.6 4.1 3.9 8 8.2 8.7 9.5 1.8 3.8 10.9 5.7 28.5 6 13 .3 15.2.1 17.7-1.5 4.4-2.8 6.3-5.7 5.7-8.7-.4-2.2-.1-2.7 2.4-3.2 5.9-1.2 6.7-2.7 6.9-12.2.1-7.8-.2-9-2-10.7-5.2-4.7-8.6-8.4-9.1-9.8-1.4-3.9-12.4-8-22.5-8.4-2.5 0-5-.4-5.7-.9-.6-.4-3.1-1-5.5-1.3-3.7-.5-5-.1-9.3 2.7z" onclick="window.location.href='/build.php?id=2'"><title>&#1581;&#1602;&#1604; &#1575;&#1604;&#1602;&#1605;&#1581; &lt;span class="level"&gt;&#1575;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 6&lt;/span&gt;||&#1578;&#1603;&#1604;&#1601;&#1577; &#1575;&#1604;&#1576;&#1606;&#1575;&#1569; &#1604;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 7:&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r1Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1520&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r2Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1950&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r3Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1520&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r4Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;435&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon duration" title=""&gt;&lt;i class="clock_medium"&gt;&lt;/i&gt;&lt;span class="value "&gt;1:23:30&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;</title></path>
+  <path class="buildingSlot3" d="M321.6 13.2c-2.6 1.9-2.9 2-3.8.5-1-1.8-8.2-2.4-9.2-.8-.3.5-2.5 1.2-4.8 1.5-5.3.8-6.7 1.6-7.1 4.1-.2 1.1-.8 2.9-1.4 4-.6 1.2-1.4 5.1-1.6 8.8-.4 5.6-.3 6.7 1 6.7 1.2 0 1.3.3.4 1.4-.7.8-1.3 2.9-1.4 4.8-.1 1.8-.5 3.7-.8 4.3-.8 1.3-1.9 5.8-1.6 6.6.1.3-.4 1.3-1.2 2.2-1.6 2-.8 4.7 1.5 4.7 1.3 0 1.4.3.4 1.5-1 1.2-.7 1.5 1.7 2 1.5.3 4.2 1.3 5.8 2.2 9.4 5.2 10.4 5.5 13.2 4.5 2.5-.9 3.1-.6 6.3 3l3.5 4L333 78c5.8-.7 13.5-1.1 17.1-1.1 6.4.1 6.6 0 10.2-3.9 1.9-2.2 4.2-4 5-4 .8 0 3.1 1.3 5.2 3 2.1 1.6 4.1 3 4.6 3 2.3 0 4.2-1.8 7.5-7.1 2.3-3.8 4.2-5.9 5.4-5.9 1 0 3.5 1.9 5.4 4.2 3.4 3.9 3.7 4.1 6 2.8 1.4-.7 3.2-1 4.2-.6s2.5-.3 4.2-1.9c1.3-1.4 3.1-2.5 3.8-2.5.8 0 1.4-.6 1.4-1.4 0-.7 1.4-2.3 3-3.6 1.7-1.3 3-2.8 3-3.4 0-.6 2.1-1.2 4.7-1.4 2.6-.2 5-.7 5.3-1.1.3-.4 1.3-1 2.3-1.4 2-.8 1.4-2.7-.9-2.7-1.1 0-1.2-.4-.4-1.9 2.1-4.1-5.2-11.9-7.5-8-.4.6-1.4.8-2.2.5-.8-.3-2.3-.1-3.4.4-1.4.8-1.9.7-1.9-.3 0-3.5-9.3-8.2-13.9-7-1.9.5-2.3.3-1.8-1 .8-2.2-1.1-3.4-7-4.2-3.9-.5-5.3-.4-5.3.5 0 1-.3 1-1.5 0-.8-.7-2.5-1-3.9-.6-1.5.4-2.8 0-3.7-1-.9-1.1-2.2-1.4-4.1-1-2.7.5-6.3-.7-15.3-5-1.7-.8-3.8-1.2-4.6-.9-.9.3-2.3-.3-3.4-1.5-2.1-2.3-4.5-2.6-6.4-.8-1 1.1-1.4 1-2.2-.5-.6-.9-1.9-1.7-2.9-1.7s-2.1-.4-2.4-.9c-.3-.5-2.3-1.2-4.3-1.6-2.1-.3-4.7-.8-5.8-1.1-1.1-.2-3.3.6-4.9 1.8z" onclick="window.location.href='/build.php?id=3'"><title>&#1575;&#1604;&#1581;&#1591;&#1575;&#1576; &lt;span class="level"&gt;&#1575;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 6&lt;/span&gt;||&#1578;&#1603;&#1604;&#1601;&#1577; &#1575;&#1604;&#1576;&#1606;&#1575;&#1569; &#1604;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 7:&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r1Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;870&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r2Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;2170&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r3Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1085&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r4Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1300&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon duration" title=""&gt;&lt;i class="clock_medium"&gt;&lt;/i&gt;&lt;span class="value "&gt;1:43:20&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;</title></path>
+  <path class="buildingSlot4" d="M99.2 40.9c-3.9 4.5-6.3 6.3-10 7.5-2.7.9-6.4 2.8-8.2 4.1-4.2 3.1-5.5 3.1-8.6 0-1.8-1.8-3.2-2.3-4.8-1.9-1.6.4-3.2-.3-5.3-2-1.7-1.4-3.4-2.6-3.8-2.6-.7 0-3.6 2.3-9.3 7-1.3 1.1-3.3 2-4.3 2-1.1 0-5 1.8-8.7 4-3.7 2.3-8.6 4.6-11 5.2-2.3.6-4.5 1.5-4.9 2.1-.9 1.5 4.4 5.7 7.4 5.7 1.8 0 2.4.4 2 1.4-.7 1.8 2.8 2.6 9.6 2.2 2.6-.1 5 0 5.2.4.2.4 3.2.1 6.6-.6 3.5-.7 6.6-1.1 7.1-.8 1.3.8.9 2.4-.5 2.4-2.5 0-7.2 2.8-10.6 6.4-4 4.2-3.6 5.4 1 3.1 2.9-1.5 3.1-1.5 2.6-.1-.4.9-.2 2.9.4 4.4.7 1.5 1.3 2.2 1.6 1.4.3-.6 1.1-1.2 1.9-1.2.9 0 1.2.4.9 1-.3.5.1 1 1 1 .8 0 2.1-1.1 2.7-2.5 1.2-2.7 2.4-3.2 3.1-1.3.3 1 .7 1 1.7.1 1-1 1.9-.8 4.2.8l2.9 2.1 3.9-3.6c4.2-3.7 8.8-4.8 10.7-2.4.6.7 1.4 3.1 1.8 5.3.8 4.6 3 6.6 6.4 5.8 2-.5 2.3-.3 1.8 1.1-.4.9-.2 1.6.3 1.6.6 0 1-.3 1-.8.1-.4.9-1.8 2-3 1.8-2.2 2.1-2.3 4.9-.9 1.9.9 3.3 1.1 3.9.5.6-.6 1.2-.6 1.7.2.9 1.4 3.5-.6 3.5-2.6 0-1.8 2-1.8 3.4 0 .6.8 2.4 1.8 3.9 2.2 2.4.5 2.9.3 3.4-1.5.5-2 .7-2.1 2.4-.5 1 .9 2.2 1.3 2.8 1 .5-.4 1.2-.2 1.6.4.3.5 1.7 1 3 1 1.8 0 2.3-.4 1.9-1.5-.5-1.1.1-1.5 2.5-1.5 3 0 3.1-.2 3.1-4 0-3.5.5-4.3 3.2-6 1.7-1 5.6-2.2 8.5-2.6 4.5-.5 5.8-.3 7.6 1.3 1.8 1.6 3 1.8 6.7 1.2 2.5-.4 7.1-.8 10.2-.8 5-.1 6.1-.5 8.8-3.1 2.7-2.6 3.8-3 8.5-3 3 0 5.5-.4 5.5-.8 0-.5 1.1-1.4 2.5-2 3.1-1.4 3.1-2.7.1-6.7-1.8-2.3-3.3-3.2-5.5-3.3-1.6 0-3.9-.5-5-1.1-2.7-1.5-13.4-1.4-16.6.1-3.3 1.5-8-.1-14.8-4.9-4.4-3.1-5.1-3.3-6.6-1.9-1.9 1.7-2.6 1.4-10.6-4.2-5.4-3.8-5.6-3.8-8-1.2-1 1.1-2.3 2-2.9 2-2.9 0-8.9-2.3-11-4.3-1.4-1.2-3.7-3.1-5.2-4.2s-4.7-3.5-7.1-5.3c-2.4-1.7-4.4-3.2-4.6-3.2-.1 0-2.6 2.7-5.5 5.9z" onclick="window.location.href='/build.php?id=4'"><title>&#1605;&#1606;&#1580;&#1605; &#1581;&#1583;&#1610;&#1583; &lt;span class="level"&gt;&#1575;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 5&lt;/span&gt;||&#1578;&#1603;&#1604;&#1601;&#1577; &#1575;&#1604;&#1576;&#1606;&#1575;&#1569; &#1604;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 6:&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r1Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1300&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r2Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1040&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r3Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;390&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r4Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;780&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon duration" title=""&gt;&lt;i class="clock_medium"&gt;&lt;/i&gt;&lt;span class="value "&gt;1:24:40&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;</title></path>
+  <path class="buildingSlot5" d="M220.1 63.6c-1.7 1.2-2.2 2.4-1.9 4.5.3 2 0 2.9-.9 2.9-.8 0-1.1.5-.8 1 .7 1.1.5 1.2-6.7 3-3.4.9-4.8 1.8-4.8 3 0 .9.3 2 .6 2.3.4.3.8 2.1.9 4 .2 3.7 6.3 10.7 9.3 10.7 1 0 2.7.7 3.8 1.5 4.4 3 22.9 6.3 31.9 5.5 6.6-.6 6.9-.7 11.1-5.5 5.6-6.5 7-11.4 5.4-18.9-1-5.1-1-5.9.9-9l2.1-3.3-5.3-.7c-7.9-.9-11.5-.7-12 .6-.3 1-1.1 1-3.8.1-1.9-.7-7.4-1.5-12.4-1.8-4.9-.3-10.4-.8-12-1.1-1.9-.2-4 .2-5.4 1.2z" onclick="window.location.href='/build.php?id=5'"><title>&#1581;&#1601;&#1585;&#1577; &#1575;&#1604;&#1591;&#1610;&#1606; &lt;span class="level"&gt;&#1575;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 6&lt;/span&gt;||&#1578;&#1603;&#1604;&#1601;&#1577; &#1575;&#1604;&#1576;&#1606;&#1575;&#1569; &#1604;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 7:&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r1Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1735&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r2Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;870&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r3Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1735&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r4Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1085&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon duration" title=""&gt;&lt;i class="clock_medium"&gt;&lt;/i&gt;&lt;span class="value "&gt;1:36:00&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;</title></path>
+  <path class="buildingSlot6" d="M278.6 63.5c-1.1.8-2.7 1.5-3.6 1.5-.9 0-2.8 1.6-4.2 3.6-2.2 3-2.5 4.1-1.7 6.7 1.3 4.6 1.1 11.3-.5 15-.7 1.8-3.2 5.3-5.5 7.8-3.9 4.5-4 4.7-1.8 5.3 1.2.3 3.6.6 5.3.6 1.7 0 3.7.7 4.4 1.5.7.8 3.1 2 5.4 2.6 2.2.7 6 1.8 8.4 2.5 6.1 2 8.5 1.7 11.5-1 1.4-1.3 4.3-3 6.4-3.6 8.5-2.8 12.3-5.1 12.3-7.6 0-1.3.9-2.8 2-3.4 1.1-.6 2-1.9 2-2.9 0-2.2 2.4-4.3 6.8-6.1 3.9-1.5 4.2-3 .5-3-3.1 0-9.3-3.4-9.3-5 0-.5-.5-1-1.1-1-.6 0-1.7-.7-2.5-1.5s-2.1-1.2-2.8-.9c-1.8.7-9.8-2-9.5-3.2.1-.5-1.5-1.8-3.7-2.8-2.1-1-6-2.9-8.5-4.2-5.4-2.8-7.6-2.9-10.3-.9z" onclick="window.location.href='/build.php?id=6'"><title>&#1581;&#1601;&#1585;&#1577; &#1575;&#1604;&#1591;&#1610;&#1606; &lt;span class="level"&gt;&#1575;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 6&lt;/span&gt;||&#1578;&#1603;&#1604;&#1601;&#1577; &#1575;&#1604;&#1576;&#1606;&#1575;&#1569; &#1604;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 7:&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r1Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1735&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r2Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;870&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r3Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1735&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r4Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1085&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon duration" title=""&gt;&lt;i class="clock_medium"&gt;&lt;/i&gt;&lt;span class="value "&gt;1:36:00&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;</title></path>
+  <path class="buildingSlot7" d="M383.5 66.7c-5.3 9.1-8.1 10.4-12.5 5.8-3.5-3.8-7.2-3.3-10.9 1.4-1.7 2.1-3.1 4.3-3.1 4.8 0 1.1 4.3 5.3 5.4 5.3.4 0 2.4 1.3 4.4 3 2.1 1.6 5.1 3.2 6.9 3.6 2.4.5 3.7 1.7 5.8 5.5 4.5 8.4 12.9 12.4 23.1 11.3 8-.8 11.8-3.7 12.9-9.8.7-3.5 4.4-7.6 7-7.6.7 0 2.4-.9 3.8-2.1 2.3-1.7 2.5-2.3 1.4-4-.6-1-1.9-1.9-2.7-1.9-.8 0-3.2-1.1-5.1-2.5-2-1.3-3.9-2.2-4.2-1.9-.3.3-1.3-.8-2.2-2.6-.9-1.7-2.8-3.6-4.3-4.2-1.5-.6-3.7-1.5-5-2.1-1.6-.8-2.6-.7-3.4.1-2 2-3.9 1.4-7.9-2.8-2.2-2.2-4.5-4-5.3-4-.8 0-2.6 2.1-4.1 4.7z" onclick="window.location.href='/build.php?id=7'"><title>&#1605;&#1606;&#1580;&#1605; &#1581;&#1583;&#1610;&#1583; &lt;span class="level"&gt;&#1575;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 6&lt;/span&gt;||&#1578;&#1603;&#1604;&#1601;&#1577; &#1575;&#1604;&#1576;&#1606;&#1575;&#1569; &#1604;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 7:&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r1Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;2170&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r2Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1735&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r3Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;650&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r4Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1300&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon duration" title=""&gt;&lt;i class="clock_medium"&gt;&lt;/i&gt;&lt;span class="value "&gt;2:17:30&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;</title></path>
+  <path class="buildingSlot8" d="M45.5 92.9c-8 2-13.9 8.2-21.6 22.6-4.5 8.6-4.9 12.6-2.3 25.2.9 4.3 1.7 8.7 1.9 9.8.3 1.1 1.4 2.6 2.5 3.3 1.9 1.1 2.9.9 8.7-2.3 12-6.6 22.6-7.7 46.8-5 15.1 1.7 14.7 1.9 16.6-7.4 2.9-14.1-3.7-32.2-12.8-35.1-2.1-.7-7.4-2.8-11.8-4.7-8.9-3.9-19.9-7.4-23-7.2-1.1.1-3.3.4-5 .8z" onclick="window.location.href='/build.php?id=8'"><title>&#1581;&#1602;&#1604; &#1575;&#1604;&#1602;&#1605;&#1581; &lt;span class="level"&gt;&#1575;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 6&lt;/span&gt;||&#1578;&#1603;&#1604;&#1601;&#1577; &#1575;&#1604;&#1576;&#1606;&#1575;&#1569; &#1604;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 7:&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r1Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1520&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r2Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1950&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r3Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1520&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r4Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;435&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon duration" title=""&gt;&lt;i class="clock_medium"&gt;&lt;/i&gt;&lt;span class="value "&gt;1:23:30&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;</title></path>
+  <path class="buildingSlot9" d="M112.1 98c-1.8.5-6.1 2.2-9.4 3.9-3.3 1.7-7.5 3.1-9.3 3.1-3.9 0-4.2.8-1.4 4.3 3 3.8 7 17 7 23-.1 4.6-.9 7.8-3.5 14-1.1 2.6 4.4 4.5 15.1 5.2 9.9.7 18.8-.7 30.8-5.1 8.7-3.1 12.1-5.1 13.6-8 .7-1.2 2.4-2.5 3.9-2.9 1.4-.3 3.6-1.8 4.9-3.2 1.8-2.2 2.2-3.8 2.2-9.8 0-11.9-3.8-19.2-12-22.7-3.8-1.7-7.1-2.1-21.5-2.3-9.3-.1-18.5.1-20.4.5z" onclick="window.location.href='/build.php?id=9'"><title>&#1581;&#1602;&#1604; &#1575;&#1604;&#1602;&#1605;&#1581; &lt;span class="level"&gt;&#1575;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 5&lt;/span&gt;||&#1578;&#1603;&#1604;&#1601;&#1577; &#1575;&#1604;&#1576;&#1606;&#1575;&#1569; &#1604;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 6:&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r1Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;910&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r2Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1170&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r3Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;910&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r4Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;260&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon duration" title=""&gt;&lt;i class="clock_medium"&gt;&lt;/i&gt;&lt;span class="value "&gt;0:50:50&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;</title></path>
+  <path class="buildingSlot10" d="M352.3 80.6c-1.6 1.2-2.6 1.3-4.2.5-3.5-1.9-4.9-1.2-12.9 6.7-5.6 5.6-9.5 8.5-14.3 10.7-4.7 2.2-7 3.8-7.9 5.8-.7 1.6-1 3-.8 3.3.3.2 3.4 0 6.9-.5 5.1-.7 6.6-.6 7.2.5.5.8 1.2 1.2 1.7.9.4-.3 1.9 3 3.2 7.3 1.8 5.8 2.8 7.7 4.1 7.6 2.6-.3 2 .9-1.8 3.5-1.9 1.3-3.5 2.7-3.5 3.1 0 .4-1.3 1.3-2.9 2-3.2 1.3-4.9 4-2.6 4 1.1 0 1.2.5.5 2.6-.6 1.4-1 2.7-1 3 0 .9 5 .3 8.4-1.1 2-.9 4.1-1.3 4.6-1 .6.4 1.6.3 2.2-.1 1.9-1.2 4.8-1.2 4.1-.1-.4.6.5.7 2.1.3 1.6-.4 3.4-.2 4.1.4.8.6 1.6.7 1.9.2.3-.5 1.9-.8 3.5-.6 2.6.3 3.1-.1 4.1-3.1 1.2-3.8 1.1-3.8 12.2-1.3 3.9.8 5 .7 6.3-.6.9-.8 2.9-2.3 4.5-3.3 1.7-.9 3-2.4 3-3.3 0-1.4 7-5 9.8-5 .8 0 5.2-3.8 10-8.5 8.1-8.1 10-11 5.2-8.5-1.2.6-4.4 1.5-7.2 1.9-9.4 1.5-19.8-3.7-23.6-11.8-1.2-2.6-2.7-3.9-5.2-4.7-1.9-.6-4.9-2.5-6.8-4.3-1.9-1.7-3.9-3.1-4.6-3.1-.7 0-2.3-1.1-3.6-2.5-2.7-2.9-3.6-3-6.7-.9z" onclick="window.location.href='/build.php?id=10'"><title>&#1605;&#1606;&#1580;&#1605; &#1581;&#1583;&#1610;&#1583; &lt;span class="level"&gt;&#1575;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 6&lt;/span&gt;||&#1578;&#1603;&#1604;&#1601;&#1577; &#1575;&#1604;&#1576;&#1606;&#1575;&#1569; &#1604;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 7:&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r1Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;2170&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r2Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1735&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r3Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;650&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r4Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1300&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon duration" title=""&gt;&lt;i class="clock_medium"&gt;&lt;/i&gt;&lt;span class="value "&gt;2:17:30&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;</title></path>
+  <path class="buildingSlot11" d="M426.5 88c-1 1.1-2.6 2-3.5 2-3 0-5.6 3.2-8.5 10.8-2.3 5.8-4 8.3-8.3 12.3-6 5.6-6.2 7.4-.7 8.5 3.9.7 5.5 2.6 4.7 5.7-.4 1.7-.2 1.9 1.9 1.2 3.3-1 5.1-1 14.4.5 6.8 1.1 10.4 1.1 23.4-.2 8.4-.9 15.8-2.1 16.3-2.6.7-.7.1-1.9-1.8-3.6-4.2-3.7-11.7-8.6-13.4-8.6-.8 0-2.5-.8-3.8-1.8-2.2-1.7-2.1-1.8 4.8-1.4 3.8.2 8.5.1 10.4-.2 3.8-.7 9-5.2 9.9-8.5.5-1.9-.1-2.5-4.1-4.1-2.6-1.1-6-2.7-7.7-3.6-1.6-.8-3.1-1.1-3.3-.6-.4 1.3-12.7-1.3-15.9-3.4-7.5-5-11.8-5.7-14.8-2.4z" onclick="window.location.href='/build.php?id=11'"><title>&#1605;&#1606;&#1580;&#1605; &#1581;&#1583;&#1610;&#1583; &lt;span class="level"&gt;&#1575;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 6&lt;/span&gt;||&#1578;&#1603;&#1604;&#1601;&#1577; &#1575;&#1604;&#1576;&#1606;&#1575;&#1569; &#1604;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 7:&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r1Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;2170&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r2Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1735&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r3Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;650&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r4Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1300&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon duration" title=""&gt;&lt;i class="clock_medium"&gt;&lt;/i&gt;&lt;span class="value "&gt;2:17:30&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;</title></path>
+  <path class="buildingSlot12" d="M46.4 146.9c-12.3 3.1-21.7 9.7-25.7 18.1-1.7 3.7-2.1 6.3-2 14.6.1 11.4 1.5 15.4 8.4 23.4 2.1 2.5 5.1 6 6.6 7.8 1.6 1.8 5.3 5.3 8.3 7.8 5.5 4.6 5.5 4.6 11.3 4 6.8-.7 11.2-2.7 12-5.6.3-1.1 1.3-2.3 2.4-2.7 1-.4 5.1-3.1 9.2-6 4-2.9 9-5.7 11-6.3 6.6-1.9 19.9-4 21.5-3.4 2.1.8 2.1-1 0-2.7-3.1-2.5-10.2-12.5-13.8-19.3-4.1-7.7-4.7-14.5-2.1-23.1.8-2.7 1.3-5 1.1-5.2-.7-.8-17.3-2.4-28.6-2.8-9.9-.3-14-.1-19.6 1.4z" onclick="window.location.href='/build.php?id=12'"><title>&#1581;&#1602;&#1604; &#1575;&#1604;&#1602;&#1605;&#1581; &lt;span class="level"&gt;&#1575;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 5&lt;/span&gt;||&#1578;&#1603;&#1604;&#1601;&#1577; &#1575;&#1604;&#1576;&#1606;&#1575;&#1569; &#1604;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 6:&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r1Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;910&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r2Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1170&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r3Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;910&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r4Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;260&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon duration" title=""&gt;&lt;i class="clock_medium"&gt;&lt;/i&gt;&lt;span class="value "&gt;0:50:50&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;</title></path>
+  <path class="buildingSlot13" d="M148 143.9c-5 2.7-9.2 4-20 6.6-9.5 2.2-11.6 2.3-22 1-11.4-1.3-11-1.4-12.6 3-3.7 10.7 1.1 24.8 13.3 38.4 5.7 6.4 8 6.9 27.4 7 11.2.1 12.8-.1 14.9-1.9 1.3-1.1 3.1-2 4.2-2 1 0 3.7-1.8 6-4.1 2.4-2.2 5.9-5.2 7.9-6.5 4.2-2.9 6.3-6.8 7.7-14.3 1.2-7.1-.7-10.4-9.1-15.9-8-5.3-11.7-8.8-11.7-11.2 0-2.5-1.5-2.5-6-.1z" onclick="window.location.href='/build.php?id=13'"><title>&#1581;&#1602;&#1604; &#1575;&#1604;&#1602;&#1605;&#1581; &lt;span class="level"&gt;&#1575;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 5&lt;/span&gt;||&#1578;&#1603;&#1604;&#1601;&#1577; &#1575;&#1604;&#1576;&#1606;&#1575;&#1569; &#1604;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 6:&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r1Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;910&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r2Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1170&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r3Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;910&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r4Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;260&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon duration" title=""&gt;&lt;i class="clock_medium"&gt;&lt;/i&gt;&lt;span class="value "&gt;0:50:50&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;</title></path>
+  <path class="buildingSlot14" d="M272.5 164.2c-1.1.7-3.2 1.1-4.6.9-2.7-.2-6.4 3.3-5.3 5.1.3.4.1.8-.4.8s-2.6 1.6-4.6 3.6c-3.9 3.8-4.8 3.9-14.1 1.9-1.6-.4-3.9-.6-5-.6s-3.3.1-4.9.1c-1.5 0-3.4.5-4.2 1.1-.7.6-2.9 1.5-4.8 1.9-3.2.7-3.5.6-3.3-1.3.1-1.4-.5-2.3-1.8-2.5-1.1-.3-3.1-1.3-4.4-2.3-1.5-1.2-3.2-1.7-4.4-1.3-1.1.3-2.9.2-4.1-.4-6.1-2.8-7.8-3.2-9.6-2.2-1 .5-2.5.7-3.4.4-1.4-.6-2.2.1-8.4 7-3 3.4-3.1 3.9-1.8 6.4.7 1.5 1.6 3.9 2 5.4.3 1.6 1.1 2.8 1.6 2.8 1.3 0 1.3 3.7 0 4.5-1.4.8-1.3 4.8.2 6.3.6.6 1.4 3.1 1.7 5.4.4 3 1.1 4.4 2.4 4.6 1 .2 2.8 1.4 4.1 2.7 4.3 4.3 13.1 4.6 21.6.7 11.6-5.2 11.7-5.2 14.2-3.3 3.8 3 13.8 7.7 23.6 11 8.2 2.8 10.1 3.1 16 2.6 5.6-.6 7.9-.3 14.6 1.9 12.2 4 16.3 3.1 15.4-3.4-.3-1.8.1-3.5.9-4.1 1.6-1.4 1.7-4.1.1-5.7-.8-.8-.8-1.5.1-2.6.7-.8 1.1-2.7.9-4.3-.2-2.2-.9-2.9-3-3.1-1.8-.2-2.8-.9-2.8-2 0-.9-.3-2.7-.6-3.8-.5-1.7 0-2.4 2.5-3.2 2.3-.8 3.1-1.8 3.7-4.6.8-4.5-1.9-11.1-4.3-10.2-6.7 2.6-9.4 1.2-6.6-3.4 2.4-4.1.3-10.4-4-12-4.5-1.8-12.8-2.2-15.2-.8z" onclick="window.location.href='/build.php?id=14'"><title>&#1575;&#1604;&#1581;&#1591;&#1575;&#1576; &lt;span class="level"&gt;&#1575;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 5&lt;/span&gt;||&#1578;&#1603;&#1604;&#1601;&#1577; &#1575;&#1604;&#1576;&#1606;&#1575;&#1569; &#1604;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 6:&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r1Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;520&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r2Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1300&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r3Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;650&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r4Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;780&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon duration" title=""&gt;&lt;i class="clock_medium"&gt;&lt;/i&gt;&lt;span class="value "&gt;1:03:10&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;</title></path>
+  <path class="buildingSlot15" d="M384 146c-3 .4-8.2 1.4-11.5 2.3-16.6 4.3-28.9 5.3-40.8 3.4-3.4-.5-12.8 1.1-14.5 2.6-.8.6-1.2 2.3-1 3.9.4 2.3 0 2.8-2.3 3.3-4.9 1.1-5.4 2.7-3.4 11.1 1.4 6.1 2.5 8.2 5.3 11 2 1.9 4.5 3.7 5.6 3.9 1.2.3 7.5 1.6 14.1 3 24.3 5.2 25.3 5.5 33.3 10.8 4.2 2.8 9.3 6 11.2 7 1.9 1.1 5 3 6.7 4.3 2.6 2 4.6 2.5 9.9 2.6 6.3.1 6.7 0 8.1-2.6 1.2-2.2 1.9-2.6 3.6-2.1 1.2.4 4.3 1.1 6.9 1.7l4.7 1 6-5.3c6.4-5.6 6.5-5.8 7.6-17.9.2-2.5.9-7.9 1.4-12 .5-4.1.7-7.7.3-8-.4-.3-1.8-2.7-3.1-5.3-3.6-7.1-8.3-10.8-20.6-16.3-1.6-.7-6.7-1.6-11.1-1.9-4.5-.2-8.8-.6-9.5-.8-.8-.3-3.9-.1-6.9.3z" onclick="window.location.href='/build.php?id=15'"><title>&#1581;&#1602;&#1604; &#1575;&#1604;&#1602;&#1605;&#1581; &lt;span class="level"&gt;&#1575;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 5&lt;/span&gt;||&#1578;&#1603;&#1604;&#1601;&#1577; &#1575;&#1604;&#1576;&#1606;&#1575;&#1569; &#1604;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 6:&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r1Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;910&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r2Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1170&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r3Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;910&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r4Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;260&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon duration" title=""&gt;&lt;i class="clock_medium"&gt;&lt;/i&gt;&lt;span class="value "&gt;0:50:50&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;</title></path>
+  <path class="buildingSlot16" d="M152.3 209.4c.7 1.8-2 2.5-11.9 3.1-7.5.5-11.7 2.1-9.4 3.5 1.7 1.1-3.4 5.8-7.3 6.8-1.8.4-3.6 1.8-4.2 2.9-.9 2.2-9.8 6.3-13.6 6.3-1 0-2.6.9-3.6 1.9-1.1 1.1-4.4 2.4-8.3 3.1-9.3 1.7-10.5 2.4-10.7 6.8-.2 3.4.1 3.8 4 5.7 3.5 1.6 4.3 2.6 4.5 5.1.3 2.8.9 3.4 5 4.9 9.3 3.3 12 4.8 12.5 6.6.3 1.1 1.4 1.9 2.6 1.9 1.1 0 5 1.3 8.6 3 3.6 1.6 7 3 7.7 3 .6 0 2.5.9 4.2 1.9 1.7 1.1 5.1 2.4 7.6 3.1 2.5.6 6.9 2.3 9.7 3.6 2.9 1.3 8.6 2.9 12.6 3.4 9 1.1 12.8 2.5 13.4 4.9.4 1.6 1.6 1.8 10.5 1.9 8.3.1 11-.2 15.2-2 2.8-1.2 5.7-3.1 6.5-4.1 1.8-2.5 10.8-6.7 14.4-6.7 1.5 0 2.7-.4 2.7-.9 0-1.9-5.1-6.1-7.4-6.1-1.9 0-7.1-3.4-11.6-7.7-.2-.2.2-.8.9-1.2 2-1.2.8-2.6-5.4-6.1-4.9-2.8-6.9-4.9-4.7-5 .4-.1 1.7-.9 3-2 1.9-1.6 2.1-2.3 1.3-3.9-.6-1.1-2-2.3-3.1-2.6-2.4-.8-2.6-3.1-.4-4.3.9-.5 1.8-2.3 2-4.1.3-2.5-.2-3.7-2.4-5.6-1.5-1.3-3.8-2.7-5.2-3-2.2-.6-8.3-4-18-10-4.9-3.1-19-9.5-20.7-9.5-.9 0-1.3.6-1 1.4z" onclick="window.location.href='/build.php?id=16'"><title>&#1581;&#1601;&#1585;&#1577; &#1575;&#1604;&#1591;&#1610;&#1606; &lt;span class="level"&gt;&#1575;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 5&lt;/span&gt;||&#1578;&#1603;&#1604;&#1601;&#1577; &#1575;&#1604;&#1576;&#1606;&#1575;&#1569; &#1604;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 6:&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r1Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1040&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r2Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;520&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r3Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1040&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r4Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;650&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon duration" title=""&gt;&lt;i class="clock_medium"&gt;&lt;/i&gt;&lt;span class="value "&gt;0:58:40&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;</title></path>
+  <path class="buildingSlot17" d="M227.6 213.2c-1.1.6-3.9 1.2-6.3 1.4-3 .2-5 .9-6.3 2.4-1 1.2-2.2 2-2.7 1.9-1.5-.5-5.3 6.4-5.3 9.7 0 1.9.4 3.4.9 3.4 1.2 0 .2 3.8-1.6 6.7-1.5 2.2-1 6.3.8 6.3.5 0 .9.8.9 1.7 0 1 1.6 3.8 3.5 6.2 1.9 2.4 3.5 4.8 3.5 5.3s.3.7.8.4c.4-.2 1.6.2 2.6 1 1.6 1.1 1.8 1.8.8 3.8-.9 2-.8 2.7.4 3.7.9.7 2.5 3.4 3.6 5.9 1.5 3.5 2.5 4.6 4.2 4.6 1.5-.1 2.2.6 2.4 2.3.2 1.3 1.2 2.5 2.1 2.8 1.3.3 1.7 1.1 1.3 3-.3 1.7.1 3 1 3.7.9.6 1.7 2 1.9 3.1.3 1.3 1.4 2.1 3.2 2.3 1.5.2 2.7.9 2.7 1.8 0 .8.6 1.4 1.4 1.4.8 0 1.7.7 2 1.6.5 1.3 2.1 1.5 9.6 1.3 7-.2 9.3 0 10.7 1.3 2.8 2.5 10.2 2.2 12.4-.5 1-1.2 1.8-2.7 1.9-3.3 0-.6 1.1-1.6 2.5-2.2 1.4-.6 2.5-1.6 2.5-2.2 0-.7.7-1.8 1.5-2.6 2.1-2.1 1.9-5.1-.4-6.6-1.7-1-1.9-2-1.4-6.9.4-4.3.1-6.2-1.2-8.3l-1.7-2.6h4.7c6.3 0 8-1.1 10.1-6.7 1-2.6 2.6-5.5 3.6-6.5 2.2-2.2 2.4-6.4.3-7.5-1.6-.9-3-9.3-1.6-9.3 1 0 2.5-5 1.7-5.7-.2-.2-2.3-.7-4.6-.9-2.3-.3-6.5-1.5-9.4-2.6-4-1.6-7.1-2.1-14.4-2-8 .1-10.7-.3-18-2.9-9.7-3.3-20.8-8.4-21.7-9.9-.8-1.3-2.5-1.2-4.9.2z" onclick="window.location.href='/build.php?id=17'"><title>&#1575;&#1604;&#1581;&#1591;&#1575;&#1576; &lt;span class="level"&gt;&#1575;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 6&lt;/span&gt;||&#1578;&#1603;&#1604;&#1601;&#1577; &#1575;&#1604;&#1576;&#1606;&#1575;&#1569; &#1604;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 7:&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r1Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;870&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r2Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;2170&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r3Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1085&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r4Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1300&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon duration" title=""&gt;&lt;i class="clock_medium"&gt;&lt;/i&gt;&lt;span class="value "&gt;1:43:20&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;</title></path>
+  <path class="buildingSlot18" d="M310 188.5c0 1.6.6 2.5 1.5 2.5.8 0 1.5.4 1.5 1 0 .5-.8 1-1.8 1-2.7 0-4.2 2-4.2 5.7 0 2.8.5 3.5 3.5 4.7 2.5 1.1 3.3 1.9 2.9 3-.4 1-.1 1.6.7 1.6.8 0-.5.9-2.8 2.1-3.5 1.7-4.3 2.6-4.3 4.9 0 1.6-1.1 4.2-2.5 5.9-2.4 2.7-2.6 3.8-2.6 12.8 0 5.4.2 12.6.5 16.1.5 6.2.5 6.4-2.4 8-1.7.9-3 2.2-3 2.9 0 .7-1.3 2.8-3 4.6-1.6 1.9-3 4-3 4.6 0 .6-1.1 1.8-2.5 2.7-4.1 2.7-3.1 4.6 4.3 8.3 6.7 3.3 6.9 3.4 19.6 3.2 7-.1 14.4.4 16.4 1 3.3.9 4.8.7 11.2-1.6 4.1-1.4 8.5-2.9 9.8-3.2 1.2-.3 2.2-.9 2.2-1.4 0-.5.6-.9 1.4-.9.8 0 1.6-.3 1.8-.8.2-.4 4.1-3.6 8.8-7.1 5.6-4.2 10.3-6.9 13.9-7.9 3.8-1.1 6.6-2.8 9.1-5.3 2-2.1 5.4-4.5 7.7-5.4 2.2-.9 4.1-2.3 4.2-3.3.5-4.5.2-6.4-1.4-7.6-2-1.4-1.7-3.4 1-5.8 1.6-1.4 1.7-1.8.5-1.9-.8-.1-1.9-.3-2.5-.4-.5-.2-1.7-.3-2.5-.4-4.3-.4-4.2-1.8.4-6.6 2.5-2.6 4.6-5 4.6-5.5 0-1.6-2.6-2.8-7.5-3.5-5.2-.8-16.7-6.3-15.9-7.7.3-.4-2.2-2.1-5.5-3.7-3.3-1.7-6.3-3.6-6.6-4.2-1.3-1.9-9.9-5-16.5-5.9-7.2-.9-15.9-3.1-26.6-6.6-9.1-3.1-10.4-3.1-10.4.1z" onclick="window.location.href='/build.php?id=18'"><title>&#1581;&#1601;&#1585;&#1577; &#1575;&#1604;&#1591;&#1610;&#1606; &lt;span class="level"&gt;&#1575;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 5&lt;/span&gt;||&#1578;&#1603;&#1604;&#1601;&#1577; &#1575;&#1604;&#1576;&#1606;&#1575;&#1569; &#1604;&#1604;&#1605;&#1587;&#1578;&#1608;&#1609; 6:&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r1Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1040&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r2Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;520&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r3Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;1040&lt;/span&gt;&lt;/div&gt;&lt;div class="inlineIcon resources" title=""&gt;&lt;i class="r4Big"&gt;&lt;/i&gt;&lt;span class="value "&gt;650&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;div class="inlineIconList resourceWrapper"&gt;&lt;div class="inlineIcon duration" title=""&gt;&lt;i class="clock_medium"&gt;&lt;/i&gt;&lt;span class="value "&gt;0:58:40&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;</title></path>
+</svg>
+        <svg class="villageCenter" viewBox="0 0 473 304">
+  <path d="M223 109c-14.5 4.4-17.7 5.5-18.8 6.3-1.9 1.5-7.4 4.6-10.2 5.8-1.4.6-3.8 1.7-5.5 2.4-1.6.7-5 1.9-7.4 2.7-5.7 1.7-6.9 3.5-4.8 7.7 1.2 2.3 1.3 3.9.6 6.3-1.2 4.2-.3 6.7 2.6 7.4 2 .5 2.5 1.4 3.1 6 .7 5.6 3.4 10.4 6 10.4.8 0 2.2.9 3.1 2 1 1.1 2.9 2 4.3 2s4.8.9 7.6 1.9c3.1 1.2 10.2 2.4 18 3.1 7.1.6 16 1.5 19.7 2 8.1 1 10 .3 15.6-6.2 4-4.4 8-6.5 16.5-8.4 3.3-.8 4.1-1.4 4.8-4.1.5-1.8 1.7-3.4 2.8-3.8 2.4-.8 2.5-1.8.5-4.9-1.2-1.8-1.3-2.9-.5-5.2.8-1.9.8-3.5.1-4.9-.5-1.1-1.2-4.5-1.6-7.7-.6-5.4-.8-5.7-4.4-7.2-3.5-1.3-7.4-5-8.3-7.7-.2-.6-2.6-1.2-5.3-1.4-2.8-.1-5.7-.5-6.5-.8-1.6-.7-20.1-3.6-26-4.1-1.9-.2-4.6 0-6 .4z" onclick="window.location.href='/dorf2.php'"><title>&#1605;&#1585;&#1603;&#1586; &#1575;&#1604;&#1602;&#1585;&#1610;&#1577;</title></path>
+</svg>
+    </div>
+    <div class="villageInfoWrapper">
+        <div class="buildingList">
+			<h5>البناء:</h5>
+            <div class="finishNow"><button type="button" value="إتمام أعمال البناء، التحسين والبحث فوراً" id="button6a1b2275905dc" class="textButtonV1 gold " title="مزيد من المعلومات حول إكمال البناء على الفور" onclick="Travian.Game.PremiumFeature.InstantCompletion.confirmDialog(); return false;" version="textButtonV1">
+	إتمام أعمال البناء، التحسين والبحث فوراً</button>
+<script type="text/javascript" id="button6a1b2275905dc_script">
+	jQuery(function() {
+        jQuery('button#button6a1b2275905dc').on('click', function () {
+            jQuery(window).trigger('buttonClicked', [this, {"type":"button","value":"\u0625\u062a\u0645\u0627\u0645 \u0623\u0639\u0645\u0627\u0644 \u0627\u0644\u0628\u0646\u0627\u0621\u060c \u0627\u0644\u062a\u062d\u0633\u064a\u0646 \u0648\u0627\u0644\u0628\u062d\u062b \u0641\u0648\u0631\u0627\u064b","name":"","id":"button6a1b2275905dc","class":"textButtonV1 gold ","title":"\u0645\u0632\u064a\u062f \u0645\u0646 \u0627\u0644\u0645\u0639\u0644\u0648\u0645\u0627\u062a \u062d\u0648\u0644 \u0625\u0643\u0645\u0627\u0644 \u0627\u0644\u0628\u0646\u0627\u0621 \u0639\u0644\u0649 \u0627\u0644\u0641\u0648\u0631","confirm":"","onclick":"Travian.Game.PremiumFeature.InstantCompletion.confirmDialog(); return false;","version":"textButtonV1"}]);
+        });
+	});
+</script>
+</div>		<ul>
+					<li>
+				<a
+                    onclick="showCancelBuildingDialog(
+                        523339,
+                        'إلغاء بناء البلدية من المستوى 1',
+                        'هل تريد إلغاء بناء &lt;strong&gt;البلدية من المستوى 1&lt;/strong&gt;؟&lt;br /&gt;\nستسترد تكاليف البناء وهي &amp;#x202e;&amp;#x202d;100&amp;#x202c;&amp;#37;&amp;#x202c;:&lt;br /&gt;\n&lt;div class=&quot;inlineIconList resourceWrapper&quot;&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r1&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1250&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r2&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1110&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r3&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;1260&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;inlineIcon resources&quot; title=&quot;&quot;&gt;&lt;i class=&quot;r4&quot;&gt;&lt;/i&gt;&lt;span class=&quot;value &quot;&gt;600&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;br /&gt;&lt;span class=&quot;alert&quot;&gt;تحذير: ستفقد الموارد الفائضة.&lt;/span&gt;'
+                    )"
+                >
+					<img src="/img/x.gif" class="del" title="إلغاء" alt="إلغاء" />
+				</a>
+				<div class="name">
+					البلدية					<span class="lvl">المستوى 1</span>
+				</div>
+				<div class="buildDuration">
+					<span  class="timer" counting="down" value="2613">0:43:33</span> ساعات سينتهي في 19:30				</div>
+				<div class="clear"></div>
+			</li>
+				</ul>
+		</div>
+<script type="text/javascript">
+    function showCancelBuildingDialog(eventId, title, text) {
+        new Travian.Dialog.Confirmation({
+            title: title,
+            message: text,
+            confirmText: 'إلغاء البناء',
+            cancelText: 'مواصلة البناء',
+            confirmClass: 'grey negativeAction',
+            cancelClass: 'grey',
+            buttonCancel: true,
+            context: 'cancelBuilding',
+            onCancel: function () {
+                Travian.WindowManager.closeByContext('cancelBuilding');
+            },
+            onConfirm: function () {
+                window.location.href = '?cancel=' + eventId + '&action=build&checksum=09fb23';
+            }
+        }).show();
+    }
+</script>
+				<div class="villageInfobox production">
+    <table id="production" cellpadding="1" cellspacing="1">
+        <thead>
+        <tr>
+            <th colspan="4">
+                الانتاج في الساعة            </th>
+        </tr>
+        </thead>
+        <tbody>
+                    <tr>
+                <td class="ico">
+                    <div>
+                        <i class="r1" title="الخشب"></i>
+                        <svg viewBox="0 0 160 180" class=" advantageBonusArrow productionBoost">
+    <path class="border" d="M158.78 106.45 85.17 2.72C84.06 1.01 82.14 0 80.03 0S76 1.01 74.79 2.72L1.17 106.45c-1.41 1.91-1.51 4.53-.5 6.64 1.11 2.11 3.23 3.42 5.65 3.42h31.76v57.15c0 3.52 2.82 6.34 6.35 6.34h70.89c3.53 0 6.35-2.82 6.35-6.34v-57.15h31.97c2.42 0 4.54-1.31 5.65-3.42 1.11-2.11.91-4.63-.5-6.64Z"></path>
+    <path class="sideShadow" d="m20.6 103.48-14.07 6.78c.17.3.48.51.87.51h35.86c.55 0 1 .45 1 1v61.81c0 .55.45 1 1 1h69.48c.55 0 1-.45 1-1V111.8c0-.55.45-1 1-1l35.34.29c.41 0 .74-.23.9-.55l-14.1-7-118.28-.06Z"></path>
+    <path class="bottomShadow" d="m51.45 167.41-6.88 6.88c.18.18.42.28.69.28h69.48c.26 0 .49-.11.67-.27l-6.96-6.9H51.44Z"></path>
+    <path class="topShadow" d="m6.54 110.26 13.98-6.74 59.44-85.03 59.02 85.1 14.01 6.95c.15-.3.15-.68-.07-1.01L80.83 5.35c-.39-.57-1.24-.57-1.64 0L6.59 109.21c-.35.5-.16 1.14.3 1.42-.15-.09-.26-.22-.35-.37Z"></path>
+    <path class="inner" d="M108.45 167.41h-57v-63.89H20.52l59.44-85.03 59.02 85.1-30.53-.05v63.87z"></path>
+</svg>
+                    </div>
+                </td>
+                <td class="res">
+                    الخشب:
+                </td>
+                <td class="num">
+                    &#x202d;355&#x202c;                </td>
+            </tr>
+                    <tr>
+                <td class="ico">
+                    <div>
+                        <i class="r2" title="طين"></i>
+                        <svg viewBox="0 0 160 180" class=" advantageBonusArrow productionBoost">
+    <path class="border" d="M158.78 106.45 85.17 2.72C84.06 1.01 82.14 0 80.03 0S76 1.01 74.79 2.72L1.17 106.45c-1.41 1.91-1.51 4.53-.5 6.64 1.11 2.11 3.23 3.42 5.65 3.42h31.76v57.15c0 3.52 2.82 6.34 6.35 6.34h70.89c3.53 0 6.35-2.82 6.35-6.34v-57.15h31.97c2.42 0 4.54-1.31 5.65-3.42 1.11-2.11.91-4.63-.5-6.64Z"></path>
+    <path class="sideShadow" d="m20.6 103.48-14.07 6.78c.17.3.48.51.87.51h35.86c.55 0 1 .45 1 1v61.81c0 .55.45 1 1 1h69.48c.55 0 1-.45 1-1V111.8c0-.55.45-1 1-1l35.34.29c.41 0 .74-.23.9-.55l-14.1-7-118.28-.06Z"></path>
+    <path class="bottomShadow" d="m51.45 167.41-6.88 6.88c.18.18.42.28.69.28h69.48c.26 0 .49-.11.67-.27l-6.96-6.9H51.44Z"></path>
+    <path class="topShadow" d="m6.54 110.26 13.98-6.74 59.44-85.03 59.02 85.1 14.01 6.95c.15-.3.15-.68-.07-1.01L80.83 5.35c-.39-.57-1.24-.57-1.64 0L6.59 109.21c-.35.5-.16 1.14.3 1.42-.15-.09-.26-.22-.35-.37Z"></path>
+    <path class="inner" d="M108.45 167.41h-57v-63.89H20.52l59.44-85.03 59.02 85.1-30.53-.05v63.87z"></path>
+</svg>
+                    </div>
+                </td>
+                <td class="res">
+                    طين:
+                </td>
+                <td class="num">
+                    &#x202d;331&#x202c;                </td>
+            </tr>
+                    <tr>
+                <td class="ico">
+                    <div>
+                        <i class="r3" title="الحديد"></i>
+                        <svg viewBox="0 0 160 180" class=" advantageBonusArrow productionBoost">
+    <path class="border" d="M158.78 106.45 85.17 2.72C84.06 1.01 82.14 0 80.03 0S76 1.01 74.79 2.72L1.17 106.45c-1.41 1.91-1.51 4.53-.5 6.64 1.11 2.11 3.23 3.42 5.65 3.42h31.76v57.15c0 3.52 2.82 6.34 6.35 6.34h70.89c3.53 0 6.35-2.82 6.35-6.34v-57.15h31.97c2.42 0 4.54-1.31 5.65-3.42 1.11-2.11.91-4.63-.5-6.64Z"></path>
+    <path class="sideShadow" d="m20.6 103.48-14.07 6.78c.17.3.48.51.87.51h35.86c.55 0 1 .45 1 1v61.81c0 .55.45 1 1 1h69.48c.55 0 1-.45 1-1V111.8c0-.55.45-1 1-1l35.34.29c.41 0 .74-.23.9-.55l-14.1-7-118.28-.06Z"></path>
+    <path class="bottomShadow" d="m51.45 167.41-6.88 6.88c.18.18.42.28.69.28h69.48c.26 0 .49-.11.67-.27l-6.96-6.9H51.44Z"></path>
+    <path class="topShadow" d="m6.54 110.26 13.98-6.74 59.44-85.03 59.02 85.1 14.01 6.95c.15-.3.15-.68-.07-1.01L80.83 5.35c-.39-.57-1.24-.57-1.64 0L6.59 109.21c-.35.5-.16 1.14.3 1.42-.15-.09-.26-.22-.35-.37Z"></path>
+    <path class="inner" d="M108.45 167.41h-57v-63.89H20.52l59.44-85.03 59.02 85.1-30.53-.05v63.87z"></path>
+</svg>
+                    </div>
+                </td>
+                <td class="res">
+                    الحديد:
+                </td>
+                <td class="num">
+                    &#x202d;355&#x202c;                </td>
+            </tr>
+                    <tr>
+                <td class="ico">
+                    <div>
+                        <i class="r4" title="القمح"></i>
+                        <svg viewBox="0 0 160 180" class=" advantageBonusArrow productionBoost">
+    <path class="border" d="M158.78 106.45 85.17 2.72C84.06 1.01 82.14 0 80.03 0S76 1.01 74.79 2.72L1.17 106.45c-1.41 1.91-1.51 4.53-.5 6.64 1.11 2.11 3.23 3.42 5.65 3.42h31.76v57.15c0 3.52 2.82 6.34 6.35 6.34h70.89c3.53 0 6.35-2.82 6.35-6.34v-57.15h31.97c2.42 0 4.54-1.31 5.65-3.42 1.11-2.11.91-4.63-.5-6.64Z"></path>
+    <path class="sideShadow" d="m20.6 103.48-14.07 6.78c.17.3.48.51.87.51h35.86c.55 0 1 .45 1 1v61.81c0 .55.45 1 1 1h69.48c.55 0 1-.45 1-1V111.8c0-.55.45-1 1-1l35.34.29c.41 0 .74-.23.9-.55l-14.1-7-118.28-.06Z"></path>
+    <path class="bottomShadow" d="m51.45 167.41-6.88 6.88c.18.18.42.28.69.28h69.48c.26 0 .49-.11.67-.27l-6.96-6.9H51.44Z"></path>
+    <path class="topShadow" d="m6.54 110.26 13.98-6.74 59.44-85.03 59.02 85.1 14.01 6.95c.15-.3.15-.68-.07-1.01L80.83 5.35c-.39-.57-1.24-.57-1.64 0L6.59 109.21c-.35.5-.16 1.14.3 1.42-.15-.09-.26-.22-.35-.37Z"></path>
+    <path class="inner" d="M108.45 167.41h-57v-63.89H20.52l59.44-85.03 59.02 85.1-30.53-.05v63.87z"></path>
+</svg>
+                    </div>
+                </td>
+                <td class="res">
+                    القمح:
+                </td>
+                <td class="num">
+                    &#x202d;34&#x202c;                </td>
+            </tr>
+                </tbody>
+    </table>
+    <div>
+        <button type="button" value="&#x202e;&plus;&#x202d;25&#x202c;&#37;&#x202c;" id="button6a1b2275901ff" class="textButtonV1 gold productionBoostButton" title="معلومات إضافية حول ميزة زيادة الانتاجية" onclick="Travian.React.openPaymentWizard({activeTab:'advantages'}); return false;" version="textButtonV1">
+	&#x202e;&plus;&#x202d;25&#x202c;&#37;&#x202c;</button>
+<script type="text/javascript" id="button6a1b2275901ff_script">
+	jQuery(function() {
+        jQuery('button#button6a1b2275901ff').on('click', function () {
+            jQuery(window).trigger('buttonClicked', [this, {"type":"button","value":"\u0026#x202e;\u0026plus;\u0026#x202d;25\u0026#x202c;\u0026#37;\u0026#x202c;","name":"","id":"button6a1b2275901ff","class":"textButtonV1 gold productionBoostButton","title":"\u0645\u0639\u0644\u0648\u0645\u0627\u062a \u0625\u0636\u0627\u0641\u064a\u0629 \u062d\u0648\u0644 \u0645\u064a\u0632\u0629 \u0632\u064a\u0627\u062f\u0629 \u0627\u0644\u0627\u0646\u062a\u0627\u062c\u064a\u0629","confirm":"","onclick":"Travian.React.openPaymentWizard({activeTab:\u0027advantages\u0027}); return false;","version":"textButtonV1"}]);
+        });
+	});
+</script>
+    </div>
+</div>
+		        <input type="checkbox" name="showTroopsToggleMobile" id="showTroopsToggleMobile"  />
+        <label for="showTroopsToggleMobile" class="showTroopsToggleMobile ">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 50" class="troopIcon"><g class="outline">
+    <path xmlns="http://www.w3.org/2000/svg" d="M21 2H9l5 6-1 2h3.9L16 8zM29 20c0-4-2.4-6.4-4-8-1-1-5-1-5-1l-3 4h-4l-3-4s-4 0-5 1c-1.6 1.6-4 4-4 8v11l1 2c.3.6.5 1.1.5 1.8.1 2.5.5 7.2.5 7.2v1c.8 1.8 6.1 5.3 7 6 0-.3-2-16-2-16l-4-4-1-1v-6l11 5-2 5v1l2 3h2l2-3v-1l-2-5 11-5v6l-1 1-4 4s-2 15.7-2 16c.9-.7 6.2-4.2 7-6v-1s.4-4.7.4-7.2c0-.7.2-1.2.6-1.8.3-.6.8-2 .8-2l.2-1V20z"></path>
+</g><g class="icon">
+    <path xmlns="http://www.w3.org/2000/svg" d="M21 2H9l5 6-1 2h3.9L16 8zM29 20c0-4-2.4-6.4-4-8-1-1-5-1-5-1l-3 4h-4l-3-4s-4 0-5 1c-1.6 1.6-4 4-4 8v11l1 2c.3.6.5 1.1.5 1.8.1 2.5.5 7.2.5 7.2v1c.8 1.8 6.1 5.3 7 6 0-.3-2-16-2-16l-4-4-1-1v-6l11 5-2 5v1l2 3h2l2-3v-1l-2-5 11-5v6l-1 1-4 4s-2 15.7-2 16c.9-.7 6.2-4.2 7-6v-1s.4-4.7.4-7.2c0-.7.2-1.2.6-1.8.3-.6.8-2 .8-2l.2-1V20z"></path>
+</g></svg>
+        </label>
+
+        <script type="text/javascript">
+            jQuery(function () {
+                jQuery('input#showTroopsToggleMobile').on('change', function () {
+                    Travian.Game.Village.toggleMobileUnitDisplay();
+                });
+            });
+        </script>
+
+<div class="villageInfobox units">
+<table id="troops" cellpadding="1" cellspacing="1">
+    <thead>
+        <tr>
+            <th colspan="3">الوحدات:</th>
+        </tr>
+    </thead>
+    <tbody>
+
+                <tr>
+                <td class="ico">
+                    <a href="/build.php?id=39#td">
+                        <img class="unit uhero" src="/img/x.gif" alt="بطل" title="بطل"/>
+                    </a>
+                </td>
+                <td class="num">1</td>
+                <td class="un">بطل</td>
+            </tr>
+                <tr>
+                <td class="ico">
+                    <a href="/build.php?id=39#td">
+                        <img class="unit u1" src="/img/x.gif" alt="جندي أول" title="جندي أول"/>
+                    </a>
+                </td>
+                <td class="num">73</td>
+                <td class="un">جندي أول</td>
+            </tr>
+                <tr>
+                <td class="ico">
+                    <a href="/build.php?id=39#td">
+                        <img class="unit u2" src="/img/x.gif" alt="حراس الإمبراطور" title="حراس الإمبراطور"/>
+                    </a>
+                </td>
+                <td class="num">22</td>
+                <td class="un">حراس الإمبراطور</td>
+            </tr>
+                <tr>
+                <td class="ico">
+                    <a href="/build.php?id=39#td">
+                        <img class="unit u5" src="/img/x.gif" alt="الفارس المهاجم" title="الفارس المهاجم"/>
+                    </a>
+                </td>
+                <td class="num">27</td>
+                <td class="un">الفارس المهاجم</td>
+            </tr>
+    
+    </tbody>
+</table>
+
+</div>
+    </div>
+    <script>
+        jQuery(function() {
+                    });
+    </script>
+</div>
+                    				</div>
+
+				<div id="sidebarAfterContent" class="sidebar afterContent">
+                    <div class="sidebarBoxWrapper">
+                        <div id="villageBoxes" class="contentV2">
+    <div id="sidebarBoxActiveVillage" class="sidebarBox  expanded">
+	<div class="header">
+		<div class="buttonsWrapper quickLinks">
+            <div class="quickLinkSlot">
+                            <div class="slot"></div>
+                    </div>
+            <div class="quickLinkSlot">
+                                            <a id="button6a1b22759939a"
+   	class="layoutButton buttonFramed withIcon round activeVillageMarketplaceSendResources gold  quickLink MarketplaceSendResources  "
+	title=""
+        	        	>
+					<svg viewBox="0 0 250 213" class="activeVillageMarketplaceSendResources"><g class="outline">
+    <path d="M23.5 108.2c-1.7.5-8.5-.3-5.1-7.2-1-3.6 1.2-6.6 4.3-6.1 1.4-6 1.1-10.5 11.5-9.1.8-2.2 8.9-4.3 13.9-.3h2.4c-.8-1-14.3-22.6-24.1-17-2.6 4.2-5.3.1-8.8-.4 0 0-1.1 10.7-7.7 5.2-9.2.9-14.2-4.4-5-10.7 0 0-2.8-7.9 6.7-5.6.5-12.1 4.5-17.9 16.8-11.8 7.4-13.8 46.5 28.9 49.9 31.2-3.4-5.4-18.4-30.6-27.4-34.1-3.9-1-17.4-4.1-10.6-10.7-1.4-1.7-1.4-3.1 1.1-2.6 2.5.4 5.1 3.1 5.1 3.1l13.3 8.3-9.7-12.9s-3.5-1.5-4.5-1.9c-1-.4-1.6-3.9 2.4-4.5 4-.6 10.8 2.2 10.8 2.2s-3.9-6.7-4.5-6.7-4.5-5.3 2-5.5c-.9-14.7 11.4 3 11.4 3.6 0 0-1.6-9.2.8-11.4C77.6-8.4 85 14.3 86 18.8c4.7 3 5.7 10.9 6.3 14.9l5.3 8.1-2.8-15.5c-8.4-14.6-6.4-36 12.1-15.1.3-6.3 6.6-4.4 8.6-1.2l2.8 8.9s1.8-8.5 4.3-9.8 4.9-.8 5.3 3.3c4.5-2 7.3-2.2 8.7 1.2 14.1 6.3.6 18.2-2.5 26.9-.8 1.8-3.3 12.4-3.3 12.4L146 35.7s-.8-6.3 7.5-5.3c3.1-5.3 8.1-13.8 15.3-7.9 6.5-3.3 12.8-5.3 14.8 1.4 7.1.4 12.2.2 12.4 10.4 7.1 8.3 6.1 16-3 11.2-3.1 2-5.3 1.8-6.7-.8-1.8 4.5-8.5 12.8-13.4 5.5-2 1.4-27.5 17.3-31.1 35.1 15.9-14.2 27.9-28.3 41.4-25.9 7.3-4.2 11.2-6.7 16.5-1.2 4.3-.2 5.9 4.1 5.7 5.9 5.9-1 10.4-1 10.8 4.1.8 8.6-1.3 17.2-7.7 9.8 0 0-7.9 4.5-9.2-2.8-4.7 3.1-11.4 6.3-14.6 1.6-2.6 1.8-8.1 6.1-11 12.6-26.8 7.5-105.6 30.9-105.6 30.9l-5.6-5s-4.2 8-9.9 0c-1.7 0-3.8 0-5.1 3.2-12.9.9.6-12.3 4.2-11 0 0-1.8-4.3 4.7-4.2-12-13.9-24.7-2.2-32.9 4.9Zm151.6 5.7c7.6-1.3 35.5 21.8 42 25.1l10.8-2.5c-14.6-7.6-24.2-35.1-17.3-49.7-13.9 3.6-97.8 25.5-98.4 25.7l39.8 11.4v13.8h6.1c-1.5-11.5 4.5-23.7 16.9-23.7ZM37.2 138.2l86.6 25.3c-.2-4.4-.1-21.4-.1-26.1h20.5v-8.2l-42.9-9.1s-63.1 18.1-64 18.1Zm-7.9 11v29.9c10.9 4 70.7 27.2 80.6 29.6l13.8-10.1v-28.9s-88.1-25.4-90.2-26.8l-4.2 6.4Zm194.4-66.9c-19.3 6.8-1.1 56.8 18.1 49.6 19.2-6.9 1-56.7-18.1-49.6Zm-1.1 81.8c-7.1-4.8-16.3-11.2-23.5-15.9-22.2-13.6-27.1-26.6-25.7 9.5h-28.6v32h28.6v18.8c0 3.6 3.4 5.8 6.1 4 12.7-8.6 38.4-26.1 51.2-34.7 6.7-5.6-4.4-10.9-8.2-13.6Z"></path>
+</g><g class="icon">
+    <path d="M23.5 108.2c-1.7.5-8.5-.3-5.1-7.2-1-3.6 1.2-6.6 4.3-6.1 1.4-6 1.1-10.5 11.5-9.1.8-2.2 8.9-4.3 13.9-.3h2.4c-.8-1-14.3-22.6-24.1-17-2.6 4.2-5.3.1-8.8-.4 0 0-1.1 10.7-7.7 5.2-9.2.9-14.2-4.4-5-10.7 0 0-2.8-7.9 6.7-5.6.5-12.1 4.5-17.9 16.8-11.8 7.4-13.8 46.5 28.9 49.9 31.2-3.4-5.4-18.4-30.6-27.4-34.1-3.9-1-17.4-4.1-10.6-10.7-1.4-1.7-1.4-3.1 1.1-2.6 2.5.4 5.1 3.1 5.1 3.1l13.3 8.3-9.7-12.9s-3.5-1.5-4.5-1.9c-1-.4-1.6-3.9 2.4-4.5 4-.6 10.8 2.2 10.8 2.2s-3.9-6.7-4.5-6.7-4.5-5.3 2-5.5c-.9-14.7 11.4 3 11.4 3.6 0 0-1.6-9.2.8-11.4C77.6-8.4 85 14.3 86 18.8c4.7 3 5.7 10.9 6.3 14.9l5.3 8.1-2.8-15.5c-8.4-14.6-6.4-36 12.1-15.1.3-6.3 6.6-4.4 8.6-1.2l2.8 8.9s1.8-8.5 4.3-9.8 4.9-.8 5.3 3.3c4.5-2 7.3-2.2 8.7 1.2 14.1 6.3.6 18.2-2.5 26.9-.8 1.8-3.3 12.4-3.3 12.4L146 35.7s-.8-6.3 7.5-5.3c3.1-5.3 8.1-13.8 15.3-7.9 6.5-3.3 12.8-5.3 14.8 1.4 7.1.4 12.2.2 12.4 10.4 7.1 8.3 6.1 16-3 11.2-3.1 2-5.3 1.8-6.7-.8-1.8 4.5-8.5 12.8-13.4 5.5-2 1.4-27.5 17.3-31.1 35.1 15.9-14.2 27.9-28.3 41.4-25.9 7.3-4.2 11.2-6.7 16.5-1.2 4.3-.2 5.9 4.1 5.7 5.9 5.9-1 10.4-1 10.8 4.1.8 8.6-1.3 17.2-7.7 9.8 0 0-7.9 4.5-9.2-2.8-4.7 3.1-11.4 6.3-14.6 1.6-2.6 1.8-8.1 6.1-11 12.6-26.8 7.5-105.6 30.9-105.6 30.9l-5.6-5s-4.2 8-9.9 0c-1.7 0-3.8 0-5.1 3.2-12.9.9.6-12.3 4.2-11 0 0-1.8-4.3 4.7-4.2-12-13.9-24.7-2.2-32.9 4.9Zm151.6 5.7c7.6-1.3 35.5 21.8 42 25.1l10.8-2.5c-14.6-7.6-24.2-35.1-17.3-49.7-13.9 3.6-97.8 25.5-98.4 25.7l39.8 11.4v13.8h6.1c-1.5-11.5 4.5-23.7 16.9-23.7ZM37.2 138.2l86.6 25.3c-.2-4.4-.1-21.4-.1-26.1h20.5v-8.2l-42.9-9.1s-63.1 18.1-64 18.1Zm-7.9 11v29.9c10.9 4 70.7 27.2 80.6 29.6l13.8-10.1v-28.9s-88.1-25.4-90.2-26.8l-4.2 6.4Zm194.4-66.9c-19.3 6.8-1.1 56.8 18.1 49.6 19.2-6.9 1-56.7-18.1-49.6Zm-1.1 81.8c-7.1-4.8-16.3-11.2-23.5-15.9-22.2-13.6-27.1-26.6-25.7 9.5h-28.6v32h28.6v18.8c0 3.6 3.4 5.8 6.1 4 12.7-8.6 38.4-26.1 51.2-34.7 6.7-5.6-4.4-10.9-8.2-13.6Z"></path>
+</g></svg>
+		</a>
+
+<script type="text/javascript">
+    jQuery('#button6a1b22759939a').on('click', function (event) {
+        jQuery(window).trigger('buttonClicked', [event.delegateTarget, {"type":"gold","loadTooltip":null,"boxId":"","disabled":false,"attention":false,"colorBlind":false,"class":"quickLink MarketplaceSendResources","id":"button6a1b22759939a","redirectUrl":"","redirectUrlExternal":"","svg":"sideBar\/quickLinks\/quickLinkMarketplaceSendResources.svg","content":""}]);
+    });
+</script>
+                    </div>
+            <div class="quickLinkSlot">
+                                            <a id="button6a1b22759947d"
+   	class="layoutButton buttonFramed withIcon round activeVillageBarracksManagement gold  quickLink BarracksManagement  "
+	title=""
+        	        	>
+					<svg viewBox="0 0 184.6 200" class="activeVillageBarracksManagement"><g class="outline">
+    <path d="m138.6 172.6 3.8 3.2s-12.3 8.4-20.5 7c-8.1-1.5-16.2-23-16.2-23.3-.5-7.8-7-13.8-14.8-13.8s-14.8 6.6-14.8 14.8 1.1 6.5 3 9c2.6 3.5 6.7 5.7 11.3 5.9-34.5 25.8-75.6 24.7-75.6 24.7l28.4-65.6 8.8 5.2 30-25.1-18.8-13.9s-14.8 2.7-28.2 12.4c-2.1 4.8-9.6 27.4-9.6 27.4L12 146.9l11-40.6 1.6-5.9c7-20.9 26.7-36.1 50-36.1s52.7 23.6 52.7 52.7-.8 11.3-2.6 16.4c-1.6 11.4-1.5 29.8 13.9 39.2Zm18-63.1 27.3-3.4c-2-19.5-8.2-37.8-18-53.6l-36.8 14.9 28.3-27C146.1 26.5 131.8 15.3 115 8.3L94.5 42.5l8-38.6c-.6-.2-1.3-.4-1.9-.5C87.5 0 74.2-.8 61.4.8l4.2 30.8L51 2.5c-16.9-.4-33.3 4.2-51 9l39.3 45.1c10.4-1.4 35-10.3 45.6-7.6 46.3 12.1 64.7 54.6 54.1 105.1 13.7 11.7 0 0 31.2 31.5 8.8-26.3 4.8-11.8 10-31.5 2.8-11 4.3-22 4.4-32.8l-28-11.7Z"></path>
+</g><g class="icon">
+    <path d="m138.6 172.6 3.8 3.2s-12.3 8.4-20.5 7c-8.1-1.5-16.2-23-16.2-23.3-.5-7.8-7-13.8-14.8-13.8s-14.8 6.6-14.8 14.8 1.1 6.5 3 9c2.6 3.5 6.7 5.7 11.3 5.9-34.5 25.8-75.6 24.7-75.6 24.7l28.4-65.6 8.8 5.2 30-25.1-18.8-13.9s-14.8 2.7-28.2 12.4c-2.1 4.8-9.6 27.4-9.6 27.4L12 146.9l11-40.6 1.6-5.9c7-20.9 26.7-36.1 50-36.1s52.7 23.6 52.7 52.7-.8 11.3-2.6 16.4c-1.6 11.4-1.5 29.8 13.9 39.2Zm18-63.1 27.3-3.4c-2-19.5-8.2-37.8-18-53.6l-36.8 14.9 28.3-27C146.1 26.5 131.8 15.3 115 8.3L94.5 42.5l8-38.6c-.6-.2-1.3-.4-1.9-.5C87.5 0 74.2-.8 61.4.8l4.2 30.8L51 2.5c-16.9-.4-33.3 4.2-51 9l39.3 45.1c10.4-1.4 35-10.3 45.6-7.6 46.3 12.1 64.7 54.6 54.1 105.1 13.7 11.7 0 0 31.2 31.5 8.8-26.3 4.8-11.8 10-31.5 2.8-11 4.3-22 4.4-32.8l-28-11.7Z"></path>
+</g></svg>
+		</a>
+
+<script type="text/javascript">
+    jQuery('#button6a1b22759947d').on('click', function (event) {
+        jQuery(window).trigger('buttonClicked', [event.delegateTarget, {"type":"gold","loadTooltip":null,"boxId":"","disabled":false,"attention":false,"colorBlind":false,"class":"quickLink BarracksManagement","id":"button6a1b22759947d","redirectUrl":"","redirectUrlExternal":"","svg":"sideBar\/quickLinks\/quickLinkBarracksManagement.svg","content":""}]);
+    });
+</script>
+                    </div>
+            <div class="quickLinkSlot">
+                                            <a id="button6a1b2275994ee"
+   	class="layoutButton buttonFramed withIcon round activeVillageStableManagement gold disabled quickLink StableManagement  "
+	title=""
+        	            onclick="event.preventDefault();"
+        	>
+					<svg viewBox="0 0 237.1 250" class="activeVillageStableManagement"><g class="outline">
+    <path d="M218.3 128.8c7.5 2.5 13.7 6.2 18.7 10-12.5-19.8-38.6-60.7-65-68.7 3.7 0 17.5-1.2 20 0-11.2-6.2-13.7-11.2-70-31.2q-8.7-2.5-18.7-6.2C102.2 28 86.5-2.1 69.7.1c1.6 5.7 3 37.8 3.7 41.2 0 0-1.2 0-2.5 1.2-4.6-.8-22.1-12.5-26.2-15 0 0 1.2 23.7 10 31.2-5 5-8.7 10-11.2 8.7-17.6 6.4-11.1 19.4-11.2 32.5-8.9 17.5-13.7 40.2-25 56.2-8.2 2.3-10 13.8-2.5 18.7 2.7 14.1 15 22.5 28.7 21.2 11.2-1.2 18.7-10 21.2-21.2 40.4-10.2 83.1-45.4 35-73.7 79.9 8.7-5 136.2-6.2 141.2 17.5 10 28.7 8.7 63.7 3.7 18.7-7.5 45-30 60-37.5 10.9-24.1 21.2-53.4 11.2-79.9Zm-158.6-30c-2.5 1.2-5 2.5-6.2 2.5-6.2 0-10 3.7-10-1.2s2.5-17.5 8.7-17.5c14.4-2.2 18.5 6.7 7.5 16.2Zm139.9 102.4c-6.2-94.9-81.2-138.7-86.2-141.2 6.2 1.2 103.7 28.7 86.2 141.2Z"></path>
+</g><g class="icon">
+    <path d="M218.3 128.8c7.5 2.5 13.7 6.2 18.7 10-12.5-19.8-38.6-60.7-65-68.7 3.7 0 17.5-1.2 20 0-11.2-6.2-13.7-11.2-70-31.2q-8.7-2.5-18.7-6.2C102.2 28 86.5-2.1 69.7.1c1.6 5.7 3 37.8 3.7 41.2 0 0-1.2 0-2.5 1.2-4.6-.8-22.1-12.5-26.2-15 0 0 1.2 23.7 10 31.2-5 5-8.7 10-11.2 8.7-17.6 6.4-11.1 19.4-11.2 32.5-8.9 17.5-13.7 40.2-25 56.2-8.2 2.3-10 13.8-2.5 18.7 2.7 14.1 15 22.5 28.7 21.2 11.2-1.2 18.7-10 21.2-21.2 40.4-10.2 83.1-45.4 35-73.7 79.9 8.7-5 136.2-6.2 141.2 17.5 10 28.7 8.7 63.7 3.7 18.7-7.5 45-30 60-37.5 10.9-24.1 21.2-53.4 11.2-79.9Zm-158.6-30c-2.5 1.2-5 2.5-6.2 2.5-6.2 0-10 3.7-10-1.2s2.5-17.5 8.7-17.5c14.4-2.2 18.5 6.7 7.5 16.2Zm139.9 102.4c-6.2-94.9-81.2-138.7-86.2-141.2 6.2 1.2 103.7 28.7 86.2 141.2Z"></path>
+</g></svg>
+		</a>
+
+<script type="text/javascript">
+    jQuery('#button6a1b2275994ee').on('click', function (event) {
+        jQuery(window).trigger('buttonClicked', [event.delegateTarget, {"type":"gold","loadTooltip":null,"boxId":"","disabled":true,"attention":false,"colorBlind":false,"class":"quickLink StableManagement","id":"button6a1b2275994ee","redirectUrl":"","redirectUrlExternal":"","svg":"sideBar\/quickLinks\/quickLinkStableManagement.svg","content":"","onclick":"event.preventDefault();"}]);
+    });
+</script>
+                    </div>
+            <div class="quickLinkSlot">
+                                            <a id="button6a1b227599563"
+   	class="layoutButton buttonFramed withIcon round activeVillageWorkshopManagement gold disabled quickLink WorkshopManagement  "
+	title=""
+        	            onclick="event.preventDefault();"
+        	>
+					<svg viewBox="0 0 250 227.9" class="activeVillageWorkshopManagement"><g class="outline">
+    <path d="M110.6 205.5c11 14.3-14.8 31.9-23.6 16.2l-6.1-9.4 1.4-1.6 18.5-20.2 9.8 15Zm-61.7-55.4c4.3-4.7 23.7-26 27.6-30.2l.5-23.8 15.3 6.4 18.2-20-21.1-8.7C110.1 39.1 77.6-9 37.2 1.5l22.2 36.1L57 52.5l-9.9 6.2L32.2 55 9.8 18.8c-24.6 31.2.1 80.3 41.1 78.3l-2 52.9Zm115.9-28c-1 1.1-19.8 20.3-20 20.9l18.1 27.8c3.9 6.8 14.3 9 19.9 2.4 6.2-3.7 8.7-12.5 3.6-18.6l-21.6-32.5Zm70.1-58.9-38.3-.6 7.7-8.7c6.3-8.8 1.5-18.3-7.1-23.7-10.8-9-20.2 1.9-26.7 9.8 1.6-42.8 1.1-29.5-39.1-32.2-4.3-.1-7.5 3.1-7.6 7.3l-.4 32c-.1 4.3 3.1 7.5 7.3 7.6l26 .3L126 88.8c-22.8 25.4-50.1 55-73 80.4l-27.5 30.2c-7.7 9.1-.8 18.7 7.1 23.8 14.9 13.2 29-15.3 37.6-23.1l1.6-1.7L90.4 178c27.3-30.1 68.3-72.2 94.8-102.8l-.6 37.7c-.2 9.6 8.6 16.1 17.8 15 42.1 2.7 64.1-61.6 32.4-64.8Z"></path>
+</g><g class="icon">
+    <path d="M110.6 205.5c11 14.3-14.8 31.9-23.6 16.2l-6.1-9.4 1.4-1.6 18.5-20.2 9.8 15Zm-61.7-55.4c4.3-4.7 23.7-26 27.6-30.2l.5-23.8 15.3 6.4 18.2-20-21.1-8.7C110.1 39.1 77.6-9 37.2 1.5l22.2 36.1L57 52.5l-9.9 6.2L32.2 55 9.8 18.8c-24.6 31.2.1 80.3 41.1 78.3l-2 52.9Zm115.9-28c-1 1.1-19.8 20.3-20 20.9l18.1 27.8c3.9 6.8 14.3 9 19.9 2.4 6.2-3.7 8.7-12.5 3.6-18.6l-21.6-32.5Zm70.1-58.9-38.3-.6 7.7-8.7c6.3-8.8 1.5-18.3-7.1-23.7-10.8-9-20.2 1.9-26.7 9.8 1.6-42.8 1.1-29.5-39.1-32.2-4.3-.1-7.5 3.1-7.6 7.3l-.4 32c-.1 4.3 3.1 7.5 7.3 7.6l26 .3L126 88.8c-22.8 25.4-50.1 55-73 80.4l-27.5 30.2c-7.7 9.1-.8 18.7 7.1 23.8 14.9 13.2 29-15.3 37.6-23.1l1.6-1.7L90.4 178c27.3-30.1 68.3-72.2 94.8-102.8l-.6 37.7c-.2 9.6 8.6 16.1 17.8 15 42.1 2.7 64.1-61.6 32.4-64.8Z"></path>
+</g></svg>
+		</a>
+
+<script type="text/javascript">
+    jQuery('#button6a1b227599563').on('click', function (event) {
+        jQuery(window).trigger('buttonClicked', [event.delegateTarget, {"type":"gold","loadTooltip":null,"boxId":"","disabled":true,"attention":false,"colorBlind":false,"class":"quickLink WorkshopManagement","id":"button6a1b227599563","redirectUrl":"","redirectUrlExternal":"","svg":"sideBar\/quickLinks\/quickLinkWorkshopManagement.svg","content":"","onclick":"event.preventDefault();"}]);
+    });
+</script>
+                    </div>
+    
+    <a id="button6a1b2275995c8"
+   	class="layoutButton buttonFramed withIcon round activeVillageQuickLinksSettings gold  settings  "
+	title=""
+        	            onclick="new Travian.Game.PlusDialog({featureKey: 'directLinks', cssClass: 'premiumFeaturePackage premiumFeaturePlus paymentShopV5', premiumFeatureDialogVersion: 2, version: 2}); return false;"
+        	>
+					<svg viewBox="0 0 13 3" class="activeVillageQuickLinksSettings"><g class="outline">
+    <path d="M3 1.5C3 2.33 2.33 3 1.5 3S0 2.33 0 1.5.67 0 1.5 0 3 .67 3 1.5ZM8 1.5C8 2.33 7.33 3 6.5 3S5 2.33 5 1.5 5.67 0 6.5 0 8 .67 8 1.5ZM13 1.5c0 .83-.67 1.5-1.5 1.5S10 2.33 10 1.5 10.67 0 11.5 0 13 .67 13 1.5Z"></path>
+</g><g class="icon">
+    <path d="M3 1.5C3 2.33 2.33 3 1.5 3S0 2.33 0 1.5.67 0 1.5 0 3 .67 3 1.5ZM8 1.5C8 2.33 7.33 3 6.5 3S5 2.33 5 1.5 5.67 0 6.5 0 8 .67 8 1.5ZM13 1.5c0 .83-.67 1.5-1.5 1.5S10 2.33 10 1.5 10.67 0 11.5 0 13 .67 13 1.5Z"></path>
+</g></svg>
+		</a>
+
+<script type="text/javascript">
+    jQuery('#button6a1b2275995c8').on('click', function (event) {
+        jQuery(window).trigger('buttonClicked', [event.delegateTarget, {"type":"gold","loadTooltip":null,"boxId":"","disabled":false,"attention":false,"colorBlind":false,"class":"settings","id":"button6a1b2275995c8","redirectUrl":"","redirectUrlExternal":"","svg":"misc\/threeDots.svg","content":"","title":"\u0631\u0648\u0627\u0628\u0637 \u0633\u0631\u064a\u0639\u0629||\u0647\u0630\u0647 \u0627\u0644\u0645\u064a\u0632\u0629 \u062a\u062a\u0637\u0644\u0628 \u0627\u0634\u062a\u0631\u0627\u0643 \u062a\u0631\u0627\u0641\u064a\u0627\u0646 \u0628\u0644\u0627\u0633","onclick":"new Travian.Game.PlusDialog({featureKey: 'directLinks', cssClass: 'premiumFeaturePackage premiumFeaturePlus paymentShopV5', premiumFeatureDialogVersion: 2, version: 2}); return false;"}]);
+    });
+</script>
+</div>
+	</div>
+	<div class="content">
+		<div class="playerName">Marshal25</div>
+<div id="villageName"
+	 class="boxTitle editable"
+	 title="انقر لتغيير اسم القرية">
+
+			<form>
+			<input class="villageInput" type="text" maxlength="20" name="villageName" data-did=23378 value="AMH7"/>
+			<svg viewBox="0 0 12.8 18.8" class="rename">
+    <path d="M5.5 16.6.8 18.8 0 13.6c0-.1.1-.1.1-.1l5.4 2.9c.1.1.1.2 0 .2zm6.7-14.4L8.4.1C7.9-.1 7.3 0 7 .5L1.2 11.2c-.3.5-.1 1.1.3 1.4h.1l3.9 2.1c.5.3 1.1.1 1.4-.4l5.8-10.7c.3-.4.1-1.1-.5-1.4.1 0 .1 0 0 0z"></path>
+</svg>
+		</form>
+	</div>
+
+<div class="population">
+	السكان: <span>&#x202d;213&#x202c;</span>
+</div>
+
+<div class="loyalty medium">
+	الولاء: <span>&#x202e;&#x202d;100&#x202c;&#37;&#x202c;</span>
+</div>
+
+<script type="text/javascript">
+	function saveChanges(newVillageName) {
+		Travian.api('village/change-names', {
+			data: {
+                data: [
+                    {villageId: 23378, name: newVillageName}
+                ]
+			},
+			success: function(data) {
+                Travian.Game.VillageList.updateVillageNames();
+            },
+            error: function(body) {
+                var errorDialog = new Travian.Dialog.Dialog({
+                    buttonOk: true,
+                    buttonCloseOnClickOk: true,
+                    preventFormSubmit: true
+                });
+                errorDialog.setContent(body.message);
+                errorDialog.show();
+            }
+		}, 'PUT');
+	}
+
+	jQuery(function() {
+		var villageNameForm = jQuery('#villageName form');
+		var villageNameInput = jQuery('#villageName input');
+
+		villageNameInput.on('focusout', function () {
+		    saveChanges(villageNameInput.val())
+		});
+
+		villageNameForm.on('submit', function (event) {
+		    event.preventDefault();
+            villageNameInput.trigger('blur');
+		});
+	})
+</script>
+	</div>
+	</div>
+    <div id="sidebarBoxVillageList" class="sidebarBox  expanded">
+	<div class="header">
+		<div class="buttonsWrapper quickLinks">
+            <div class="quickLinkSlot">
+                            <div class="slot"></div>
+                    </div>
+            <div class="quickLinkSlot">
+                            <div class="slot"></div>
+                    </div>
+            <div class="quickLinkSlot">
+                            <div class="slot"></div>
+                    </div>
+            <div class="quickLinkSlot">
+                            <div class="slot"></div>
+                    </div>
+        <a id="button6a1b2275997dc"
+   	class="layoutButton buttonFramed withIcon round overview green  villageStatistics  "
+	title="إحصائيات القرية"
+        			href="/village/statistics"
+	                accesskey="9"
+    	>
+					<svg viewBox="0 0 20 14.92" class="overview"><g class="outline">
+  <path d="M10 1.41c4.61 0 8.34 6.05 8.34 6.05s-3.73 6.05-8.34 6.05-8.34-6-8.34-6 3.73-6 8.34-6M10 0C7.7 0 5.38 1.16 3.1 3.44A20.17 20.17 0 0 0 .46 6.72L0 7.46l.46.74a20.17 20.17 0 0 0 2.64 3.28c2.28 2.28 4.6 3.44 6.9 3.44s4.62-1.16 6.9-3.44a20.17 20.17 0 0 0 2.64-3.28l.46-.74-.46-.74a20.17 20.17 0 0 0-2.64-3.28C14.62 1.16 12.3 0 10 0zm.08 11.64a4.5 4.5 0 1 1 4.49-4.49 4.5 4.5 0 0 1-4.49 4.49zm0-7.88a3.39 3.39 0 1 0 3.38 3.39 3.39 3.39 0 0 0-3.38-3.39zm0 5.92a2.53 2.53 0 1 1 2.52-2.53 2.53 2.53 0 0 1-2.52 2.53z"></path>
+</g><g class="icon">
+  <path d="M10 1.41c4.61 0 8.34 6.05 8.34 6.05s-3.73 6.05-8.34 6.05-8.34-6-8.34-6 3.73-6 8.34-6M10 0C7.7 0 5.38 1.16 3.1 3.44A20.17 20.17 0 0 0 .46 6.72L0 7.46l.46.74a20.17 20.17 0 0 0 2.64 3.28c2.28 2.28 4.6 3.44 6.9 3.44s4.62-1.16 6.9-3.44a20.17 20.17 0 0 0 2.64-3.28l.46-.74-.46-.74a20.17 20.17 0 0 0-2.64-3.28C14.62 1.16 12.3 0 10 0zm.08 11.64a4.5 4.5 0 1 1 4.49-4.49 4.5 4.5 0 0 1-4.49 4.49zm0-7.88a3.39 3.39 0 1 0 3.38 3.39 3.39 3.39 0 0 0-3.38-3.39zm0 5.92a2.53 2.53 0 1 1 2.52-2.53 2.53 2.53 0 0 1-2.52 2.53z"></path>
+</g></svg>
+		</a>
+
+<script type="text/javascript">
+    jQuery('#button6a1b2275997dc').on('click', function (event) {
+        jQuery(window).trigger('buttonClicked', [event.delegateTarget, {"type":"green","loadTooltip":null,"boxId":"","disabled":false,"attention":false,"colorBlind":false,"class":"villageStatistics","id":"button6a1b2275997dc","redirectUrl":"\/village\/statistics","redirectUrlExternal":"","svg":"sideBar\/overview.svg","content":"","accesskey":9}]);
+    });
+</script>
+    <a id="button6a1b22759984f"
+   	class="layoutButton buttonFramed withIcon round villageListQuickLinksSettings grey  settings  "
+	title=""
+        	            onclick="new Travian.Game.PlusDialog({featureKey: 'directLinks', cssClass: 'premiumFeaturePackage premiumFeaturePlus paymentShopV5', premiumFeatureDialogVersion: 2, version: 2}); return false;"
+        	>
+					<svg viewBox="0 0 13 3" class="villageListQuickLinksSettings"><g class="outline">
+    <path d="M3 1.5C3 2.33 2.33 3 1.5 3S0 2.33 0 1.5.67 0 1.5 0 3 .67 3 1.5ZM8 1.5C8 2.33 7.33 3 6.5 3S5 2.33 5 1.5 5.67 0 6.5 0 8 .67 8 1.5ZM13 1.5c0 .83-.67 1.5-1.5 1.5S10 2.33 10 1.5 10.67 0 11.5 0 13 .67 13 1.5Z"></path>
+</g><g class="icon">
+    <path d="M3 1.5C3 2.33 2.33 3 1.5 3S0 2.33 0 1.5.67 0 1.5 0 3 .67 3 1.5ZM8 1.5C8 2.33 7.33 3 6.5 3S5 2.33 5 1.5 5.67 0 6.5 0 8 .67 8 1.5ZM13 1.5c0 .83-.67 1.5-1.5 1.5S10 2.33 10 1.5 10.67 0 11.5 0 13 .67 13 1.5Z"></path>
+</g></svg>
+		</a>
+
+<script type="text/javascript">
+    jQuery('#button6a1b22759984f').on('click', function (event) {
+        jQuery(window).trigger('buttonClicked', [event.delegateTarget, {"type":"grey","loadTooltip":null,"boxId":"","disabled":false,"attention":false,"colorBlind":false,"class":"settings","id":"button6a1b22759984f","redirectUrl":"","redirectUrlExternal":"","svg":"misc\/threeDots.svg","content":"","title":"\u0631\u0648\u0627\u0628\u0637 \u0633\u0631\u064a\u0639\u0629||\u0647\u0630\u0647 \u0627\u0644\u0645\u064a\u0632\u0629 \u062a\u062a\u0637\u0644\u0628 \u0627\u0634\u062a\u0631\u0627\u0643 \u062a\u0631\u0627\u0641\u064a\u0627\u0646 \u0628\u0644\u0627\u0633","onclick":"new Travian.Game.PlusDialog({featureKey: 'directLinks', cssClass: 'premiumFeaturePackage premiumFeaturePlus paymentShopV5', premiumFeatureDialogVersion: 2, version: 2}); return false;"}]);
+    });
+</script>
+</div>
+	</div>
+	<div class="content">
+		
+<div class="expansionSlotInfo">
+	<div class="boxTitle">
+		قرى		<span class="slots">&#x202e;&#x202d;2&#x202c;\&#x202d;2&#x202c;&#x202c;</span>
+	</div>
+	<div class="barWrapper">
+		<div class="bar" style="width:9.45%">&nbsp;</div>
+	</div>
+</div>
+
+	<div class="villageList">
+        <div class="groupsHeader">
+            <span>مجموعات القرى</span>
+            <span>(&#x202e;&#x202d;0&#x202c;\&#x202d;20&#x202c;&#x202c;)</span>
+            <button type="button" class="secondaryIconButton"
+                                        title="">
+                <svg viewBox="0 0 20 16" class="addGroup">
+    <path d="M12 12h2v-2h2V8h-2V6h-2v2h-2v2h2v2ZM2 16c-.55 0-1.02-.2-1.41-.59C.2 15.02 0 14.55 0 14V2C0 1.45.2.98.59.59.98.2 1.45 0 2 0h6l2 2h8c.55 0 1.02.2 1.41.59.39.39.59.86.59 1.41v10c0 .55-.2 1.02-.59 1.41-.39.39-.86.59-1.41.59H2Zm0-2h16V4H9.18l-2-2H2v12Z"></path>
+</svg>
+            </button>
+        </div>
+		            <div class="dropContainer">
+    <div class="listEntry village active" data-did="23378">
+                <a href="?newdid=23378&amp;"  class="active">
+                    <span class="iconAndNameWrapper">
+                <span class="incomingTroops" data-id="23378">
+                    <svg viewBox="0 0 20 19.06" class="attack">
+  <path d="M16.22 13.08l2.14-2.14-1.37-1.36-1.63 1.63-2.15-2.15 4.74-4.73L19.06 0l-4.32 1.11L10 5.85 5.26 1.11.94 0l1.11 4.33 4.74 4.73-2.15 2.15-1.63-1.63-1.37 1.36 2.14 2.14L0 16.86l2.21 2.2 3.78-3.77 2.13 2.13 1.37-1.37-1.63-1.63L10 12.28l2.14 2.14-1.63 1.63 1.37 1.37 2.14-2.13 3.77 3.77 2.21-2.2-3.78-3.78z"></path>
+</svg>
+                </span>
+                <span class="name" data-did="23378">AMH7</span>
+            </span>
+                </a>
+        <span class="coordinatesGrid">
+            &#x202e;<span class="coordinates coordinatesWrapper coordinatesAligned coordinatesrtl"><span class="coordinateX">(&#x202d;9&#x202c;</span><span class="coordinatePipe">|</span><span class="coordinateY">&#x202d;60&#x202c;)</span></span>&#x202c;        </span>
+            </div>
+</div>
+            		            <div class="dropContainer">
+    <div class="listEntry village" data-did="26000">
+                <a href="?newdid=26000&amp;" accesskey="b" >
+                    <span class="iconAndNameWrapper">
+                <span class="incomingTroops" data-id="26000">
+                    <svg viewBox="0 0 20 19.06" class="attack">
+  <path d="M16.22 13.08l2.14-2.14-1.37-1.36-1.63 1.63-2.15-2.15 4.74-4.73L19.06 0l-4.32 1.11L10 5.85 5.26 1.11.94 0l1.11 4.33 4.74 4.73-2.15 2.15-1.63-1.63-1.37 1.36 2.14 2.14L0 16.86l2.21 2.2 3.78-3.77 2.13 2.13 1.37-1.37-1.63-1.63L10 12.28l2.14 2.14-1.63 1.63 1.37 1.37 2.14-2.13 3.77 3.77 2.21-2.2-3.78-3.78z"></path>
+</svg>
+                </span>
+                <span class="name" data-did="26000">قرية جديدة</span>
+            </span>
+                </a>
+        <span class="coordinatesGrid">
+            &#x202e;<span class="coordinates coordinatesWrapper coordinatesAligned coordinatesrtl"><span class="coordinateX">(&#x202d;9&#x202c;</span><span class="coordinatePipe">|</span><span class="coordinateY">&#x202d;59&#x202c;)</span></span>&#x202c;        </span>
+            </div>
+</div>
+            			</div>
+	</div>
+	</div>
+</div>
+
+<script type='text/javascript'>
+    jQuery(function() {
+        window.Travian.React.VillageBoxes.render(
+            {
+                gqlQuery: "query{bootstrapData{buildings{type validTribes}serverSupportedFeatures{keepVidOnConquer}} ownPlayer{name tribeId isSitter goldFeatures{travianPlus{isActive}goldClub}village{id tribeId name sortIndex population loyalty quickLinks{all{type buildingIsAvailable availableBuildingId}villageListSet{type buildingIsAvailable availableBuildingId}villageSet{type buildingIsAvailable availableBuildingId}} x y}isSitter culturalPointsOverview{usedSlots maxControllableVillages cpProducedForNextSlot cpNeededForNextSlot cpProductionTotal}profileBan{isActive tooltip}villageList{... on VillageListGroup{id name color villages{id name distance incomingAttacksAmount incomingAttacksSymbols{gray green red yellow}x y}} ... on VillageListVillage{id name distance incomingAttacksAmount incomingAttacksSymbols{gray green red yellow}x y}}}}",
+                viewData: {"bootstrapData":{"buildings":[{"type":1,"validTribes":[1,2,3]},{"type":2,"validTribes":[1,2,3]},{"type":3,"validTribes":[1,2,3]},{"type":4,"validTribes":[1,2,3]},{"type":5,"validTribes":[1,2,3]},{"type":6,"validTribes":[1,2,3]},{"type":7,"validTribes":[1,2,3]},{"type":8,"validTribes":[1,2,3]},{"type":9,"validTribes":[1,2,3]},{"type":10,"validTribes":[1,2,3]},{"type":11,"validTribes":[1,2,3]},{"type":13,"validTribes":[1,2,3]},{"type":14,"validTribes":[1,2,3]},{"type":15,"validTribes":[1,2,3]},{"type":16,"validTribes":[1,2,3]},{"type":17,"validTribes":[1,2,3]},{"type":18,"validTribes":[1,2,3]},{"type":19,"validTribes":[1,2,3]},{"type":20,"validTribes":[1,2,3]},{"type":21,"validTribes":[1,2,3]},{"type":22,"validTribes":[1,2,3]},{"type":23,"validTribes":[1,2,3]},{"type":24,"validTribes":[1,2,3]},{"type":25,"validTribes":[1,2,3]},{"type":26,"validTribes":[1,2,3]},{"type":27,"validTribes":[1,2,3]},{"type":28,"validTribes":[1,2,3]},{"type":29,"validTribes":[1,2,3]},{"type":30,"validTribes":[1,2,3]},{"type":31,"validTribes":[1]},{"type":32,"validTribes":[2]},{"type":33,"validTribes":[3]},{"type":34,"validTribes":[1,2,3]},{"type":35,"validTribes":[2]},{"type":36,"validTribes":[3]},{"type":37,"validTribes":[1,2,3]},{"type":38,"validTribes":[1,2,3]},{"type":39,"validTribes":[1,2,3]},{"type":40,"validTribes":[]},{"type":41,"validTribes":[1]},{"type":46,"validTribes":[1,2,3]}],"serverSupportedFeatures":{"keepVidOnConquer":false}},"ownPlayer":{"name":"Marshal25","tribeId":1,"isSitter":false,"goldFeatures":{"travianPlus":{"isActive":false},"goldClub":true},"village":{"id":23378,"tribeId":1,"name":"AMH7","sortIndex":1,"population":213,"loyalty":100,"quickLinks":{"all":[{"type":"BlacksmithManagement","buildingIsAvailable":true,"availableBuildingId":13},{"type":"RallyPointOverview","buildingIsAvailable":true,"availableBuildingId":16},{"type":"RallyPointSendTroops","buildingIsAvailable":true,"availableBuildingId":16},{"type":"RallyPointFarmList","buildingIsAvailable":true,"availableBuildingId":16},{"type":"MarketplaceSendResources","buildingIsAvailable":true,"availableBuildingId":17},{"type":"MarketplaceTradeRoutes","buildingIsAvailable":true,"availableBuildingId":17},{"type":"MarketplaceBuy","buildingIsAvailable":true,"availableBuildingId":17},{"type":"BarracksManagement","buildingIsAvailable":true,"availableBuildingId":19},{"type":"GreatBarracksManagement","buildingIsAvailable":false,"availableBuildingId":null},{"type":"StableManagement","buildingIsAvailable":false,"availableBuildingId":null},{"type":"GreatStableManagement","buildingIsAvailable":false,"availableBuildingId":null},{"type":"WorkshopManagement","buildingIsAvailable":false,"availableBuildingId":null},{"type":"TownHallCelebration","buildingIsAvailable":false,"availableBuildingId":null},{"type":"TrapperManagement","buildingIsAvailable":false,"availableBuildingId":null},{"type":"HerosMansionManagement","buildingIsAvailable":false,"availableBuildingId":null},{"type":"HospitalManagement","buildingIsAvailable":false,"availableBuildingId":null},{"type":"ExpansionTrain","buildingIsAvailable":true,"availableBuildingId":25}],"villageListSet":[null,null,null,null],"villageSet":[null,{"type":"MarketplaceSendResources","buildingIsAvailable":true,"availableBuildingId":17},{"type":"BarracksManagement","buildingIsAvailable":true,"availableBuildingId":19},{"type":"StableManagement","buildingIsAvailable":false,"availableBuildingId":null},{"type":"WorkshopManagement","buildingIsAvailable":false,"availableBuildingId":null}]},"x":9,"y":60},"culturalPointsOverview":{"usedSlots":2,"maxControllableVillages":2,"cpProducedForNextSlot":567,"cpNeededForNextSlot":6000,"cpProductionTotal":166},"profileBan":{"isActive":false,"tooltip":""},"villageList":[{"id":23378,"name":"AMH7","distance":0,"incomingAttacksAmount":0,"incomingAttacksSymbols":{"gray":0,"green":0,"red":0,"yellow":0},"x":9,"y":60},{"id":26000,"name":"\u0642\u0631\u064a\u0629 \u062c\u062f\u064a\u062f\u0629","distance":1,"incomingAttacksAmount":0,"incomingAttacksSymbols":{"gray":0,"green":0,"red":0,"yellow":0},"x":9,"y":59}]}},
+                knowledgeBaseLinkPlus: 'https://game-configuration.service.legends.travian.info/knowledgebase/premiumPlus?lang=ar'
+            },
+            ["layout","karte","allgemein","dorf1u2","spieler","api","quickLinks","gid16","gid17","gid24","gid25u26","plus"]        );
+    });
+</script>
+<div id="sidebarBoxQuestmaster" class="sidebarBox  expanded">
+	<div class="header">
+		<button id="questmasterButton"
+        title="اعرض قائمة المهام"
+        class="vid_1 claimable"
+        type="button">
+
+            <svg width="152" height="121" viewBox="0 0 152 121">
+    <path fill="url(#mentor_gradient)" d="M0 121c.58-1.86 1.22-4.71 1.57-6.14.74-3.08 1.73-5.45 2.95-7.12.32-.43.78-1.06.95-1.41l.25-1.85.24-1.45c.32-.6.27-1.97.23-3.3-.1-3.08-.25-7.72 3.97-11.08 7.86-7.11 17.31-14.95 28.34-19.84.25-.44.5-.92.76-1.41 1.34-2.55 3.27-6.22 7.65-7.99.12-2.25-.92-7.25-2.71-11.48-3.01-5.87-1.7-11.07-.64-15.26.41-1.62.79-3.14.93-4.63l.02-.18C46.33 14 53.51-.09 72.8 0c8.93.04 17.78 4.1 23.02 11.44 6.87 9.62 5.27 23.97 2.18 38.46l-.06.17-.59 1.37c-.62 1.44-1.42 3.27-1.79 4.49.6.11 1.52.21 2.89.23h.28l.28.04c3.74.48 6.03 2.87 6.31 6.57v.18l.01.18c0 .09 0 .16.01.21.65.51 2.98.99 4.26 1.26 2 .41 4.07.84 5.9 1.81l1.31.69.72 1.3c.35.07 1.01.12 1.51.16 1.64.12 3.89.29 6.29 1.39l.26.12.25.15c1.29.78 2.32 1.69 3.23 2.5 1.34 1.19 1.99 1.71 2.59 1.71l.4-.02.46.05c3.57.43 5.55 2.07 6.65 3.81 2.59 1.36 3.6 3.14 3.89 4.78 3.33 6.51 4.38 13.48 5.19 20.25.97 8.07 3.92 16.05 3.72 17.72H0Z"></path>
+    <defs>
+        <linearGradient id="mentor_gradient" gradientTransform="rotate(90)">
+            <stop class="colorStop1" offset="0%"></stop>
+            <stop class="colorStop2" offset="30%"></stop>
+            <stop class="colorStop1" offset="60%"></stop>
+            <stop class="colorStop3" offset="95%"></stop>
+            <stop class="colorStop4" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+</svg>
+    	<img class="mentor" alt="" src="/img/x.gif" />
+    <div class="bigSpeechBubble newQuestSpeechBubble" title="">
+	<img src="/img/x.gif" alt="" />
+</div></button>
+
+<script type="text/javascript">
+    jQuery(function() {
+        jQuery('button#questmasterButton').on('click', function() {
+            window.location = '/tasks';
+        });
+            });
+</script>
+	</div>
+	<div class="content">
+		<a href="/tasks" title="اعرض قائمة المهام" class="progressiveTasksTitle">
+    <div class="boxTitle">استعراض المهمّات</div>
+</a>
+	</div>
+	</div>
+                    </div>
+                </div>
+			</div>
+
+			<div id="footer">
+				<div id="pageLinks">
+					<a href="https://www.travian.com/ae" target="_blank">الصفحة الرئيسية</a>
+					<a href="https://discord.gg/travianlegends" target="_blank">ديسكورد</a>
+					<a href="https://www.travian.com/ae/news" target="_blank">الأخبار</a>
+					<a href="/support/home" target="_blank">الدعم</a>
+					<a href="https://www.travian.com/ae/gamerules" target="_blank">قوانين اللعب</a>
+					<a href="https://agb.traviangames.com/terms-ar.pdf" target="_blank">الشروط</a>
+					<a href="https://www.travian.com/ae/imprint" target="_blank">من نحن</a>
+					<div class="clear"></div>
+				</div>
+				<p class="copyright">© 2004-2026 Travian Games GmbH</p>
+			</div>
+
+			<div id="ce"></div>
+		</div>
+
+        <div id="toastStack"></div>
+        <script type='text/javascript'>
+            jQuery(function() {
+                window.Travian.React.ToastStack.render({}, []);
+            });
+        </script>
+
+		<script type="application/javascript">
+                            Travian.Game.contextHelpData = {"groupName":"","steps":[],"restartableGroup":null};
+                Travian.Game.ContextualHelp.initialize();
+            
+            
+                            Travian.Game.Layout.MobileOptimizations.init();
+                Travian.Game.Layout.updateContentTitleClass();
+            		</script>
+        	</body>
+</html>

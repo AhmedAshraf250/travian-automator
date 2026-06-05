@@ -2,8 +2,12 @@
 
 namespace App\Infrastructure\Accounts\Session\Guzzle;
 
+use App\Application\Accounts\Rewards\ExecuteDailyQuestRewardCollection;
+use App\Application\Accounts\Rewards\ExecuteQuestRewardCollection;
 use App\Application\Accounts\Session\Contracts\AccountSession;
 use App\Application\Accounts\Session\Contracts\AccountSessionFactory;
+use App\Application\Accounts\Session\ObservedAccountSession;
+use App\Application\Accounts\Session\TravianSessionResponseObserver;
 use App\Models\Account;
 use GuzzleHttp\Client;
 use GuzzleHttp\Cookie\CookieJar;
@@ -14,6 +18,15 @@ use RuntimeException;
  */
 class GuzzleAccountSessionFactory implements AccountSessionFactory
 {
+    /**
+     * Create a new session factory.
+     */
+    public function __construct(
+        protected TravianSessionResponseObserver $responseObserver,
+        protected ExecuteQuestRewardCollection $questRewardCollection,
+        protected ExecuteDailyQuestRewardCollection $dailyQuestRewardCollection,
+    ) {}
+
     /**
      * {@inheritDoc}
      */
@@ -29,12 +42,14 @@ class GuzzleAccountSessionFactory implements AccountSessionFactory
             parse_url($account->server_url, PHP_URL_HOST) ?: '',
         );
 
-        return new GuzzleAccountSession(
+        $session = new GuzzleAccountSession(
             account: $account,
             client: new Client($this->buildOptions($account)),
             cookieJar: $cookieJar,
             transportFingerprint: $currentTransportFingerprint,
         );
+
+        return new ObservedAccountSession($account, $session, $this->responseObserver, $this->questRewardCollection, $this->dailyQuestRewardCollection);
     }
 
     /**

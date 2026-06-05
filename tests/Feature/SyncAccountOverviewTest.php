@@ -78,6 +78,11 @@ test('sync account overview stores villages and resource state from dorf1 html',
                         );
                     }
 
+                    public function putJson(string $uri, array $payload, array $options = []): SessionResponse
+                    {
+                        return $this->postJson($uri, $payload, $options);
+                    }
+
                     public function persist(): void {}
                 };
             }
@@ -222,6 +227,11 @@ test('sync account overview can authenticate through the modern login api flow',
                         );
                     }
 
+                    public function putJson(string $uri, array $payload, array $options = []): SessionResponse
+                    {
+                        return $this->postJson($uri, $payload, $options);
+                    }
+
                     public function persist(): void {}
                 };
             }
@@ -302,6 +312,11 @@ test('sync account overview preserves a paused account without reactivating it',
                             effectiveUri: rtrim($this->account->server_url, '/').'/dorf1.php',
                             headers: [],
                         );
+                    }
+
+                    public function putJson(string $uri, array $payload, array $options = []): SessionResponse
+                    {
+                        return $this->postJson($uri, $payload, $options);
                     }
 
                     public function persist(): void {}

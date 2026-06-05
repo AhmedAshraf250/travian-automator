@@ -55,6 +55,16 @@ class GuzzleAccountSession implements AccountSession
     /**
      * {@inheritDoc}
      */
+    public function putJson(string $uri, array $payload, array $options = []): SessionResponse
+    {
+        return $this->request('PUT', $uri, array_merge($options, [
+            'json' => $payload,
+        ]));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function persist(): void
     {
         $this->account->forceFill([

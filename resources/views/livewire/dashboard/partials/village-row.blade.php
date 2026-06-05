@@ -113,6 +113,9 @@
                                 ? max(0, $constructionRemainingSeconds - max(0, now()->getTimestamp() - $serverReportedAtTimestamp))
                                 : null,
                         );
+                        $constructionEndsAtTimestamp = $constructionRemainingSeconds !== null
+                            ? ($serverReportedAtTimestamp + $constructionRemainingSeconds) * 1000
+                            : null;
                     @endphp
                     <span
                         class="inline-flex items-center gap-2 rounded-full border border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] px-2.5 py-1">
@@ -127,13 +130,20 @@
                         @if (!empty($constructionEntry['remaining_label']) || $constructionRemainingSeconds !== null)
                             <span class="font-mono text-[11px] text-[var(--color-muted)]"
                                 @if ($constructionRemainingSeconds !== null) x-data="{
-                                        remaining: Math.max(0, {{ max(0, $constructionRemainingSeconds - max(0, now()->getTimestamp() - $serverReportedAtTimestamp)) }}),
+                                        endsAt: {{ $constructionEndsAtTimestamp }},
+                                        remaining: 0,
+                                        intervalId: null,
                                         init() {
-                                            setInterval(() => {
-                                                if (this.remaining > 0) {
-                                                    this.remaining--;
-                                                }
-                                            }, 1000);
+                                            this.tick();
+                                            this.intervalId = setInterval(() => this.tick(), 1000);
+                                        },
+                                        destroy() {
+                                            if (this.intervalId !== null) {
+                                                clearInterval(this.intervalId);
+                                            }
+                                        },
+                                        tick() {
+                                            this.remaining = Math.max(0, Math.ceil((this.endsAt - Date.now()) / 1000));
                                         },
                                         formatted() {
                                             const hours = String(Math.floor(this.remaining / 3600)).padStart(1, '0');
@@ -183,6 +193,9 @@
                         $movementRemainingSeconds = isset($movementEntry['remaining_seconds'])
                             ? (int) $movementEntry['remaining_seconds']
                             : null;
+                        $movementEndsAtTimestamp = $movementRemainingSeconds !== null
+                            ? ($serverReportedAtTimestamp + $movementRemainingSeconds) * 1000
+                            : null;
                         $movementClasses = match ($movementKind) {
                             'incoming_attack' => 'border-red-500/25 bg-red-500/10 text-red-800',
                             'incoming_reinforcement' => 'border-emerald-500/25 bg-emerald-500/10 text-emerald-800',
@@ -195,13 +208,20 @@
                         @if ($movementClock !== null || $movementRemainingSeconds !== null)
                             <span class="font-mono text-[11px]"
                                 @if ($movementRemainingSeconds !== null) x-data="{
-                                        remaining: Math.max(0, {{ max(0, $movementRemainingSeconds - max(0, now()->getTimestamp() - $serverReportedAtTimestamp)) }}),
+                                        endsAt: {{ $movementEndsAtTimestamp }},
+                                        remaining: 0,
+                                        intervalId: null,
                                         init() {
-                                            setInterval(() => {
-                                                if (this.remaining > 0) {
-                                                    this.remaining--;
-                                                }
-                                            }, 1000);
+                                            this.tick();
+                                            this.intervalId = setInterval(() => this.tick(), 1000);
+                                        },
+                                        destroy() {
+                                            if (this.intervalId !== null) {
+                                                clearInterval(this.intervalId);
+                                            }
+                                        },
+                                        tick() {
+                                            this.remaining = Math.max(0, Math.ceil((this.endsAt - Date.now()) / 1000));
                                         },
                                         formatted() {
                                             const hours = String(Math.floor(this.remaining / 3600)).padStart(1, '0');

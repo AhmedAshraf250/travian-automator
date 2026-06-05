@@ -1,5 +1,5 @@
 @php
-    $shouldPollDashboard = ! $showProgramSettingsModal && ! $showImportModal && ! $showVillageBuildPlanModal;
+    $shouldPollDashboard = ! $showProgramSettingsModal && ! $showAccountSettingsModal && ! $showImportModal && ! $showVillageBuildPlanModal;
 @endphp
 
 <div class="relative overflow-hidden">
@@ -11,7 +11,7 @@
     </div>
 
     <div class="relative mx-auto flex min-h-screen w-full max-w-[118rem] flex-col gap-5 px-3 py-4 sm:px-5 lg:px-6 2xl:px-8"
-        @if ($shouldPollDashboard) wire:poll.5s.keep-alive @endif>
+        @if ($shouldPollDashboard) wire:poll.10s.keep-alive="refreshDashboardIfChanged" @endif>
         <header
             class="flex flex-col gap-4 rounded-[1.6rem] border border-[var(--color-line)] bg-[var(--color-panel)]/90 p-5 shadow-[0_20px_60px_rgba(20,18,10,0.12)] backdrop-blur md:flex-row md:items-end md:justify-between">
             <div class="max-w-4xl space-y-2.5">
@@ -21,7 +21,7 @@
                     <span
                         class="inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold text-emerald-800">
                         <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                        Live refresh 5s
+                        Smart DB refresh
                     </span>
                     <span
                         class="rounded-full bg-[var(--color-panel-alt)] px-3 py-1 text-[11px] font-semibold text-[var(--color-muted)]">
@@ -45,6 +45,10 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-2.5">
+                <button type="button" wire:click="$refresh"
+                    class="inline-flex items-center justify-center rounded-full border border-[var(--color-line-strong)] px-4 py-2 text-sm font-semibold transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]">
+                    Refresh view
+                </button>
                 <button type="button" wire:click="toggleAutomation"
                     class="inline-flex items-center justify-center rounded-full border px-4 py-2 text-sm font-semibold transition {{ ($automationEnabled ?? true) ? 'border-emerald-700/20 bg-emerald-500/10 text-emerald-900 hover:bg-emerald-500/20' : 'border-amber-700/20 bg-amber-500/10 text-amber-900 hover:bg-amber-500/20' }}">
                     {{ ($automationEnabled ?? true) ? 'Program ON' : 'Program OFF' }}
@@ -123,7 +127,17 @@
                     <div class="rounded-[1rem] bg-[var(--color-panel-alt)] px-3 py-3">
                         <p class="text-[11px] uppercase tracking-[0.16em] text-[var(--color-muted)]">Refresh mode</p>
                         <p class="mt-1 text-sm font-medium text-[var(--color-ink)]">
-                            {{ $shouldPollDashboard ? 'Polling every 5s' : 'Paused while a modal is open' }}
+                            {{ $shouldPollDashboard ? 'Change check every 10s' : 'Paused while a modal is open' }}
+                        </p>
+                    </div>
+
+                    <div class="rounded-[1rem] bg-[var(--color-panel-alt)] px-3 py-3 sm:col-span-3">
+                        <p class="text-[11px] uppercase tracking-[0.16em] text-[var(--color-muted)]">Field priority</p>
+                        <p class="mt-1 text-sm font-medium text-[var(--color-ink)]">
+                            W{{ $globalFieldPriority['wood'] ?? 1 }}
+                            C{{ $globalFieldPriority['clay'] ?? 2 }}
+                            I{{ $globalFieldPriority['iron'] ?? 3 }}
+                            Crop{{ $globalFieldPriority['crop'] ?? 4 }}
                         </p>
                     </div>
                 </div>
@@ -168,6 +182,7 @@
     </div>
 
     @include('livewire.dashboard.partials.program-settings-modal')
+    @include('livewire.dashboard.partials.account-settings-modal')
     @include('livewire.dashboard.partials.import-modal')
     @include('livewire.dashboard.partials.village-build-plan-modal')
 </div>

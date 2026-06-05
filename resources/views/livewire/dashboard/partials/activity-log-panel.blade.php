@@ -35,6 +35,9 @@
                         $logRemainingFromNow = $logRemainingSeconds !== null
                             ? max(0, $logRemainingSeconds - max(0, now()->getTimestamp() - ($activityLog->executed_at?->getTimestamp() ?? $activityLog->created_at->getTimestamp())))
                             : null;
+                        $logEndsAtTimestamp = $logRemainingSeconds !== null
+                            ? (($activityLog->executed_at?->getTimestamp() ?? $activityLog->created_at->getTimestamp()) + $logRemainingSeconds) * 1000
+                            : null;
                         $logRemainingInitialClock = $logRemainingFromNow !== null
                             ? sprintf(
                                 '%d:%02d:%02d',
@@ -89,13 +92,20 @@
                                 <span
                                     class="rounded-full bg-[var(--color-panel)] px-2.5 py-1 text-[11px] font-mono font-semibold text-[var(--color-muted)]"
                                     @if ($logRemainingSeconds !== null) x-data="{
-                                            remaining: Math.max(0, {{ $logRemainingFromNow }}),
+                                            endsAt: {{ $logEndsAtTimestamp }},
+                                            remaining: 0,
+                                            intervalId: null,
                                             init() {
-                                                setInterval(() => {
-                                                    if (this.remaining > 0) {
-                                                        this.remaining--;
-                                                    }
-                                                }, 1000);
+                                                this.tick();
+                                                this.intervalId = setInterval(() => this.tick(), 1000);
+                                            },
+                                            destroy() {
+                                                if (this.intervalId !== null) {
+                                                    clearInterval(this.intervalId);
+                                                }
+                                            },
+                                            tick() {
+                                                this.remaining = Math.max(0, Math.ceil((this.endsAt - Date.now()) / 1000));
                                             },
                                             formatted() {
                                                 const hours = String(Math.floor(this.remaining / 3600)).padStart(1, '0');

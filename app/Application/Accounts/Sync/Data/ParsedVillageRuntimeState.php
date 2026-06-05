@@ -2,6 +2,7 @@
 
 namespace App\Application\Accounts\Sync\Data;
 
+use App\Application\Accounts\Hero\Data\ParsedHeroState;
 use Carbon\CarbonImmutable;
 
 /**
@@ -27,5 +28,6 @@ final readonly class ParsedVillageRuntimeState
         public ?string $heroStatus,
         public ?int $heroRemainingSeconds,
         public ?CarbonImmutable $serverReportedAt = null,
+        public ?ParsedHeroState $heroState = null,
     ) {}
 }

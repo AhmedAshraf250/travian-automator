@@ -63,6 +63,8 @@ class SyncTravianAccountJob implements ShouldBeUnique, ShouldQueue
     {
         return [
             (new WithoutOverlapping("travian-account:{$this->accountId}"))
+                ->shared()
+                ->releaseAfter(30)
                 ->expireAfter(1800),
         ];
     }

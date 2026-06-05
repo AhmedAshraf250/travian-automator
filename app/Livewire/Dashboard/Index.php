@@ -8,8 +8,10 @@ use App\Application\Travian\TravianBuildingCatalog;
 use App\Enums\AccountStatus;
 use App\Enums\ActivityLogStatus;
 use App\Enums\ActivityType;
+use App\Enums\VillageCelebrationType;
 use App\Jobs\SyncTravianAccountJob;
 use App\Models\Account;
+use App\Models\AccountSetting;
 use App\Models\ActivityLog;
 use App\Models\SystemSetting;
 use App\Models\Village;
@@ -17,6 +19,7 @@ use App\Models\VillageBuilding;
 use App\Models\VillageSetting;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
@@ -31,6 +34,11 @@ class Index extends Component
      * Controls the program settings modal visibility.
      */
     public bool $showProgramSettingsModal = false;
+
+    /**
+     * Controls the account settings modal visibility.
+     */
+    public bool $showAccountSettingsModal = false;
 
     /**
      * Controls the bulk import modal visibility.
@@ -65,9 +73,101 @@ class Index extends Component
     public string $defaultUserAgent = '';
 
     /**
+     * Stores the global hero automation defaults.
+     *
+     * @var array{
+     *     adventures_enabled: bool,
+     *     min_health: int,
+     *     revive_enabled: bool,
+     *     attribute_upgrade_enabled: bool,
+     *     attribute_weights: array{power: int, offBonus: int, defBonus: int, productionPoints: int}
+     * }
+     */
+    public array $globalHeroDefaultsDraft = [];
+
+    /**
+     * Stores the global editable field priority defaults.
+     *
+     * @var array{wood: int, clay: int, iron: int, crop: int}
+     */
+    public array $globalFieldPriorityDraft = [];
+
+    /**
+     * Stores whether global defaults should prefer crop fields during negative crop production.
+     */
+    public bool $globalPrioritizeCropFieldsWhenNegativeDraft = true;
+
+    /**
+     * Tracks the latest persisted dashboard state so polling can stay lightweight.
+     */
+    public string $dashboardRevision = '';
+
+    /**
      * Stores the currently edited village identifier for the plan modal.
      */
     public ?int $editingVillageId = null;
+
+    /**
+     * Stores the currently edited account identifier for the account modal.
+     */
+    public ?int $editingAccountId = null;
+
+    /**
+     * Stores the current account username for the account modal header.
+     */
+    public string $editingAccountUsername = '';
+
+    /**
+     * Stores the active account settings modal tab.
+     */
+    public string $accountSettingsTab = 'account';
+
+    /**
+     * Stores whether the edited account inherits the program user agent.
+     */
+    public bool $accountInheritUserAgentDraft = true;
+
+    /**
+     * Stores the edited account user-agent override.
+     */
+    public string $accountUserAgentDraft = '';
+
+    /**
+     * Stores account-level task reward collection toggle.
+     */
+    public bool $accountAcceptQuestsDraft = true;
+
+    /**
+     * Stores whether the edited account inherits global hero settings.
+     */
+    public bool $accountHeroUseGlobalSettingsDraft = true;
+
+    /**
+     * Stores account-level hero adventure toggle.
+     */
+    public bool $accountHeroAdventuresEnabledDraft = false;
+
+    /**
+     * Stores account-level hero minimum health.
+     */
+    public int $accountHeroMinHealthDraft = 40;
+
+    /**
+     * Stores account-level revive toggle.
+     */
+    public bool $accountHeroReviveEnabledDraft = false;
+
+    /**
+     * Stores account-level attribute upgrade toggle.
+     */
+    public bool $accountHeroAttributeUpgradeEnabledDraft = false;
+
+    /**
+     * Stores account-level hero attribute weights.
+     *
+     * @var array{power: int, offBonus: int, defBonus: int, productionPoints: int}
+     */
+    public array $accountHeroAttributeWeightsDraft = [];
 
     /**
      * Stores the current village name for the plan modal header.
@@ -93,6 +193,36 @@ class Index extends Component
      * Stores whether building automation is enabled for the edited village.
      */
     public bool $villageBuildingsAutomationDraft = true;
+
+    /**
+     * Stores whether the edited village inherits field priority from program settings.
+     */
+    public bool $villageInheritProgramPriorityDraft = true;
+
+    /**
+     * Stores whether the edited village can supply resources to other villages.
+     */
+    public bool $villageSendResourcesDraft = true;
+
+    /**
+     * Stores whether celebration automation is enabled for the edited village.
+     */
+    public bool $villageCelebrationEnabledDraft = false;
+
+    /**
+     * Stores the preferred celebration type for the edited village.
+     */
+    public string $villageCelebrationTypeDraft = 'auto';
+
+    /**
+     * Stores the minimum culture points required before starting a celebration.
+     */
+    public int $villageCelebrationMinimumCulturePointsDraft = 200;
+
+    /**
+     * Stores whether negative crop production should temporarily prefer crop fields.
+     */
+    public bool $villagePrioritizeCropFieldsWhenNegativeDraft = true;
 
     /**
      * Stores the editable field priority draft.
@@ -122,6 +252,33 @@ class Index extends Component
     {
         $this->bulkImportDraft = $draftStore->get();
         $this->defaultUserAgent = SystemSetting::defaultUserAgent() ?? '';
+        $constructionDefaults = SystemSetting::constructionDefaults();
+        $this->globalFieldPriorityDraft = $constructionDefaults['field_priority'];
+        $this->globalPrioritizeCropFieldsWhenNegativeDraft = $constructionDefaults['prioritize_crop_fields_when_negative'];
+        $this->globalHeroDefaultsDraft = SystemSetting::heroDefaults();
+        $this->dashboardRevision = $this->computeDashboardRevision();
+    }
+
+    /**
+     * Poll only a tiny local revision marker, and render the full dashboard only when data changed.
+     */
+    public function refreshDashboardIfChanged(): void
+    {
+        if ($this->showProgramSettingsModal || $this->showAccountSettingsModal || $this->showImportModal || $this->showVillageBuildPlanModal) {
+            $this->skipRender();
+
+            return;
+        }
+
+        $latestRevision = $this->computeDashboardRevision();
+
+        if ($latestRevision === $this->dashboardRevision) {
+            $this->skipRender();
+
+            return;
+        }
+
+        $this->dashboardRevision = $latestRevision;
     }
 
     /**
@@ -164,6 +321,10 @@ class Index extends Component
     public function openProgramSettingsModal(): void
     {
         $this->defaultUserAgent = SystemSetting::defaultUserAgent() ?? '';
+        $constructionDefaults = SystemSetting::constructionDefaults();
+        $this->globalFieldPriorityDraft = $constructionDefaults['field_priority'];
+        $this->globalPrioritizeCropFieldsWhenNegativeDraft = $constructionDefaults['prioritize_crop_fields_when_negative'];
+        $this->globalHeroDefaultsDraft = SystemSetting::heroDefaults();
         $this->showProgramSettingsModal = true;
     }
 
@@ -181,6 +342,53 @@ class Index extends Component
     public function closeProgramSettingsModal(): void
     {
         $this->showProgramSettingsModal = false;
+    }
+
+    /**
+     * Open the per-account settings modal.
+     */
+    public function openAccountSettingsModal(int $accountId): void
+    {
+        $account = Account::query()
+            ->with('settings')
+            ->findOrFail($accountId);
+        $settings = $account->settings ?? $account->settings()->create([
+            'resource_priorities' => [15, 11, 1, 1],
+        ]);
+
+        $this->editingAccountId = $account->id;
+        $this->editingAccountUsername = $account->username;
+        $this->accountSettingsTab = 'account';
+        $this->accountInheritUserAgentDraft = trim((string) $account->user_agent) === '';
+        $this->accountUserAgentDraft = (string) ($account->user_agent ?? '');
+        $this->accountAcceptQuestsDraft = (bool) $settings->accept_quests;
+        $this->accountHeroUseGlobalSettingsDraft = (bool) $settings->hero_use_global_settings;
+        $this->accountHeroAdventuresEnabledDraft = (bool) $settings->hero_adventures_enabled;
+        $this->accountHeroMinHealthDraft = (int) ($settings->hero_min_health ?? 40);
+        $this->accountHeroReviveEnabledDraft = (bool) $settings->hero_revive_enabled;
+        $this->accountHeroAttributeUpgradeEnabledDraft = (bool) $settings->hero_attribute_upgrade_enabled;
+        $this->accountHeroAttributeWeightsDraft = $this->normalizeHeroAttributeWeights($settings->hero_attribute_weights);
+        $this->showAccountSettingsModal = true;
+    }
+
+    /**
+     * Close the per-account settings modal.
+     */
+    public function closeAccountSettingsModal(): void
+    {
+        $this->resetAccountSettingsState();
+    }
+
+    /**
+     * Switch the account settings modal tab.
+     */
+    public function setAccountSettingsTab(string $tab): void
+    {
+        if (! in_array($tab, ['account', 'hero'], true)) {
+            return;
+        }
+
+        $this->accountSettingsTab = $tab;
     }
 
     /**
@@ -218,6 +426,17 @@ class Index extends Component
         $this->villageFieldPriorityDraft = $this->normalizeFieldPriorityDraft($settings->field_priority);
         $this->villageFieldsAutomationDraft = ! (bool) $settings->pause_fields;
         $this->villageBuildingsAutomationDraft = ! (bool) $settings->pause_buildings;
+        $this->villageInheritProgramPriorityDraft = (bool) $settings->inherit_from_account;
+        $this->villageSendResourcesDraft = (bool) $settings->send_enabled;
+        $this->villageCelebrationEnabledDraft = (bool) $settings->celebration_enabled;
+        $this->villageCelebrationTypeDraft = ($settings->celebration_type instanceof VillageCelebrationType
+            ? $settings->celebration_type
+            : VillageSetting::defaultCelebrationType())->value;
+        $this->villageCelebrationMinimumCulturePointsDraft = max(
+            0,
+            (int) ($settings->celebration_min_culture_points ?? VillageSetting::defaultCelebrationMinCulturePoints()),
+        );
+        $this->villagePrioritizeCropFieldsWhenNegativeDraft = (bool) $settings->prioritize_crop_fields_when_negative;
         $this->slotBuildingOptions = $this->buildSlotBuildingOptions($village, $tribeId);
         $this->villageBuildingPlanDraft = $this->buildVillagePlanDraft($village, $tribeId);
         $this->showVillageBuildPlanModal = true;
@@ -260,6 +479,12 @@ class Index extends Component
             'villageFieldPriorityDraft.crop' => ['required', 'integer', 'min:1', 'max:4'],
             'villageFieldsAutomationDraft' => ['boolean'],
             'villageBuildingsAutomationDraft' => ['boolean'],
+            'villageInheritProgramPriorityDraft' => ['boolean'],
+            'villageSendResourcesDraft' => ['boolean'],
+            'villageCelebrationEnabledDraft' => ['boolean'],
+            'villageCelebrationTypeDraft' => ['required', 'string', 'in:auto,small,great'],
+            'villageCelebrationMinimumCulturePointsDraft' => ['required', 'integer', 'min:0', 'max:2000'],
+            'villagePrioritizeCropFieldsWhenNegativeDraft' => ['boolean'],
             'villageBuildingPlanDraft' => ['array'],
             'villageBuildingPlanDraft.*.slot_id' => ['required', 'integer', 'min:19', 'max:40'],
             'villageBuildingPlanDraft.*.building_gid' => ['nullable', 'integer', 'min:0'],
@@ -288,8 +513,14 @@ class Index extends Component
 
         $settings->forceFill([
             'field_priority' => $fieldPriority,
+            'inherit_from_account' => $this->villageInheritProgramPriorityDraft,
             'pause_fields' => ! $this->villageFieldsAutomationDraft,
             'pause_buildings' => ! $this->villageBuildingsAutomationDraft,
+            'send_enabled' => $this->villageSendResourcesDraft,
+            'celebration_enabled' => $this->villageCelebrationEnabledDraft,
+            'celebration_type' => VillageCelebrationType::from($this->villageCelebrationTypeDraft),
+            'celebration_min_culture_points' => $this->villageCelebrationMinimumCulturePointsDraft,
+            'prioritize_crop_fields_when_negative' => $this->villagePrioritizeCropFieldsWhenNegativeDraft,
         ])->save();
 
         $currentSlots = $village->buildings->keyBy('slot_id');
@@ -437,17 +668,85 @@ class Index extends Component
 
         $this->validate([
             'defaultUserAgent' => ['nullable', 'string', 'max:1000'],
+            'globalFieldPriorityDraft.wood' => ['required', 'integer', 'min:1', 'max:4'],
+            'globalFieldPriorityDraft.clay' => ['required', 'integer', 'min:1', 'max:4'],
+            'globalFieldPriorityDraft.iron' => ['required', 'integer', 'min:1', 'max:4'],
+            'globalFieldPriorityDraft.crop' => ['required', 'integer', 'min:1', 'max:4'],
+            'globalPrioritizeCropFieldsWhenNegativeDraft' => ['boolean'],
+            'globalHeroDefaultsDraft.adventures_enabled' => ['boolean'],
+            'globalHeroDefaultsDraft.min_health' => ['required', 'integer', 'min:0', 'max:100'],
+            'globalHeroDefaultsDraft.revive_enabled' => ['boolean'],
+            'globalHeroDefaultsDraft.attribute_upgrade_enabled' => ['boolean'],
+            'globalHeroDefaultsDraft.attribute_weights.power' => ['required', 'integer', 'min:0', 'max:100'],
+            'globalHeroDefaultsDraft.attribute_weights.offBonus' => ['required', 'integer', 'min:0', 'max:100'],
+            'globalHeroDefaultsDraft.attribute_weights.defBonus' => ['required', 'integer', 'min:0', 'max:100'],
+            'globalHeroDefaultsDraft.attribute_weights.productionPoints' => ['required', 'integer', 'min:0', 'max:100'],
         ]);
 
         SystemSetting::setDefaultUserAgent($this->defaultUserAgent);
+        SystemSetting::setConstructionDefaults([
+            'field_priority' => $this->globalFieldPriorityDraft,
+            'prioritize_crop_fields_when_negative' => $this->globalPrioritizeCropFieldsWhenNegativeDraft,
+        ]);
+        SystemSetting::setHeroDefaults($this->globalHeroDefaultsDraft);
         $this->showProgramSettingsModal = false;
 
         session()->flash(
             'dashboard-banner',
             trim($this->defaultUserAgent) !== ''
                 ? 'Program settings saved. Accounts without a custom user agent will now inherit the global fallback user agent.'
-                : 'Program settings saved. Accounts without a custom user agent will now send no global fallback user agent.',
+                : 'Program settings saved. Global construction defaults were also updated.',
         );
+    }
+
+    /**
+     * Persist the edited account settings modal.
+     */
+    public function saveAccountSettings(): void
+    {
+        $this->validate([
+            'editingAccountId' => ['required', 'integer', 'exists:accounts,id'],
+            'accountInheritUserAgentDraft' => ['boolean'],
+            'accountUserAgentDraft' => ['nullable', 'string', 'max:1000'],
+            'accountAcceptQuestsDraft' => ['boolean'],
+            'accountHeroUseGlobalSettingsDraft' => ['boolean'],
+            'accountHeroAdventuresEnabledDraft' => ['boolean'],
+            'accountHeroMinHealthDraft' => ['required', 'integer', 'min:0', 'max:100'],
+            'accountHeroReviveEnabledDraft' => ['boolean'],
+            'accountHeroAttributeUpgradeEnabledDraft' => ['boolean'],
+            'accountHeroAttributeWeightsDraft.power' => ['required', 'integer', 'min:0', 'max:100'],
+            'accountHeroAttributeWeightsDraft.offBonus' => ['required', 'integer', 'min:0', 'max:100'],
+            'accountHeroAttributeWeightsDraft.defBonus' => ['required', 'integer', 'min:0', 'max:100'],
+            'accountHeroAttributeWeightsDraft.productionPoints' => ['required', 'integer', 'min:0', 'max:100'],
+        ]);
+
+        $account = Account::query()
+            ->with('settings')
+            ->findOrFail((int) $this->editingAccountId);
+        $settings = $account->settings ?? $account->settings()->create([
+            'resource_priorities' => [15, 11, 1, 1],
+        ]);
+
+        $account->forceFill([
+            'user_agent' => $this->accountInheritUserAgentDraft
+                ? null
+                : trim($this->accountUserAgentDraft),
+        ])->save();
+
+        $settings->forceFill([
+            'accept_quests' => $this->accountAcceptQuestsDraft,
+            'hero_use_global_settings' => $this->accountHeroUseGlobalSettingsDraft,
+            'hero_adventures_enabled' => $this->accountHeroAdventuresEnabledDraft,
+            'hero_min_health' => max(0, min(100, (int) $this->accountHeroMinHealthDraft)),
+            'hero_revive_enabled' => $this->accountHeroReviveEnabledDraft,
+            'hero_attribute_upgrade_enabled' => $this->accountHeroAttributeUpgradeEnabledDraft,
+            'hero_attribute_weights' => $this->normalizeHeroAttributeWeights($this->accountHeroAttributeWeightsDraft),
+        ])->save();
+
+        $this->logManualActivity($account, null, 'Account settings saved from dashboard.');
+        $this->resetAccountSettingsState();
+
+        session()->flash('dashboard-banner', "Account {$account->username}: settings were saved.");
     }
 
     /**
@@ -606,6 +905,7 @@ class Index extends Component
 
         $accounts = $this->loadAccounts();
         $activityLogs = $this->loadActivityLogs();
+        $this->dashboardRevision = $this->computeDashboardRevision();
 
         return view('livewire.dashboard.index', [
             'accounts' => $accounts,
@@ -631,6 +931,7 @@ class Index extends Component
         return $query
             ->with([
                 'settings',
+                'heroState',
                 'villages.settings',
                 'villages.resourceState',
                 'villages.runtimeState',
@@ -700,18 +1001,77 @@ class Index extends Component
     /**
      * Build the system settings view payload used by the dashboard.
      *
-     * @return array{automationEnabled: bool, globalDefaultUserAgent: ?string}
+     * @return array{
+     *     automationEnabled: bool,
+     *     globalDefaultUserAgent: ?string,
+     *     globalFieldPriority: array{wood: int, clay: int, iron: int, crop: int},
+     *     globalPrioritizeCropFieldsWhenNegative: bool,
+     *     globalHeroDefaults: array{
+     *         adventures_enabled: bool,
+     *         min_health: int,
+     *         revive_enabled: bool,
+     *         attribute_upgrade_enabled: bool,
+     *         attribute_weights: array{power: int, offBonus: int, defBonus: int, productionPoints: int}
+     *     }
+     * }
      */
     protected function buildSystemSettingsViewData(): array
     {
         $settings = Schema::hasTable('system_settings')
             ? SystemSetting::dashboardSnapshot()
-            : ['automation_enabled' => true, 'default_user_agent' => null];
+            : [
+                'automation_enabled' => true,
+                'default_user_agent' => null,
+                'construction_defaults' => [
+                    'field_priority' => SystemSetting::defaultFieldPriority(),
+                    'prioritize_crop_fields_when_negative' => true,
+                ],
+                'hero_defaults' => SystemSetting::heroDefaults(),
+            ];
 
         return [
             'automationEnabled' => (bool) $settings['automation_enabled'],
             'globalDefaultUserAgent' => $settings['default_user_agent'],
+            'globalFieldPriority' => $settings['construction_defaults']['field_priority'],
+            'globalPrioritizeCropFieldsWhenNegative' => (bool) $settings['construction_defaults']['prioritize_crop_fields_when_negative'],
+            'globalHeroDefaults' => $settings['hero_defaults'],
         ];
+    }
+
+    /**
+     * Build a cheap revision fingerprint from local tables that affect the dashboard.
+     */
+    protected function computeDashboardRevision(): string
+    {
+        if (! Schema::hasTable('accounts')) {
+            return 'empty';
+        }
+
+        $tables = [
+            'accounts' => 'updated_at',
+            'account_hero_states' => 'updated_at',
+            'villages' => 'updated_at',
+            'village_resource_states' => 'updated_at',
+            'village_runtime_states' => 'updated_at',
+            'village_buildings' => 'updated_at',
+            'village_building_targets' => 'updated_at',
+        ];
+
+        $parts = [];
+
+        foreach ($tables as $table => $column) {
+            if (! Schema::hasTable($table) || ! Schema::hasColumn($table, $column)) {
+                continue;
+            }
+
+            $parts[$table] = DB::table($table)->max($column);
+        }
+
+        if (Schema::hasTable('activity_logs')) {
+            $parts['activity_logs'] = DB::table('activity_logs')->max('id');
+        }
+
+        return sha1(json_encode($parts, JSON_THROW_ON_ERROR));
     }
 
     /**
@@ -899,8 +1259,56 @@ class Index extends Component
         $this->editingVillageTribeLabel = '';
         $this->villageFieldsAutomationDraft = true;
         $this->villageBuildingsAutomationDraft = true;
+        $this->villageInheritProgramPriorityDraft = true;
+        $this->villageSendResourcesDraft = true;
+        $this->villageCelebrationEnabledDraft = false;
+        $this->villageCelebrationTypeDraft = VillageSetting::defaultCelebrationType()->value;
+        $this->villageCelebrationMinimumCulturePointsDraft = VillageSetting::defaultCelebrationMinCulturePoints();
+        $this->villagePrioritizeCropFieldsWhenNegativeDraft = true;
         $this->villageFieldPriorityDraft = [];
         $this->villageBuildingPlanDraft = [];
         $this->slotBuildingOptions = [];
+    }
+
+    /**
+     * Reset the in-memory state used by the account settings modal.
+     */
+    protected function resetAccountSettingsState(): void
+    {
+        $this->showAccountSettingsModal = false;
+        $this->editingAccountId = null;
+        $this->editingAccountUsername = '';
+        $this->accountSettingsTab = 'account';
+        $this->accountInheritUserAgentDraft = true;
+        $this->accountUserAgentDraft = '';
+        $this->accountAcceptQuestsDraft = true;
+        $this->accountHeroUseGlobalSettingsDraft = true;
+        $this->accountHeroAdventuresEnabledDraft = false;
+        $this->accountHeroMinHealthDraft = 40;
+        $this->accountHeroReviveEnabledDraft = false;
+        $this->accountHeroAttributeUpgradeEnabledDraft = false;
+        $this->accountHeroAttributeWeightsDraft = AccountSetting::defaultHeroAttributeWeights();
+    }
+
+    /**
+     * Normalize hero attribute weights to the supported Travian attributes.
+     *
+     * @param  array<string, mixed>|null  $weights
+     * @return array{power: int, offBonus: int, defBonus: int, productionPoints: int}
+     */
+    protected function normalizeHeroAttributeWeights(?array $weights): array
+    {
+        $defaults = AccountSetting::defaultHeroAttributeWeights();
+
+        if (! is_array($weights)) {
+            return $defaults;
+        }
+
+        return [
+            'power' => max(0, (int) ($weights['power'] ?? $defaults['power'])),
+            'offBonus' => max(0, (int) ($weights['offBonus'] ?? $defaults['offBonus'])),
+            'defBonus' => max(0, (int) ($weights['defBonus'] ?? $defaults['defBonus'])),
+            'productionPoints' => max(0, (int) ($weights['productionPoints'] ?? $defaults['productionPoints'])),
+        ];
     }
 }

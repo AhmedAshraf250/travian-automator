@@ -33,6 +33,14 @@ interface AccountSession
     public function postJson(string $uri, array $payload, array $options = []): SessionResponse;
 
     /**
+     * Submit a JSON replacement/update request within the account session.
+     *
+     * @param  array<string, mixed>  $payload
+     * @param  array<string, mixed>  $options
+     */
+    public function putJson(string $uri, array $payload, array $options = []): SessionResponse;
+
+    /**
      * Persist the in-memory session state back to storage.
      */
     public function persist(): void;

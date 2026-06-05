@@ -108,10 +108,24 @@ test('dashboard toggles the global automation switch', function () {
 test('dashboard saves the global fallback user agent setting', function () {
     Livewire::test(Index::class)
         ->set('defaultUserAgent', 'Mozilla/5.0 Test Global Agent')
+        ->set('globalFieldPriorityDraft', [
+            'wood' => 2,
+            'clay' => 1,
+            'iron' => 3,
+            'crop' => 4,
+        ])
+        ->set('globalPrioritizeCropFieldsWhenNegativeDraft', false)
         ->call('saveProgramSettings')
         ->assertHasNoErrors();
 
     expect(SystemSetting::defaultUserAgent())->toBe('Mozilla/5.0 Test Global Agent');
+    expect(SystemSetting::constructionDefaults()['field_priority'])->toBe([
+        'wood' => 2,
+        'clay' => 1,
+        'iron' => 3,
+        'crop' => 4,
+    ]);
+    expect(SystemSetting::constructionDefaults()['prioritize_crop_fields_when_negative'])->toBeFalse();
 });
 
 test('dashboard shows the inherited global fallback user agent for accounts without one', function () {
@@ -130,6 +144,54 @@ test('dashboard shows the inherited global fallback user agent for accounts with
         ->assertOk()
         ->assertSee('Mozilla/5.0 Shared Agent')
         ->assertSee('Inherited from program settings when available');
+});
+
+test('dashboard saves per account user agent and hero settings', function () {
+    $account = Account::factory()->create([
+        'username' => 'hero-owner',
+        'user_agent' => null,
+    ]);
+    $account->settings()->create([
+        'resource_priorities' => [15, 11, 1, 1],
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('openAccountSettingsModal', $account->id)
+        ->assertSet('showAccountSettingsModal', true)
+        ->set('accountInheritUserAgentDraft', false)
+        ->set('accountUserAgentDraft', 'Mozilla/5.0 Account Hero Agent')
+        ->set('accountAcceptQuestsDraft', false)
+        ->set('accountHeroUseGlobalSettingsDraft', false)
+        ->set('accountHeroAdventuresEnabledDraft', true)
+        ->set('accountHeroMinHealthDraft', 55)
+        ->set('accountHeroReviveEnabledDraft', true)
+        ->set('accountHeroAttributeUpgradeEnabledDraft', true)
+        ->set('accountHeroAttributeWeightsDraft', [
+            'power' => 1,
+            'offBonus' => 2,
+            'defBonus' => 3,
+            'productionPoints' => 4,
+        ])
+        ->call('saveAccountSettings')
+        ->assertHasNoErrors()
+        ->assertSet('showAccountSettingsModal', false);
+
+    $account->refresh();
+    $settings = $account->settings()->first();
+
+    expect($account->user_agent)->toBe('Mozilla/5.0 Account Hero Agent')
+        ->and($settings?->accept_quests)->toBeFalse()
+        ->and($settings?->hero_use_global_settings)->toBeFalse()
+        ->and($settings?->hero_adventures_enabled)->toBeTrue()
+        ->and($settings?->hero_min_health)->toBe(55)
+        ->and($settings?->hero_revive_enabled)->toBeTrue()
+        ->and($settings?->hero_attribute_upgrade_enabled)->toBeTrue()
+        ->and($settings?->hero_attribute_weights)->toBe([
+            'power' => 1,
+            'offBonus' => 2,
+            'defBonus' => 3,
+            'productionPoints' => 4,
+        ]);
 });
 
 test('dashboard toggles village field and building automation flags', function () {
@@ -169,6 +231,9 @@ test('dashboard opens the village settings modal with existing slot data', funct
         ],
         'pause_fields' => true,
         'pause_buildings' => false,
+        'celebration_enabled' => true,
+        'celebration_type' => 'great',
+        'celebration_min_culture_points' => 300,
     ]);
 
     $village->runtimeState()->create([
@@ -202,6 +267,12 @@ test('dashboard opens the village settings modal with existing slot data', funct
         ->assertSet('editingVillageTribeLabel', 'Roman')
         ->assertSet('villageFieldsAutomationDraft', false)
         ->assertSet('villageBuildingsAutomationDraft', true)
+        ->assertSet('villageInheritProgramPriorityDraft', true)
+        ->assertSet('villageSendResourcesDraft', true)
+        ->assertSet('villageCelebrationEnabledDraft', true)
+        ->assertSet('villageCelebrationTypeDraft', 'great')
+        ->assertSet('villageCelebrationMinimumCulturePointsDraft', 300)
+        ->assertSet('villagePrioritizeCropFieldsWhenNegativeDraft', true)
         ->assertSet('villageFieldPriorityDraft.wood', 4)
         ->assertSet('villageBuildingPlanDraft.26.current_gid', 15)
         ->assertSet('villageBuildingPlanDraft.26.target_level', 12);
@@ -238,6 +309,12 @@ test('dashboard saves village field priorities, automation toggles, and building
         ->call('openVillageSettingsModal', $village->id)
         ->set('villageFieldsAutomationDraft', false)
         ->set('villageBuildingsAutomationDraft', true)
+        ->set('villageInheritProgramPriorityDraft', false)
+        ->set('villageSendResourcesDraft', false)
+        ->set('villageCelebrationEnabledDraft', true)
+        ->set('villageCelebrationTypeDraft', 'great')
+        ->set('villageCelebrationMinimumCulturePointsDraft', 300)
+        ->set('villagePrioritizeCropFieldsWhenNegativeDraft', false)
         ->set('villageFieldPriorityDraft', [
             'wood' => 4,
             'clay' => 1,
@@ -266,6 +343,12 @@ test('dashboard saves village field priorities, automation toggles, and building
     ]);
     expect($savedSettings?->pause_fields)->toBeTrue();
     expect($savedSettings?->pause_buildings)->toBeFalse();
+    expect($savedSettings?->inherit_from_account)->toBeFalse();
+    expect($savedSettings?->send_enabled)->toBeFalse();
+    expect($savedSettings?->celebration_enabled)->toBeTrue();
+    expect($savedSettings?->celebration_type?->value)->toBe('great');
+    expect($savedSettings?->celebration_min_culture_points)->toBe(300);
+    expect($savedSettings?->prioritize_crop_fields_when_negative)->toBeFalse();
 
     expect(
         VillageBuildingTarget::query()

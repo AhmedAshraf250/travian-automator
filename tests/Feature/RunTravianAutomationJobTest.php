@@ -15,6 +15,30 @@ test('smart automation uses a fresh local snapshot without syncing first', funct
         'is_archived' => false,
         'last_sync_at' => now(),
     ]);
+    $village = $account->villages()->create([
+        'travian_village_id' => '12345',
+        'name' => 'Ready Village',
+        'is_active' => true,
+        'last_sync_at' => now(),
+    ]);
+    $village->resourceState()->create([
+        'wood' => 100,
+        'clay' => 100,
+        'iron' => 100,
+        'crop' => 100,
+        'wood_production' => 10,
+        'clay_production' => 10,
+        'iron_production' => 10,
+        'crop_production' => 10,
+        'warehouse_capacity' => 800,
+        'granary_capacity' => 800,
+        'simulated_at' => now(),
+        'server_reported_at' => now(),
+    ]);
+    $village->runtimeState()->create([
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
 
     $syncAccountOverview = Mockery::mock(SyncAccountOverview::class);
     $syncAccountOverview->shouldNotReceive('handle');
@@ -30,13 +54,87 @@ test('smart automation uses a fresh local snapshot without syncing first', funct
     expect($account->fresh()->next_automation_at)->not->toBeNull();
 });
 
-test('smart automation refreshes a stale snapshot before running automation', function () {
+test('smart automation does not refresh only because a complete snapshot is old', function () {
     config()->set('travian.automation.snapshot_stale_minutes', 10);
 
     $account = Account::factory()->create([
         'is_active' => true,
         'is_archived' => false,
         'last_sync_at' => now()->subMinutes(30),
+    ]);
+    $village = $account->villages()->create([
+        'travian_village_id' => '12345',
+        'name' => 'Old But Complete Village',
+        'is_active' => true,
+        'last_sync_at' => now()->subMinutes(30),
+    ]);
+    $village->resourceState()->create([
+        'wood' => 100,
+        'clay' => 100,
+        'iron' => 100,
+        'crop' => 100,
+        'wood_production' => 10,
+        'clay_production' => 10,
+        'iron_production' => 10,
+        'crop_production' => 10,
+        'warehouse_capacity' => 800,
+        'granary_capacity' => 800,
+        'simulated_at' => now()->subMinutes(30),
+        'server_reported_at' => now()->subMinutes(30),
+    ]);
+    $village->runtimeState()->create([
+        'construction_entries' => [],
+        'server_reported_at' => now()->subMinutes(30),
+    ]);
+
+    $syncAccountOverview = Mockery::mock(SyncAccountOverview::class);
+    $syncAccountOverview->shouldNotReceive('handle');
+
+    $runAccountAutomation = Mockery::mock(RunAccountAutomation::class);
+    $runAccountAutomation
+        ->shouldReceive('handle')
+        ->once()
+        ->with(Mockery::type(Account::class), null);
+
+    (new RunTravianAutomationJob($account->id))->handle($syncAccountOverview, $runAccountAutomation, app(PlanNextAccountAutomation::class));
+});
+
+test('account automation refreshes when any active village snapshot is missing required data', function () {
+    $account = Account::factory()->create([
+        'is_active' => true,
+        'is_archived' => false,
+        'last_sync_at' => now(),
+    ]);
+
+    $account->villages()->create([
+        'travian_village_id' => '12345',
+        'name' => 'Fresh Village',
+        'is_active' => true,
+        'last_sync_at' => now(),
+    ])->resourceState()->create([
+        'wood' => 100,
+        'clay' => 100,
+        'iron' => 100,
+        'crop' => 100,
+        'wood_production' => 10,
+        'clay_production' => 10,
+        'iron_production' => 10,
+        'crop_production' => 10,
+        'warehouse_capacity' => 800,
+        'granary_capacity' => 800,
+        'simulated_at' => now(),
+        'server_reported_at' => now(),
+    ]);
+    $account->villages()->where('travian_village_id', '12345')->first()?->runtimeState()->create([
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+
+    $account->villages()->create([
+        'travian_village_id' => '67890',
+        'name' => 'Incomplete Village',
+        'is_active' => true,
+        'last_sync_at' => now(),
     ]);
 
     $syncAccountOverview = Mockery::mock(SyncAccountOverview::class);
@@ -54,7 +152,7 @@ test('smart automation refreshes a stale snapshot before running automation', fu
     (new RunTravianAutomationJob($account->id))->handle($syncAccountOverview, $runAccountAutomation, app(PlanNextAccountAutomation::class));
 });
 
-test('account automation refreshes when any active village snapshot is stale', function () {
+test('account automation refreshes when a stored construction timer has elapsed', function () {
     config()->set('travian.automation.snapshot_stale_minutes', 10);
 
     $account = Account::factory()->create([
@@ -63,18 +161,24 @@ test('account automation refreshes when any active village snapshot is stale', f
         'last_sync_at' => now(),
     ]);
 
-    $account->villages()->create([
-        'travian_village_id' => '12345',
-        'name' => 'Fresh Village',
+    $village = $account->villages()->create([
+        'travian_village_id' => '26000',
+        'name' => 'قرية جديدة',
         'is_active' => true,
         'last_sync_at' => now(),
     ]);
 
-    $account->villages()->create([
-        'travian_village_id' => '67890',
-        'name' => 'Old Village',
-        'is_active' => true,
-        'last_sync_at' => now()->subMinutes(30),
+    $village->runtimeState()->create([
+        'construction_entries' => [
+            [
+                'building_name' => 'حقل القمح',
+                'target_level' => 2,
+                'remaining_seconds' => 300,
+                'remaining_label' => '0:05:00',
+                'finish_label' => '20:56',
+            ],
+        ],
+        'server_reported_at' => now()->subSeconds(360),
     ]);
 
     $syncAccountOverview = Mockery::mock(SyncAccountOverview::class);

@@ -29,9 +29,39 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'refresh_after_attack',
     'accept_quests',
     'generate_user_agent',
+    'hero_use_global_settings',
+    'hero_adventures_enabled',
+    'hero_min_health',
+    'hero_revive_enabled',
+    'hero_attribute_upgrade_enabled',
+    'hero_attribute_weights',
 ])]
 class AccountSetting extends Model
 {
+    /**
+     * Default values applied to newly-created account settings.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'accept_quests' => true,
+    ];
+
+    /**
+     * Return the default attribute weight payload.
+     *
+     * @return array{power: int, offBonus: int, defBonus: int, productionPoints: int}
+     */
+    public static function defaultHeroAttributeWeights(): array
+    {
+        return [
+            'power' => 0,
+            'offBonus' => 0,
+            'defBonus' => 0,
+            'productionPoints' => 0,
+        ];
+    }
+
     /**
      * Get the attributes that should be cast.
      *
@@ -49,6 +79,12 @@ class AccountSetting extends Model
             'refresh_after_attack' => 'boolean',
             'accept_quests' => 'boolean',
             'generate_user_agent' => 'boolean',
+            'hero_use_global_settings' => 'boolean',
+            'hero_adventures_enabled' => 'boolean',
+            'hero_min_health' => 'integer',
+            'hero_revive_enabled' => 'boolean',
+            'hero_attribute_upgrade_enabled' => 'boolean',
+            'hero_attribute_weights' => 'array',
         ];
     }
 

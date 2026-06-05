@@ -65,12 +65,28 @@
                                 </p>
                             </div>
 
+                            <label
+                                class="mt-4 inline-flex items-center gap-2 rounded-full bg-[var(--color-panel)] px-3 py-2 text-xs font-semibold text-[var(--color-muted)]">
+                                <input type="checkbox" wire:model.live="villageInheritProgramPriorityDraft"
+                                    class="h-3.5 w-3.5 rounded border-[var(--color-line-strong)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]" />
+                                Use program priority
+                            </label>
+
+                            <label
+                                class="mt-2 inline-flex items-center gap-2 rounded-full bg-[var(--color-panel)] px-3 py-2 text-xs font-semibold text-[var(--color-muted)]">
+                                <input type="checkbox" wire:model.live="villagePrioritizeCropFieldsWhenNegativeDraft"
+                                    @disabled($villageInheritProgramPriorityDraft)
+                                    class="h-3.5 w-3.5 rounded border-[var(--color-line-strong)] text-[var(--color-accent)] disabled:opacity-50 focus:ring-[var(--color-accent)]" />
+                                Prefer crop when crop production is negative
+                            </label>
+
                             <div class="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                                 @foreach (['wood' => 'Wood', 'clay' => 'Clay', 'iron' => 'Iron', 'crop' => 'Crop'] as $fieldKey => $fieldLabel)
                                     <label wire:key="field-priority-{{ $fieldKey }}" class="grid gap-1 text-sm">
                                         <span class="font-medium text-[var(--color-ink)]">{{ $fieldLabel }}</span>
                                         <select wire:model.live="villageFieldPriorityDraft.{{ $fieldKey }}"
-                                            class="rounded-xl border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-accent)]">
+                                            @disabled($villageInheritProgramPriorityDraft)
+                                            class="rounded-xl border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition disabled:opacity-50 focus:border-[var(--color-accent)]">
                                             @foreach ([1, 2, 3, 4] as $priorityValue)
                                                 <option value="{{ $priorityValue }}">{{ $priorityValue }}</option>
                                             @endforeach
@@ -82,6 +98,69 @@
                             @error('villageFieldPriorityDraft')
                                 <p class="mt-3 text-xs font-medium text-red-700">{{ $message }}</p>
                             @enderror
+                        </div>
+                    </section>
+
+                    <section class="rounded-[1.25rem] bg-[var(--color-panel-alt)] p-4">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <h3 class="font-semibold text-[var(--color-ink)]">Trading</h3>
+                                <p class="text-xs leading-5 text-[var(--color-muted)]">
+                                    Resource transfer rules use this village as a supplier only when sending is allowed.
+                                </p>
+                            </div>
+
+                            <label
+                                class="inline-flex items-center gap-2 rounded-full bg-[var(--color-panel)] px-3 py-2 text-xs font-semibold text-[var(--color-muted)]">
+                                <input type="checkbox" wire:model.live="villageSendResourcesDraft"
+                                    class="h-3.5 w-3.5 rounded border-[var(--color-line-strong)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]" />
+                                Allow sending resources
+                            </label>
+                        </div>
+                    </section>
+
+                    <section class="rounded-[1.25rem] bg-[var(--color-panel-alt)] p-4">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <h3 class="font-semibold text-[var(--color-ink)]">Celebrations</h3>
+                                <p class="text-xs leading-5 text-[var(--color-muted)]">
+                                    Start town hall celebrations only when the page shows enough culture points for this village.
+                                </p>
+                            </div>
+
+                            <label
+                                class="inline-flex items-center gap-2 rounded-full bg-[var(--color-panel)] px-3 py-2 text-xs font-semibold text-[var(--color-muted)]">
+                                <input type="checkbox" wire:model.live="villageCelebrationEnabledDraft"
+                                    class="h-3.5 w-3.5 rounded border-[var(--color-line-strong)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]" />
+                                Enable celebrations
+                            </label>
+                        </div>
+
+                        <div class="mt-4 grid gap-3 md:grid-cols-2">
+                            <label class="grid gap-1 text-sm">
+                                <span class="font-medium text-[var(--color-ink)]">Preferred type</span>
+                                <select wire:model.live="villageCelebrationTypeDraft"
+                                    @disabled(! $villageCelebrationEnabledDraft)
+                                    class="rounded-xl border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition disabled:opacity-50 focus:border-[var(--color-accent)]">
+                                    <option value="auto">Auto prefer great</option>
+                                    <option value="small">Small first</option>
+                                    <option value="great">Great first</option>
+                                </select>
+                                @error('villageCelebrationTypeDraft')
+                                    <span class="text-[11px] font-medium text-red-700">{{ $message }}</span>
+                                @enderror
+                            </label>
+
+                            <label class="grid gap-1 text-sm">
+                                <span class="font-medium text-[var(--color-ink)]">Minimum culture points</span>
+                                <input type="number" min="0" max="2000"
+                                    wire:model.live="villageCelebrationMinimumCulturePointsDraft"
+                                    @disabled(! $villageCelebrationEnabledDraft)
+                                    class="rounded-xl border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition disabled:opacity-50 focus:border-[var(--color-accent)]" />
+                                @error('villageCelebrationMinimumCulturePointsDraft')
+                                    <span class="text-[11px] font-medium text-red-700">{{ $message }}</span>
+                                @enderror
+                            </label>
                         </div>
                     </section>
 

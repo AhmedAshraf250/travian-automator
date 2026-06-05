@@ -73,6 +73,14 @@ class Account extends Model
     }
 
     /**
+     * Get the latest hero state snapshot assigned to the account.
+     */
+    public function heroState(): HasOne
+    {
+        return $this->hasOne(AccountHeroState::class);
+    }
+
+    /**
      * Get all villages linked to the account.
      */
     public function villages(): HasMany

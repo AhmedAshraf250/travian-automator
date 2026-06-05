@@ -26,6 +26,83 @@
                     ></textarea>
                 </label>
 
+                <div class="rounded-[1.5rem] bg-[var(--color-panel-alt)] px-4 py-4">
+                    <div>
+                        <h3 class="font-semibold text-[var(--color-ink)]">Global field priority</h3>
+                        <p class="mt-1 text-xs leading-5 text-[var(--color-muted)]">
+                            Villages that inherit program defaults use this order before their own building targets.
+                        </p>
+                    </div>
+
+                    <div class="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                        @foreach (['wood' => 'Wood', 'clay' => 'Clay', 'iron' => 'Iron', 'crop' => 'Crop'] as $fieldKey => $fieldLabel)
+                            <label wire:key="global-field-priority-{{ $fieldKey }}" class="grid gap-1 text-sm">
+                                <span class="font-medium text-[var(--color-ink)]">{{ $fieldLabel }}</span>
+                                <select wire:model.live="globalFieldPriorityDraft.{{ $fieldKey }}"
+                                    class="rounded-xl border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-accent)]">
+                                    @foreach ([1, 2, 3, 4] as $priorityValue)
+                                        <option value="{{ $priorityValue }}">{{ $priorityValue }}</option>
+                                    @endforeach
+                                </select>
+                            </label>
+                        @endforeach
+                    </div>
+
+                    <label class="mt-4 flex items-center gap-2 rounded-xl bg-[var(--color-panel)] px-3 py-2 text-sm">
+                        <input type="checkbox" wire:model.live="globalPrioritizeCropFieldsWhenNegativeDraft"
+                            class="rounded border-[var(--color-line-strong)] text-[var(--color-accent)]">
+                        <span>Prefer crop fields while crop production is negative</span>
+                    </label>
+                </div>
+
+                <div class="rounded-[1.5rem] bg-[var(--color-panel-alt)] px-4 py-4">
+                    <div>
+                        <h3 class="font-semibold text-[var(--color-ink)]">Global hero defaults</h3>
+                    </div>
+
+                    <div class="mt-4 grid gap-3 lg:grid-cols-3">
+                        <label class="flex items-center gap-2 rounded-xl bg-[var(--color-panel)] px-3 py-2 text-sm">
+                            <input type="checkbox" wire:model.live="globalHeroDefaultsDraft.adventures_enabled"
+                                class="rounded border-[var(--color-line-strong)] text-[var(--color-accent)]">
+                            <span>Enable adventures</span>
+                        </label>
+
+                        <label class="flex items-center gap-2 rounded-xl bg-[var(--color-panel)] px-3 py-2 text-sm">
+                            <input type="checkbox" wire:model.live="globalHeroDefaultsDraft.revive_enabled"
+                                class="rounded border-[var(--color-line-strong)] text-[var(--color-accent)]">
+                            <span>Revive dead hero</span>
+                        </label>
+
+                        <label class="flex items-center gap-2 rounded-xl bg-[var(--color-panel)] px-3 py-2 text-sm">
+                            <input type="checkbox" wire:model.live="globalHeroDefaultsDraft.attribute_upgrade_enabled"
+                                class="rounded border-[var(--color-line-strong)] text-[var(--color-accent)]">
+                            <span>Upgrade attributes</span>
+                        </label>
+
+                        <label class="grid gap-1 text-sm lg:col-span-1">
+                            <span class="font-medium text-[var(--color-ink)]">Minimum health</span>
+                            <input type="number" min="0" max="100" wire:model.live="globalHeroDefaultsDraft.min_health"
+                                class="rounded-xl border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-accent)]">
+                        </label>
+
+                        <div class="grid gap-2 sm:grid-cols-2 lg:col-span-2 lg:grid-cols-4">
+                            @foreach ([
+                                'power' => 'Fighting',
+                                'offBonus' => 'Off bonus',
+                                'defBonus' => 'Def bonus',
+                                'productionPoints' => 'Resources',
+                            ] as $attributeKey => $attributeLabel)
+                                <label wire:key="global-hero-weight-{{ $attributeKey }}" class="grid gap-1 text-sm">
+                                    <span class="font-medium text-[var(--color-ink)]">{{ $attributeLabel }}</span>
+                                    <input type="number" min="0" max="100"
+                                        wire:model.live="globalHeroDefaultsDraft.attribute_weights.{{ $attributeKey }}"
+                                        class="rounded-xl border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-accent)]">
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+
                 @error('defaultUserAgent')
                     <p class="rounded-2xl border border-rose-700/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-900">{{ $message }}</p>
                 @enderror

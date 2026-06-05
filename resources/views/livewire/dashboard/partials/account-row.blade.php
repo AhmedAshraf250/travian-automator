@@ -48,10 +48,25 @@
                         Inherited from program settings when available
                     </span>
                 @endif
+
+                @if ($account->heroState)
+                    <span class="rounded-full bg-violet-500/10 px-3 py-1.5 text-violet-900">
+                        Hero {{ $account->heroState->status ?? 'unknown' }}
+                        @if ($account->heroState->health_percent !== null)
+                            · {{ (int) $account->heroState->health_percent }}%
+                        @endif
+                    </span>
+                @endif
             </div>
         </div>
 
         <div class="flex shrink-0 flex-wrap items-center gap-2">
+            <button type="button" wire:click="openAccountSettingsModal({{ $account->id }})"
+                class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--color-line-strong)] text-sm font-semibold transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+                title="Account settings">
+                ⚙
+            </button>
+
             @if ($account->is_active)
                 <button type="button" wire:click="pauseAccount({{ $account->id }})"
                     class="rounded-full border border-amber-800/20 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-900 transition hover:bg-amber-500/20">

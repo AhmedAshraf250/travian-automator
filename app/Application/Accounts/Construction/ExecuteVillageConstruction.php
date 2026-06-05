@@ -2,6 +2,7 @@
 
 namespace App\Application\Accounts\Construction;
 
+use App\Application\Accounts\Construction\Data\BuildPageAnalysis;
 use App\Application\Accounts\Session\Actions\TravianLoginAction;
 use App\Application\Accounts\Session\Contracts\AccountSession;
 use App\Application\Accounts\Session\Data\SessionResponse;
@@ -12,18 +13,17 @@ use App\Application\Accounts\Sync\Data\ParsedVillageSlot;
 use App\Application\Accounts\Sync\Parsers\Dorf1OverviewParser;
 use App\Application\Accounts\Sync\Parsers\Dorf2OverviewParser;
 use App\Application\Accounts\Sync\PersistVillageOverview;
+use App\Application\Travian\Data\BuildingEligibility;
 use App\Application\Travian\TravianBuildingCatalog;
 use App\Enums\ActivityLogStatus;
 use App\Enums\ActivityType;
 use App\Models\Account;
 use App\Models\ActivityLog;
+use App\Models\SystemSetting;
 use App\Models\Village;
 use App\Models\VillageBuilding;
 use App\Models\VillageBuildingTarget;
 use App\Models\VillageSetting;
-use DOMDocument;
-use DOMElement;
-use DOMXPath;
 use Throwable;
 
 /**
@@ -36,6 +36,7 @@ class ExecuteVillageConstruction
      */
     public function __construct(
         protected TravianLoginAction $travianLoginAction,
+        protected BuildPageAnalyzer $buildPageAnalyzer,
         protected Dorf1OverviewParser $dorf1OverviewParser,
         protected Dorf2OverviewParser $dorf2OverviewParser,
         protected PersistVillageOverview $persistVillageOverview,
@@ -50,6 +51,11 @@ class ExecuteVillageConstruction
             if (! $village->is_active) {
                 return;
             }
+
+            $switchResponse = $session->get(
+                $this->resolveVillageSwitchUri($village),
+                $this->documentRequestOptions($this->absoluteUri((string) config('travian.paths.overview', '/dorf1.php'), $account)),
+            );
 
             $settings = $village->settings;
             $runtimeState = $village->runtimeState;
@@ -68,11 +74,6 @@ class ExecuteVillageConstruction
                 return;
             }
 
-            $session->get(
-                $this->resolveVillageSwitchUri($village),
-                $this->documentRequestOptions($this->absoluteUri((string) config('travian.paths.overview', '/dorf1.php'), $account)),
-            );
-
             $queueAvailability = $this->resolveQueueAvailability(
                 is_array($runtimeState->construction_entries) ? $runtimeState->construction_entries : [],
                 $tribeId,
@@ -81,32 +82,32 @@ class ExecuteVillageConstruction
             $fieldCandidates = ! $settings->pause_fields && $queueAvailability['field']
                 ? $this->selectFieldCandidates($village, $settings)
                 : [];
-            $buildingCandidate = ! $settings->pause_buildings && $queueAvailability['building']
-                ? $this->selectBuildingCandidate($village)
-                : null;
+            $buildingCandidates = ! $settings->pause_buildings && $queueAvailability['building']
+                ? $this->selectBuildingCandidates($account, $village)
+                : [];
 
             if (TravianBuildingCatalog::isRomanTribe($tribeId)) {
                 if ($fieldCandidates !== [] && $queueAvailability['field']) {
                     $this->executeFirstFieldCandidate($account, $village, $session, $fieldCandidates);
                 }
 
-                if ($buildingCandidate !== null && $queueAvailability['building']) {
-                    $this->executeBuildingCandidate($account, $village, $session, $buildingCandidate);
+                if ($buildingCandidates !== [] && $queueAvailability['building']) {
+                    $this->executeFirstBuildingCandidate($account, $village, $session, $buildingCandidates, $switchResponse->effectiveUri);
                 }
 
                 return;
             }
 
-            if ($buildingCandidate !== null && $queueAvailability['building']) {
-                $buildingWasExecuted = $this->executeBuildingCandidate($account, $village, $session, $buildingCandidate);
+            if ($fieldCandidates !== [] && $queueAvailability['field']) {
+                $fieldWasExecuted = $this->executeFirstFieldCandidate($account, $village, $session, $fieldCandidates);
 
-                if ($buildingWasExecuted) {
+                if ($fieldWasExecuted) {
                     return;
                 }
             }
 
-            if ($fieldCandidates !== [] && $queueAvailability['field']) {
-                $this->executeFirstFieldCandidate($account, $village, $session, $fieldCandidates);
+            if ($buildingCandidates !== [] && $queueAvailability['building']) {
+                $this->executeFirstBuildingCandidate($account, $village, $session, $buildingCandidates, $switchResponse->effectiveUri);
             }
         } catch (Throwable $throwable) {
             ActivityLog::query()->create([
@@ -173,7 +174,8 @@ class ExecuteVillageConstruction
      */
     protected function selectFieldCandidates(Village $village, VillageSetting $settings): array
     {
-        $priorityMap = $this->normalizeFieldPriority($settings->field_priority);
+        $priorityMap = $this->resolveEffectiveFieldPriority($settings);
+        $prioritizeCropRecovery = $this->shouldPrioritizeCropFieldsForNegativeProduction($village, $settings);
         $fieldSlots = $village->buildings
             ->filter(static fn (VillageBuilding $slot): bool => $slot->slot_id >= 1 && $slot->slot_id <= 18 && $slot->building_gid >= 1 && $slot->building_gid <= 4)
             ->values()
@@ -189,6 +191,10 @@ class ExecuteVillageConstruction
             $fieldKey = TravianBuildingCatalog::fieldKeyForGid((int) $fieldSlot->building_gid);
 
             if ($fieldKey === null) {
+                continue;
+            }
+
+            if ((int) $fieldSlot->current_level >= 10) {
                 continue;
             }
 
@@ -217,11 +223,71 @@ class ExecuteVillageConstruction
             return (int) $left['slot']->slot_id <=> (int) $right['slot']->slot_id;
         });
 
+        if ($prioritizeCropRecovery) {
+            $candidates = $this->prependCropRecoveryCandidates($village, $candidates);
+        }
+
         return array_values($candidates);
     }
 
     /**
-     * Prevent lower-priority fields from running too far ahead of higher-priority ones.
+     * Move crop fields to the front when the village is burning crop.
+     *
+     * @param  list<array{slot: VillageBuilding, field_key: string}>  $candidates
+     * @return list<array{slot: VillageBuilding, field_key: string}>
+     */
+    protected function prependCropRecoveryCandidates(Village $village, array $candidates): array
+    {
+        $cropCandidates = $this->selectCropRecoveryCandidates($village);
+
+        if ($cropCandidates === []) {
+            return $candidates;
+        }
+
+        $cropSlotIds = array_map(
+            static fn (array $candidate): int => (int) $candidate['slot']->slot_id,
+            $cropCandidates,
+        );
+
+        $remainingCandidates = array_values(array_filter(
+            $candidates,
+            static fn (array $candidate): bool => ! in_array((int) $candidate['slot']->slot_id, $cropSlotIds, true),
+        ));
+
+        return [
+            ...$cropCandidates,
+            ...$remainingCandidates,
+        ];
+    }
+
+    /**
+     * Select crop fields as an emergency fallback when Travian asks for food first.
+     *
+     * @return list<array{slot: VillageBuilding, field_key: string}>
+     */
+    protected function selectCropRecoveryCandidates(Village $village): array
+    {
+        $candidates = $village->buildings
+            ->filter(static fn (VillageBuilding $slot): bool => $slot->slot_id >= 1
+                && $slot->slot_id <= 18
+                && (int) $slot->building_gid === 4
+                && (int) $slot->current_level < 10)
+            ->sortBy([
+                ['current_level', 'asc'],
+                ['slot_id', 'asc'],
+            ])
+            ->map(static fn (VillageBuilding $slot): array => [
+                'slot' => $slot,
+                'field_key' => 'crop',
+            ])
+            ->values()
+            ->all();
+
+        return $candidates;
+    }
+
+    /**
+     * Prevent any resource family from running beyond the allowed priority gap.
      *
      * @param  list<VillageBuilding>  $fieldSlots
      * @param  array{wood: int, clay: int, iron: int, crop: int}  $priorityMap
@@ -233,7 +299,8 @@ class ExecuteVillageConstruction
         array $priorityMap,
     ): bool {
         $candidatePriority = $priorityMap[$candidateFieldKey] ?? 999;
-        $minimumHigherPriorityLevel = null;
+        $candidateNextLevel = (int) $candidateSlot->current_level + 1;
+        $maxLevelByField = [];
 
         foreach ($fieldSlots as $fieldSlot) {
             if (! $fieldSlot instanceof VillageBuilding) {
@@ -246,21 +313,31 @@ class ExecuteVillageConstruction
                 continue;
             }
 
-            if (($priorityMap[$fieldKey] ?? 999) >= $candidatePriority) {
+            $fieldLevel = (int) $fieldSlot->current_level;
+            $maxLevelByField[$fieldKey] = isset($maxLevelByField[$fieldKey])
+                ? max($maxLevelByField[$fieldKey], $fieldLevel)
+                : $fieldLevel;
+        }
+
+        foreach ($maxLevelByField as $fieldKey => $maxLevel) {
+            if ($fieldKey === $candidateFieldKey) {
                 continue;
             }
 
-            $fieldLevel = (int) $fieldSlot->current_level;
-            $minimumHigherPriorityLevel = $minimumHigherPriorityLevel === null
-                ? $fieldLevel
-                : min($minimumHigherPriorityLevel, $fieldLevel);
+            $otherPriority = $priorityMap[$fieldKey] ?? 999;
+
+            if ($otherPriority === $candidatePriority) {
+                $allowedLead = 0;
+            } else {
+                $allowedLead = abs($otherPriority - $candidatePriority);
+            }
+
+            if ($candidateNextLevel > ((int) $maxLevel + $allowedLead)) {
+                return false;
+            }
         }
 
-        if ($minimumHigherPriorityLevel === null) {
-            return true;
-        }
-
-        return ((int) $candidateSlot->current_level + 1) <= ($minimumHigherPriorityLevel + 1);
+        return true;
     }
 
     /**
@@ -270,8 +347,28 @@ class ExecuteVillageConstruction
      */
     protected function executeFirstFieldCandidate(Account $account, Village $village, AccountSession $session, array $candidates): bool
     {
+        $cropFallbackNeeded = false;
+
         foreach ($candidates as $candidate) {
-            if ($this->executeFieldCandidate($account, $village, $session, $candidate)) {
+            $result = $this->executeFieldCandidate($account, $village, $session, $candidate);
+
+            if ($result['executed']) {
+                return true;
+            }
+
+            if ($result['blocked_reason'] === 'crop_field_required') {
+                $cropFallbackNeeded = true;
+            }
+        }
+
+        if (! $cropFallbackNeeded) {
+            return false;
+        }
+
+        foreach ($this->selectCropRecoveryCandidates($village) as $candidate) {
+            $result = $this->executeFieldCandidate($account, $village, $session, $candidate);
+
+            if ($result['executed']) {
                 return true;
             }
         }
@@ -280,17 +377,50 @@ class ExecuteVillageConstruction
     }
 
     /**
-     * Select the next building target that can be upgraded or constructed.
+     * Try building candidates in order until one can issue a build action.
      *
-     * @return array{
+     * @param  list<array{
      *     target: VillageBuildingTarget,
      *     current_slot: VillageBuilding,
      *     target_gid: int,
      *     mode: 'upgrade'|'construct'
-     * }|null
+     * }>  $candidates
      */
-    protected function selectBuildingCandidate(Village $village): ?array
+    protected function executeFirstBuildingCandidate(
+        Account $account,
+        Village $village,
+        AccountSession $session,
+        array $candidates,
+        string $villageReferer,
+    ): bool {
+        $villageCenterResponse = $session->get(
+            (string) config('travian.paths.village_center', '/dorf2.php'),
+            $this->documentRequestOptions($villageReferer),
+        );
+
+        foreach ($candidates as $candidate) {
+            if ($this->executeBuildingCandidate($account, $village, $session, $candidate, $villageCenterResponse->effectiveUri)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Select building targets that can be upgraded or constructed in priority order.
+     *
+     * @return list<array{
+     *     target: VillageBuildingTarget,
+     *     current_slot: VillageBuilding,
+     *     target_gid: int,
+     *     mode: 'upgrade'|'construct'
+     * }>
+     */
+    protected function selectBuildingCandidates(Account $account, Village $village): array
     {
+        $candidates = [];
+
         foreach ($village->buildingTargets->sortBy('priority') as $target) {
             if (! $target instanceof VillageBuildingTarget || ! $target->is_enabled) {
                 continue;
@@ -318,7 +448,11 @@ class ExecuteVillageConstruction
                 continue;
             }
 
-            $currentSlot = $village->buildings->firstWhere('slot_id', (int) $target->slot_id);
+            $targetSlotId = TravianBuildingCatalog::fixedSlotForGid(
+                $targetGid,
+                $village->runtimeState?->tribe_id !== null ? (int) $village->runtimeState->tribe_id : null,
+            ) ?? (int) $target->slot_id;
+            $currentSlot = $village->buildings->firstWhere('slot_id', $targetSlotId);
 
             if (! $currentSlot instanceof VillageBuilding) {
                 continue;
@@ -332,19 +466,29 @@ class ExecuteVillageConstruction
             }
 
             if ($currentGid === 0) {
-                return [
+                $eligibility = TravianBuildingCatalog::canConstructInVillage($targetGid, $account, $village);
+
+                if (! $eligibility->allowed) {
+                    $this->recordBlockedBuildingCandidate($account, $village, $target, $eligibility);
+
+                    continue;
+                }
+
+                $candidates[] = [
                     'target' => $target,
                     'current_slot' => $currentSlot,
                     'target_gid' => $targetGid,
                     'mode' => 'construct',
                 ];
+
+                continue;
             }
 
             if ($currentLevel >= $targetLevel) {
                 continue;
             }
 
-            return [
+            $candidates[] = [
                 'target' => $target,
                 'current_slot' => $currentSlot,
                 'target_gid' => $targetGid,
@@ -352,15 +496,16 @@ class ExecuteVillageConstruction
             ];
         }
 
-        return null;
+        return $candidates;
     }
 
     /**
      * Execute a field upgrade candidate.
      *
      * @param  array{slot: VillageBuilding, field_key: string}  $candidate
+     * @return array{executed: bool, blocked_reason: string|null}
      */
-    protected function executeFieldCandidate(Account $account, Village $village, AccountSession $session, array $candidate): bool
+    protected function executeFieldCandidate(Account $account, Village $village, AccountSession $session, array $candidate): array
     {
         $slot = $candidate['slot'];
         $buildPageUri = (string) config('travian.paths.build', '/build.php')
@@ -372,7 +517,35 @@ class ExecuteVillageConstruction
         );
 
         if ($resolvedAction === null) {
-            return false;
+            return [
+                'executed' => false,
+                'blocked_reason' => null,
+            ];
+        }
+
+        $payload = [
+            'queue_kind' => 'field',
+            'slot_id' => (int) $slot->slot_id,
+            'building_gid' => (int) $slot->building_gid,
+            'building_name' => $slot->building_type,
+            'current_level' => (int) $slot->current_level,
+            'target_level' => (int) $slot->current_level + 1,
+            'build_page_uri' => $buildPageUri,
+            'build_effective_uri' => $resolvedAction['build_effective_uri'],
+            'field_key' => $candidate['field_key'],
+        ];
+
+        if ($resolvedAction['action_uri'] === null) {
+            $this->recordResourceShortageCandidate($village, $payload, $resolvedAction['analysis']);
+
+            if ($resolvedAction['analysis']->blockedReason !== 'crop_field_required' || $candidate['field_key'] === 'crop') {
+                $this->recordBuildPageBlockedCandidate($account, $village, $payload, $resolvedAction['analysis']);
+            }
+
+            return [
+                'executed' => false,
+                'blocked_reason' => $resolvedAction['analysis']->blockedReason,
+            ];
         }
 
         $this->performBuildAction(
@@ -380,21 +553,14 @@ class ExecuteVillageConstruction
             village: $village,
             session: $session,
             actionUri: $resolvedAction['action_uri'],
-            payload: [
-                'queue_kind' => 'field',
-                'slot_id' => (int) $slot->slot_id,
-                'building_gid' => (int) $slot->building_gid,
-                'building_name' => $slot->building_type,
-                'current_level' => (int) $slot->current_level,
-                'target_level' => (int) $slot->current_level + 1,
-                'build_page_uri' => $buildPageUri,
-                'build_effective_uri' => $resolvedAction['build_effective_uri'],
-                'field_key' => $candidate['field_key'],
-            ],
+            payload: $payload,
             successMessage: 'Field upgrade order issued successfully.',
         );
 
-        return true;
+        return [
+            'executed' => true,
+            'blocked_reason' => null,
+        ];
     }
 
     /**
@@ -407,13 +573,18 @@ class ExecuteVillageConstruction
      *     mode: 'upgrade'|'construct'
      * }  $candidate
      */
-    protected function executeBuildingCandidate(Account $account, Village $village, AccountSession $session, array $candidate): bool
-    {
+    protected function executeBuildingCandidate(
+        Account $account,
+        Village $village,
+        AccountSession $session,
+        array $candidate,
+        string $villageCenterReferer,
+    ): bool {
         $target = $candidate['target'];
         $currentSlot = $candidate['current_slot'];
         $targetGid = $candidate['target_gid'];
         $buildPageUri = (string) config('travian.paths.build', '/build.php')
-            .'?id='.(int) $target->slot_id;
+            .'?id='.(int) $currentSlot->slot_id;
 
         if ($candidate['mode'] === 'upgrade') {
             $buildPageUri .= '&gid='.$targetGid;
@@ -430,11 +601,33 @@ class ExecuteVillageConstruction
         $resolvedAction = $this->resolveActionUri(
             $session,
             $buildPageUri,
-            $this->absoluteUri((string) config('travian.paths.village_center', '/dorf2.php'), $account),
+            $villageCenterReferer,
             $candidate['mode'] === 'construct' ? $targetGid : null,
         );
 
         if ($resolvedAction === null) {
+            return false;
+        }
+
+        $payload = [
+            'queue_kind' => 'building',
+            'slot_id' => (int) $currentSlot->slot_id,
+            'building_gid' => $targetGid,
+            'building_name' => $target->building_type ?? TravianBuildingCatalog::nameForGid($targetGid),
+            'current_level' => (int) $currentSlot->current_level,
+            'target_level' => $candidate['mode'] === 'construct'
+                ? 1
+                : (int) $currentSlot->current_level + 1,
+            'final_target_level' => (int) $target->target_level,
+            'mode' => $candidate['mode'],
+            'build_page_uri' => $buildPageUri,
+            'build_effective_uri' => $resolvedAction['build_effective_uri'],
+        ];
+
+        if ($resolvedAction['action_uri'] === null) {
+            $this->recordResourceShortageCandidate($village, $payload, $resolvedAction['analysis']);
+            $this->recordBuildPageBlockedCandidate($account, $village, $payload, $resolvedAction['analysis']);
+
             return false;
         }
 
@@ -443,20 +636,7 @@ class ExecuteVillageConstruction
             village: $village,
             session: $session,
             actionUri: $resolvedAction['action_uri'],
-            payload: [
-                'queue_kind' => 'building',
-                'slot_id' => (int) $target->slot_id,
-                'building_gid' => $targetGid,
-                'building_name' => $target->building_type ?? TravianBuildingCatalog::nameForGid($targetGid),
-                'current_level' => (int) $currentSlot->current_level,
-                'target_level' => $candidate['mode'] === 'construct'
-                    ? 1
-                    : (int) $currentSlot->current_level + 1,
-                'final_target_level' => (int) $target->target_level,
-                'mode' => $candidate['mode'],
-                'build_page_uri' => $buildPageUri,
-                'build_effective_uri' => $resolvedAction['build_effective_uri'],
-            ],
+            payload: $payload,
             successMessage: $candidate['mode'] === 'construct'
                 ? 'Building construction order issued successfully.'
                 : 'Building upgrade order issued successfully.',
@@ -468,7 +648,7 @@ class ExecuteVillageConstruction
     /**
      * Resolve a clickable construction action URI from a build page.
      *
-     * @return array{action_uri: string, build_effective_uri: string}|null
+     * @return array{action_uri: string|null, build_effective_uri: string, analysis: BuildPageAnalysis}|null
      */
     protected function resolveActionUri(
         AccountSession $session,
@@ -482,63 +662,13 @@ class ExecuteVillageConstruction
             return null;
         }
 
-        $actionUri = $this->extractActionUriFromBuildPage($response->body, $targetGid);
-
-        if ($actionUri === null) {
-            return null;
-        }
+        $analysis = $this->buildPageAnalyzer->analyze($response->body, $targetGid);
 
         return [
-            'action_uri' => $actionUri,
+            'action_uri' => $analysis->actionUri,
             'build_effective_uri' => $response->effectiveUri,
+            'analysis' => $analysis,
         ];
-    }
-
-    /**
-     * Parse the first usable non-gold build action from a build page.
-     */
-    protected function extractActionUriFromBuildPage(string $html, ?int $targetGid = null): ?string
-    {
-        $xpath = $this->createXPath($html);
-        $buttonNodes = [];
-
-        if ($targetGid !== null) {
-            $targetWrapper = $xpath->query("//*[@id='contract_building{$targetGid}']")?->item(0);
-
-            if ($targetWrapper instanceof DOMElement) {
-                $buttonNodes = iterator_to_array($xpath->query('.//button[@onclick]', $targetWrapper) ?: []);
-            }
-        }
-
-        if ($buttonNodes === []) {
-            $buttonNodes = iterator_to_array($xpath->query('//button[@onclick]') ?: []);
-        }
-
-        foreach ($buttonNodes as $buttonNode) {
-            if (! $buttonNode instanceof DOMElement) {
-                continue;
-            }
-
-            $onclick = html_entity_decode((string) $buttonNode->getAttribute('onclick'), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-
-            if (! str_contains($onclick, 'action=build')) {
-                continue;
-            }
-
-            if (preg_match("/window\\.location\\.href\\s*=\\s*'([^']+)'/", $onclick, $matches) !== 1) {
-                continue;
-            }
-
-            $actionUri = html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
-
-            if (str_contains($actionUri, 'buildmaster')) {
-                continue;
-            }
-
-            return $actionUri;
-        }
-
-        return null;
     }
 
     /**
@@ -562,6 +692,8 @@ class ExecuteVillageConstruction
 
         $refreshResult = $this->refreshVillageSnapshot($account, $village, $session, $payload, $response);
         $payload = $refreshResult['payload'];
+        $this->clearConstructionResourceShortages($village, (string) ($payload['queue_kind'] ?? ''));
+
         $result = [
             'action_uri' => $actionUri,
             'effective_uri' => $response->effectiveUri,
@@ -849,6 +981,195 @@ class ExecuteVillageConstruction
     }
 
     /**
+     * Remember that a candidate was valid but blocked by missing resources.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    protected function recordResourceShortageCandidate(Village $village, array $payload, BuildPageAnalysis $analysis): void
+    {
+        if (! $analysis->isResourceShortage()) {
+            return;
+        }
+
+        $runtimeState = $village->runtimeState;
+
+        if ($runtimeState === null) {
+            return;
+        }
+
+        $resourceReadyAt = $analysis->resourceReadySeconds !== null
+            ? now()->addSeconds($analysis->resourceReadySeconds)
+            : null;
+
+        $newEntry = [
+            'queue_kind' => (string) ($payload['queue_kind'] ?? ''),
+            'slot_id' => isset($payload['slot_id']) ? (int) $payload['slot_id'] : null,
+            'building_gid' => isset($payload['building_gid']) ? (int) $payload['building_gid'] : null,
+            'building_name' => $payload['building_name'] ?? null,
+            'current_level' => isset($payload['current_level']) ? (int) $payload['current_level'] : null,
+            'target_level' => isset($payload['target_level']) ? (int) $payload['target_level'] : null,
+            'final_target_level' => isset($payload['final_target_level']) ? (int) $payload['final_target_level'] : null,
+            'mode' => $payload['mode'] ?? null,
+            'field_key' => $payload['field_key'] ?? null,
+            'build_page_uri' => $payload['build_page_uri'] ?? null,
+            'build_effective_uri' => $payload['build_effective_uri'] ?? null,
+            'required_resources' => $analysis->requiredResources,
+            'blocked_reason' => $analysis->blockedReason,
+            'block_message' => $analysis->blockedMessage,
+            'resource_ready_seconds' => $analysis->resourceReadySeconds,
+            'resource_ready_label' => $analysis->resourceReadyLabel,
+            'resource_ready_at' => $resourceReadyAt?->toISOString(),
+            'recorded_at' => now()->toISOString(),
+        ];
+
+        $entries = is_array($runtimeState->construction_resource_shortages)
+            ? array_values($runtimeState->construction_resource_shortages)
+            : [];
+
+        $entries = array_values(array_filter(
+            $entries,
+            static fn (mixed $entry): bool => ! is_array($entry)
+                || ($entry['queue_kind'] ?? null) !== $newEntry['queue_kind']
+                || (int) ($entry['slot_id'] ?? 0) !== (int) ($newEntry['slot_id'] ?? 0)
+                || (int) ($entry['building_gid'] ?? 0) !== (int) ($newEntry['building_gid'] ?? 0)
+                || (int) ($entry['target_level'] ?? 0) !== (int) ($newEntry['target_level'] ?? 0),
+        ));
+
+        $entries[] = $newEntry;
+
+        usort($entries, static function (array $left, array $right): int {
+            $leftReadyAt = (string) ($left['resource_ready_at'] ?? '');
+            $rightReadyAt = (string) ($right['resource_ready_at'] ?? '');
+
+            return $leftReadyAt <=> $rightReadyAt;
+        });
+
+        $runtimeState->forceFill([
+            'construction_resource_shortages' => array_slice($entries, 0, 10),
+        ])->save();
+    }
+
+    /**
+     * Clear stale shortage hints once a construction action succeeds.
+     */
+    protected function clearConstructionResourceShortages(Village $village, string $queueKind): void
+    {
+        $runtimeState = $village->fresh('runtimeState')->runtimeState;
+
+        if ($runtimeState === null) {
+            return;
+        }
+
+        $entries = is_array($runtimeState->construction_resource_shortages)
+            ? array_values(array_filter(
+                $runtimeState->construction_resource_shortages,
+                static fn (mixed $entry): bool => ! is_array($entry) || ($entry['queue_kind'] ?? null) !== $queueKind,
+            ))
+            : [];
+
+        $runtimeState->forceFill([
+            'construction_resource_shortages' => $entries,
+        ])->save();
+    }
+
+    /**
+     * Log a locally blocked building target once the catalog rules reject it.
+     */
+    protected function recordBlockedBuildingCandidate(
+        Account $account,
+        Village $village,
+        VillageBuildingTarget $target,
+        BuildingEligibility $eligibility,
+    ): void {
+        ActivityLog::query()->create([
+            'account_id' => $account->id,
+            'village_id' => $village->id,
+            'activity_type' => ActivityType::Build,
+            'status' => ActivityLogStatus::Pending,
+            'payload' => [
+                'queue_kind' => 'building',
+                'slot_id' => (int) $target->slot_id,
+                'building_gid' => (int) $target->building_gid,
+                'building_name' => $target->building_type,
+                'target_level' => (int) $target->target_level,
+                'blocked_reason' => $eligibility->blockedReason,
+                'missing_requirements' => $eligibility->missingRequirements,
+                'required_resources' => $eligibility->requiredResources,
+            ],
+            'message' => 'Building candidate blocked by construction rules.',
+            'executed_at' => now(),
+        ]);
+    }
+
+    /**
+     * Log non-resource build page blocks, such as unmet server-rendered prerequisites.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    protected function recordBuildPageBlockedCandidate(Account $account, Village $village, array $payload, BuildPageAnalysis $analysis): void
+    {
+        if ($analysis->isResourceShortage() || $analysis->blockedReason === null) {
+            return;
+        }
+
+        ActivityLog::query()->create([
+            'account_id' => $account->id,
+            'village_id' => $village->id,
+            'activity_type' => ActivityType::Build,
+            'status' => ActivityLogStatus::Pending,
+            'payload' => [
+                ...$payload,
+                'blocked_reason' => $analysis->blockedReason,
+                'blocked_message' => $analysis->blockedMessage,
+                'missing_requirements' => $analysis->missingRequirements,
+                'required_resources' => $analysis->requiredResources,
+            ],
+            'message' => 'Construction candidate blocked by build page.',
+            'executed_at' => now(),
+        ]);
+    }
+
+    /**
+     * Resolve the village priority source, allowing program-level inheritance.
+     *
+     * @return array{wood: int, clay: int, iron: int, crop: int}
+     */
+    protected function resolveEffectiveFieldPriority(VillageSetting $settings): array
+    {
+        if ((bool) $settings->inherit_from_account) {
+            return SystemSetting::constructionDefaults()['field_priority'];
+        }
+
+        return $this->normalizeFieldPriority($settings->field_priority);
+    }
+
+    /**
+     * Decide whether negative crop production should temporarily override field priority.
+     */
+    protected function shouldPrioritizeCropFieldsForNegativeProduction(Village $village, VillageSetting $settings): bool
+    {
+        if (! $this->resolvePrioritizeCropFieldsWhenNegative($settings)) {
+            return false;
+        }
+
+        $village->loadMissing('resourceState');
+
+        return (int) ($village->resourceState?->crop_production ?? 0) < 0;
+    }
+
+    /**
+     * Resolve the effective negative-crop protection setting.
+     */
+    protected function resolvePrioritizeCropFieldsWhenNegative(VillageSetting $settings): bool
+    {
+        if ((bool) $settings->inherit_from_account) {
+            return SystemSetting::constructionDefaults()['prioritize_crop_fields_when_negative'];
+        }
+
+        return (bool) $settings->prioritize_crop_fields_when_negative;
+    }
+
+    /**
      * Normalize field priorities, falling back to the village defaults.
      *
      * @param  array<string, mixed>|null  $fieldPriority
@@ -877,19 +1198,5 @@ class ExecuteVillageConstruction
     {
         return (string) config('travian.paths.overview', '/dorf1.php')
             .'?newdid='.rawurlencode((string) $village->travian_village_id);
-    }
-
-    /**
-     * Create an XPath instance for the provided HTML string.
-     */
-    protected function createXPath(string $html): DOMXPath
-    {
-        $document = new DOMDocument;
-
-        libxml_use_internal_errors(true);
-        $document->loadHTML('<?xml encoding="utf-8" ?>'.$html);
-        libxml_clear_errors();
-
-        return new DOMXPath($document);
     }
 }

@@ -4,9 +4,12 @@ namespace App\Application\Accounts\Automation;
 
 use App\Application\Travian\TravianBuildingCatalog;
 use App\Models\Account;
+use App\Models\AccountSetting;
+use App\Models\SystemSetting;
 use App\Models\Village;
 use App\Models\VillageSetting;
 use Carbon\CarbonImmutable;
+use Throwable;
 
 class PlanNextAccountAutomation
 {
@@ -19,7 +22,7 @@ class PlanNextAccountAutomation
      */
     public function handle(Account $account): CarbonImmutable
     {
-        $account->loadMissing('villages.settings', 'villages.runtimeState');
+        $account->loadMissing('settings', 'heroState', 'villages.settings', 'villages.runtimeState');
 
         $now = now()->toImmutable();
         $idleAt = $now->addMinutes(max(1, (int) config('travian.automation.idle_minutes', 10)));
@@ -32,7 +35,21 @@ class PlanNextAccountAutomation
             }
 
             if ($this->hasOpenAutomationLane($village)) {
-                return $now;
+                $shortageTimers = $this->remainingResourceShortageTimers($village);
+
+                if ($shortageTimers === []) {
+                    return $now;
+                }
+
+                foreach ($shortageTimers as $remainingSeconds) {
+                    if ($remainingSeconds <= 0) {
+                        return $now->addSeconds($timerGraceSeconds);
+                    }
+
+                    $nextTimerSeconds = $nextTimerSeconds === null
+                        ? $remainingSeconds
+                        : min($nextTimerSeconds, $remainingSeconds);
+                }
             }
 
             foreach ($this->remainingTimers($village) as $remainingSeconds) {
@@ -44,6 +61,20 @@ class PlanNextAccountAutomation
                     ? $remainingSeconds
                     : min($nextTimerSeconds, $remainingSeconds);
             }
+        }
+
+        foreach ($this->remainingHeroTimers($account) as $remainingSeconds) {
+            if ($remainingSeconds <= 0) {
+                return $now->addSeconds($timerGraceSeconds);
+            }
+
+            $nextTimerSeconds = $nextTimerSeconds === null
+                ? $remainingSeconds
+                : min($nextTimerSeconds, $remainingSeconds);
+        }
+
+        if ($this->hasDueHeroAutomation($account)) {
+            return $now;
         }
 
         if ($nextTimerSeconds !== null) {
@@ -168,5 +199,146 @@ class PlanNextAccountAutomation
         }
 
         return $timers;
+    }
+
+    /**
+     * Return saved resource shortage countdowns from the latest automation pass.
+     *
+     * @return list<int>
+     */
+    protected function remainingResourceShortageTimers(Village $village): array
+    {
+        $runtimeState = $village->runtimeState;
+
+        if ($runtimeState === null || ! is_array($runtimeState->construction_resource_shortages)) {
+            return [];
+        }
+
+        $timers = [];
+
+        foreach ($runtimeState->construction_resource_shortages as $entry) {
+            if (! is_array($entry)) {
+                continue;
+            }
+
+            $readyAt = $entry['resource_ready_at'] ?? null;
+
+            if (is_string($readyAt) && $readyAt !== '') {
+                try {
+                    $timers[] = CarbonImmutable::parse($readyAt)->getTimestamp() - now()->getTimestamp();
+
+                    continue;
+                } catch (Throwable) {
+                }
+            }
+
+            if (! isset($entry['resource_ready_seconds'])) {
+                continue;
+            }
+
+            $elapsedSeconds = 0;
+            $recordedAt = $entry['recorded_at'] ?? null;
+
+            if (is_string($recordedAt) && $recordedAt !== '') {
+                try {
+                    $elapsedSeconds = max(0, now()->getTimestamp() - CarbonImmutable::parse($recordedAt)->getTimestamp());
+                } catch (Throwable) {
+                    $elapsedSeconds = 0;
+                }
+            }
+
+            $timers[] = (int) $entry['resource_ready_seconds'] - $elapsedSeconds;
+        }
+
+        return $timers;
+    }
+
+    /**
+     * Return account-level hero countdowns saved by hero automation.
+     *
+     * @return list<int>
+     */
+    protected function remainingHeroTimers(Account $account): array
+    {
+        $heroState = $account->heroState;
+
+        if ($heroState === null || $heroState->hero_remaining_seconds === null) {
+            return [];
+        }
+
+        if (! in_array($heroState->status, ['adventure', 'returning', 'regenerating'], true)) {
+            return [];
+        }
+
+        $elapsedSeconds = $heroState->seen_at !== null
+            ? max(0, now()->getTimestamp() - $heroState->seen_at->getTimestamp())
+            : 0;
+
+        return [(int) $heroState->hero_remaining_seconds - $elapsedSeconds];
+    }
+
+    /**
+     * Decide whether hero automation has a known immediate action.
+     */
+    protected function hasDueHeroAutomation(Account $account): bool
+    {
+        $settings = $this->resolveHeroSettings($account);
+
+        if (
+            ! $settings['adventures_enabled']
+            && ! $settings['revive_enabled']
+            && ! $settings['attribute_upgrade_enabled']
+        ) {
+            return false;
+        }
+
+        $heroState = $account->heroState;
+
+        if ($heroState === null) {
+            return true;
+        }
+
+        if ($settings['revive_enabled'] && $heroState->status === 'dead') {
+            return true;
+        }
+
+        if ($settings['attribute_upgrade_enabled'] && $heroState->has_unspent_attribute_points) {
+            return true;
+        }
+
+        $heroStateSource = $heroState->payload['source'] ?? null;
+
+        return $settings['adventures_enabled']
+            && $heroState->status === 'home'
+            && ((int) $heroState->adventures_available_count > 0 || $heroStateSource === 'data_for_hud')
+            && (float) ($heroState->health_percent ?? 0) >= $settings['min_health'];
+    }
+
+    /**
+     * Resolve the effective hero defaults for planning.
+     *
+     * @return array{adventures_enabled: bool, min_health: int, revive_enabled: bool, attribute_upgrade_enabled: bool}
+     */
+    protected function resolveHeroSettings(Account $account): array
+    {
+        $settings = $account->settings;
+
+        if (! $settings instanceof AccountSetting || (bool) $settings->hero_use_global_settings) {
+            $defaults = SystemSetting::heroDefaults();
+
+            return [
+                'adventures_enabled' => $defaults['adventures_enabled'],
+                'min_health' => $defaults['min_health'],
+                'revive_enabled' => $defaults['revive_enabled'],
+                'attribute_upgrade_enabled' => $defaults['attribute_upgrade_enabled'],
+            ];
+        }
+
+        return [
+            'adventures_enabled' => (bool) $settings->hero_adventures_enabled,
+            'min_health' => max(0, min(100, (int) ($settings->hero_min_health ?? 40))),
+            'revive_enabled' => (bool) $settings->hero_revive_enabled,
+            'attribute_upgrade_enabled' => (bool) $settings->hero_attribute_upgrade_enabled,
+        ];
     }
 }

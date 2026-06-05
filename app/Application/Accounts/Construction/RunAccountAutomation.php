@@ -2,6 +2,8 @@
 
 namespace App\Application\Accounts\Construction;
 
+use App\Application\Accounts\Celebrations\ExecuteVillageCelebration;
+use App\Application\Accounts\Hero\ExecuteHeroAutomation;
 use App\Application\Accounts\Session\Actions\TravianLoginAction;
 use App\Application\Accounts\Session\Contracts\AccountSessionFactory;
 use App\Enums\ActivityLogStatus;
@@ -23,6 +25,8 @@ class RunAccountAutomation
         protected AccountSessionFactory $accountSessionFactory,
         protected TravianLoginAction $travianLoginAction,
         protected ExecuteVillageConstruction $executeVillageConstruction,
+        protected ExecuteVillageCelebration $executeVillageCelebration,
+        protected ExecuteHeroAutomation $executeHeroAutomation,
     ) {}
 
     /**
@@ -41,9 +45,12 @@ class RunAccountAutomation
                     ->when($targetVillageId !== null, fn ($query) => $query->whereKey($targetVillageId))
                     ->orderBy('id'),
                 'villages.settings',
+                'villages.resourceState',
                 'villages.runtimeState',
                 'villages.buildings' => fn ($query) => $query->orderBy('slot_id'),
                 'villages.buildingTargets' => fn ($query) => $query->orderBy('priority')->orderBy('slot_id'),
+                'settings',
+                'heroState',
             ])
             ->findOrFail($account->id);
 
@@ -57,7 +64,10 @@ class RunAccountAutomation
 
             foreach ($account->villages as $village) {
                 $this->executeVillageConstruction->handle($account, $village, $session);
+                $this->executeVillageCelebration->handle($account, $village, $session);
             }
+
+            $this->executeHeroAutomation->handle($account, $session);
 
             $session->persist();
         } catch (Throwable $throwable) {
