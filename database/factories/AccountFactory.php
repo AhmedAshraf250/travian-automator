@@ -31,6 +31,7 @@ class AccountFactory extends Factory
             'session_transport_fingerprint' => null,
             'managed_by_import' => false,
             'is_archived' => false,
+            'import_position' => 0,
             'is_active' => true,
             'status' => AccountStatus::Paused,
             'last_sync_at' => null,

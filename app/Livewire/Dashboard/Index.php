@@ -9,6 +9,7 @@ use App\Enums\AccountStatus;
 use App\Enums\ActivityLogStatus;
 use App\Enums\ActivityType;
 use App\Enums\VillageCelebrationType;
+use App\Jobs\RunTravianAutomationJob;
 use App\Jobs\SyncTravianAccountJob;
 use App\Models\Account;
 use App\Models\AccountSetting;
@@ -123,6 +124,16 @@ class Index extends Component
     public string $accountSettingsTab = 'account';
 
     /**
+     * Stores the active program settings modal tab.
+     */
+    public string $programSettingsTab = 'generals';
+
+    /**
+     * Stores the active village settings modal tab.
+     */
+    public string $villageSettingsTab = 'generals';
+
+    /**
      * Stores whether the edited account inherits the program user agent.
      */
     public bool $accountInheritUserAgentDraft = true;
@@ -220,6 +231,11 @@ class Index extends Component
     public bool $villageCelebrationEnabledDraft = false;
 
     /**
+     * Stores whether troop training automation is enabled for the edited village.
+     */
+    public bool $villageTroopTrainingEnabledDraft = false;
+
+    /**
      * Stores the preferred celebration type for the edited village.
      */
     public string $villageCelebrationTypeDraft = 'auto';
@@ -228,6 +244,11 @@ class Index extends Component
      * Stores the minimum culture points required before starting a celebration.
      */
     public int $villageCelebrationMinimumCulturePointsDraft = 200;
+
+    /**
+     * Stores the current celebration readiness warning for the edited village.
+     */
+    public string $villageCelebrationReadinessMessage = '';
 
     /**
      * Stores whether negative crop production should temporarily prefer crop fields.
@@ -335,6 +356,7 @@ class Index extends Component
         $this->globalFieldPriorityDraft = $constructionDefaults['field_priority'];
         $this->globalPrioritizeCropFieldsWhenNegativeDraft = $constructionDefaults['prioritize_crop_fields_when_negative'];
         $this->globalHeroDefaultsDraft = SystemSetting::heroDefaults();
+        $this->programSettingsTab = 'generals';
         $this->showProgramSettingsModal = true;
     }
 
@@ -352,6 +374,7 @@ class Index extends Component
     public function closeProgramSettingsModal(): void
     {
         $this->showProgramSettingsModal = false;
+        $this->programSettingsTab = 'generals';
     }
 
     /**
@@ -402,6 +425,46 @@ class Index extends Component
     }
 
     /**
+     * Switch the program settings modal tab.
+     */
+    public function setProgramSettingsTab(string $tab): void
+    {
+        if (! in_array($tab, ['generals', 'hero', 'troops', 'celebrations', 'merchants'], true)) {
+            return;
+        }
+
+        $this->programSettingsTab = $tab;
+    }
+
+    /**
+     * Switch the village settings modal tab.
+     */
+    public function setVillageSettingsTab(string $tab): void
+    {
+        if (! in_array($tab, ['generals', 'layouts', 'troops', 'celebrations', 'trading'], true)) {
+            return;
+        }
+
+        $this->villageSettingsTab = $tab;
+    }
+
+    /**
+     * Refresh celebration readiness when the enable toggle changes.
+     */
+    public function updatedVillageCelebrationEnabledDraft(): void
+    {
+        $this->refreshVillageCelebrationReadinessMessage();
+    }
+
+    /**
+     * Refresh celebration readiness when the preferred type changes.
+     */
+    public function updatedVillageCelebrationTypeDraft(): void
+    {
+        $this->refreshVillageCelebrationReadinessMessage();
+    }
+
+    /**
      * Open the per-village settings modal.
      */
     public function openVillageSettingsModal(int $villageId): void
@@ -433,6 +496,7 @@ class Index extends Component
         $this->editingVillageName = $village->name;
         $this->editingVillageTribeId = $tribeId;
         $this->editingVillageTribeLabel = $this->resolveTribeLabel($tribeId);
+        $this->villageSettingsTab = 'generals';
         $this->villageFieldPriorityDraft = $this->normalizeFieldPriorityDraft($settings->field_priority);
         $this->villageFieldsAutomationDraft = ! (bool) $settings->pause_fields;
         $this->villageBuildingsAutomationDraft = ! (bool) $settings->pause_buildings;
@@ -448,9 +512,11 @@ class Index extends Component
             0,
             (int) ($settings->celebration_min_culture_points ?? VillageSetting::defaultCelebrationMinCulturePoints()),
         );
+        $this->villageTroopTrainingEnabledDraft = (bool) $settings->troop_training_enabled;
         $this->villagePrioritizeCropFieldsWhenNegativeDraft = (bool) $settings->prioritize_crop_fields_when_negative;
         $this->slotBuildingOptions = $this->buildSlotBuildingOptions($village, $tribeId);
         $this->villageBuildingPlanDraft = $this->buildVillagePlanDraft($village, $tribeId);
+        $this->updateVillageCelebrationReadinessMessage($village);
         $this->showVillageBuildPlanModal = true;
     }
 
@@ -498,6 +564,7 @@ class Index extends Component
             'villageCelebrationEnabledDraft' => ['boolean'],
             'villageCelebrationTypeDraft' => ['required', 'string', 'in:auto,small,great'],
             'villageCelebrationMinimumCulturePointsDraft' => ['required', 'integer', 'min:0', 'max:2000'],
+            'villageTroopTrainingEnabledDraft' => ['boolean'],
             'villagePrioritizeCropFieldsWhenNegativeDraft' => ['boolean'],
             'villageBuildingPlanDraft' => ['array'],
             'villageBuildingPlanDraft.*.slot_id' => ['required', 'integer', 'min:19', 'max:40'],
@@ -525,6 +592,16 @@ class Index extends Component
         $tribeId = $village->runtimeState?->tribe_id !== null ? (int) $village->runtimeState->tribe_id : null;
         $fieldPriority = $this->normalizeFieldPriorityDraft($this->villageFieldPriorityDraft);
 
+        $this->updateVillageCelebrationReadinessMessage($village);
+
+        if ($this->villageCelebrationReadinessMessage !== '') {
+            throw ValidationException::withMessages([
+                ($this->villageCelebrationTypeDraft === VillageCelebrationType::Great->value
+                    ? 'villageCelebrationTypeDraft'
+                    : 'villageCelebrationEnabledDraft') => $this->villageCelebrationReadinessMessage,
+            ]);
+        }
+
         $settings->forceFill([
             'field_priority' => $fieldPriority,
             'inherit_from_account' => $this->villageInheritProgramPriorityDraft,
@@ -536,6 +613,7 @@ class Index extends Component
             'celebration_enabled' => $this->villageCelebrationEnabledDraft,
             'celebration_type' => VillageCelebrationType::from($this->villageCelebrationTypeDraft),
             'celebration_min_culture_points' => $this->villageCelebrationMinimumCulturePointsDraft,
+            'troop_training_enabled' => $this->villageTroopTrainingEnabledDraft,
             'prioritize_crop_fields_when_negative' => $this->villagePrioritizeCropFieldsWhenNegativeDraft,
         ])->save();
 
@@ -706,6 +784,7 @@ class Index extends Component
         ]);
         SystemSetting::setHeroDefaults($this->globalHeroDefaultsDraft);
         $this->showProgramSettingsModal = false;
+        $this->programSettingsTab = 'generals';
 
         session()->flash(
             'dashboard-banner',
@@ -816,6 +895,8 @@ class Index extends Component
 
         SyncTravianAccountJob::dispatch($account->id);
 
+        $this->dashboardRevision = '';
+
         session()->flash('dashboard-banner', "Account {$account->username} was queued for background sync.");
     }
 
@@ -903,9 +984,13 @@ class Index extends Component
             'scheduled_at' => now(),
         ]);
 
-        SyncTravianAccountJob::dispatch($village->account->id, $village->id);
+        SyncTravianAccountJob::withChain([
+            new RunTravianAutomationJob($village->account->id, $village->id, false),
+        ])->dispatch($village->account->id, $village->id);
 
-        session()->flash('dashboard-banner', "Village {$village->name} was queued for a village-only sync.");
+        $this->dashboardRevision = '';
+
+        session()->flash('dashboard-banner', "Village {$village->name} was queued for sync, then village automation.");
     }
 
     /**
@@ -944,10 +1029,17 @@ class Index extends Component
             $query->where('is_archived', false);
         }
 
+        if (Schema::hasColumn('accounts', 'import_position')) {
+            $query
+                ->orderByRaw('case when import_position > 0 then 0 else 1 end')
+                ->orderBy('import_position');
+        }
+
         return $query
             ->with([
                 'settings',
                 'heroState',
+                'latestTravianActivityLog',
                 'villages.settings',
                 'villages.resourceState',
                 'villages.runtimeState',
@@ -955,8 +1047,7 @@ class Index extends Component
                 'villages.buildingTargets' => fn ($query) => $query->orderBy('priority')->orderBy('slot_id'),
             ])
             ->withCount('villages')
-            ->orderByDesc('last_sync_at')
-            ->latest('id')
+            ->orderBy('id')
             ->get();
     }
 
@@ -1251,6 +1342,56 @@ class Index extends Component
     }
 
     /**
+     * Reload the edited village and refresh the celebration readiness warning.
+     */
+    protected function refreshVillageCelebrationReadinessMessage(): void
+    {
+        if ($this->editingVillageId === null) {
+            $this->villageCelebrationReadinessMessage = '';
+
+            return;
+        }
+
+        $village = Village::query()
+            ->with('buildings')
+            ->find((int) $this->editingVillageId);
+
+        if (! $village instanceof Village) {
+            $this->villageCelebrationReadinessMessage = '';
+
+            return;
+        }
+
+        $this->updateVillageCelebrationReadinessMessage($village);
+    }
+
+    /**
+     * Build the celebration warning for the currently selected settings.
+     */
+    protected function updateVillageCelebrationReadinessMessage(Village $village): void
+    {
+        $this->villageCelebrationReadinessMessage = '';
+
+        if (! $this->villageCelebrationEnabledDraft) {
+            return;
+        }
+
+        $townHallLevel = $village->buildings
+            ->firstWhere('building_gid', 24)
+            ?->current_level;
+
+        if ($townHallLevel === null || (int) $townHallLevel < 1) {
+            $this->villageCelebrationReadinessMessage = 'Cannot enable celebrations yet: this village does not have a Town Hall.';
+
+            return;
+        }
+
+        if ($this->villageCelebrationTypeDraft === VillageCelebrationType::Great->value && (int) $townHallLevel < 10) {
+            $this->villageCelebrationReadinessMessage = "Cannot use Great celebrations yet: Town Hall is level {$townHallLevel}, and level 10 is required.";
+        }
+    }
+
+    /**
      * Resolve the localized tribe label used by the village modal.
      */
     protected function resolveTribeLabel(?int $tribeId): string
@@ -1273,6 +1414,7 @@ class Index extends Component
         $this->editingVillageName = '';
         $this->editingVillageTribeId = null;
         $this->editingVillageTribeLabel = '';
+        $this->villageSettingsTab = 'generals';
         $this->villageFieldsAutomationDraft = true;
         $this->villageBuildingsAutomationDraft = true;
         $this->villageInheritProgramPriorityDraft = true;
@@ -1282,6 +1424,8 @@ class Index extends Component
         $this->villageCelebrationEnabledDraft = false;
         $this->villageCelebrationTypeDraft = VillageSetting::defaultCelebrationType()->value;
         $this->villageCelebrationMinimumCulturePointsDraft = VillageSetting::defaultCelebrationMinCulturePoints();
+        $this->villageCelebrationReadinessMessage = '';
+        $this->villageTroopTrainingEnabledDraft = false;
         $this->villagePrioritizeCropFieldsWhenNegativeDraft = true;
         $this->villageFieldPriorityDraft = [];
         $this->villageBuildingPlanDraft = [];

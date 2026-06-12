@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\AccountStatus;
+use App\Enums\ActivityLogStatus;
+use App\Enums\ActivityType;
 use Database\Factories\AccountFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -27,6 +29,7 @@ use JsonException;
     'session_transport_fingerprint',
     'managed_by_import',
     'is_archived',
+    'import_position',
     'is_active',
     'status',
     'last_sync_at',
@@ -54,6 +57,7 @@ class Account extends Model
             'session_cookies' => 'encrypted:array',
             'managed_by_import' => 'boolean',
             'is_archived' => 'boolean',
+            'import_position' => 'integer',
             'is_active' => 'boolean',
             'status' => AccountStatus::class,
             'last_sync_at' => 'immutable_datetime',
@@ -94,6 +98,30 @@ class Account extends Model
     public function activityLogs(): HasMany
     {
         return $this->hasMany(ActivityLog::class);
+    }
+
+    /**
+     * Get the newest finished activity that represents Travian contact.
+     */
+    public function latestTravianActivityLog(): HasOne
+    {
+        return $this->hasOne(ActivityLog::class)
+            ->whereIn('activity_type', [
+                ActivityType::Sync,
+                ActivityType::Build,
+                ActivityType::Celebration,
+                ActivityType::Transfer,
+                ActivityType::Train,
+                ActivityType::Hero,
+                ActivityType::Quest,
+                ActivityType::Login,
+                ActivityType::Logout,
+            ])
+            ->whereIn('status', [
+                ActivityLogStatus::Done,
+                ActivityLogStatus::Failed,
+            ])
+            ->latestOfMany();
     }
 
     /**

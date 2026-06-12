@@ -32,7 +32,14 @@ class RunTravianAutomationJob implements ShouldBeUnique, ShouldQueue
     /**
      * The maximum number of attempts for the job.
      */
-    public int $tries = 2;
+    public int $tries = 12;
+
+    /**
+     * Back off when a manual sync or another automation job owns the account lock.
+     *
+     * @var list<int>
+     */
+    public array $backoff = [5, 10, 20, 30, 45, 60];
 
     /**
      * Keep duplicate account automation jobs out while one is pending or running.
@@ -69,7 +76,7 @@ class RunTravianAutomationJob implements ShouldBeUnique, ShouldQueue
         return [
             (new WithoutOverlapping("travian-account:{$this->accountId}"))
                 ->shared()
-                ->releaseAfter(30)
+                ->releaseAfter(15)
                 ->expireAfter(1800),
         ];
     }
@@ -97,8 +104,8 @@ class RunTravianAutomationJob implements ShouldBeUnique, ShouldQueue
             'activity_type' => ActivityType::Build,
             'status' => ActivityLogStatus::Running,
             'message' => $village instanceof Village
-                ? 'Smart village automation job started.'
-                : 'Smart account automation job started.',
+                ? 'Checking local village automation plan.'
+                : 'Checking local account automation plan.',
             'executed_at' => now(),
         ]);
 
@@ -108,14 +115,26 @@ class RunTravianAutomationJob implements ShouldBeUnique, ShouldQueue
 
         $runAccountAutomation->handle($account->fresh(), $this->villageId);
 
-        if ($this->villageId === null) {
-            $freshAccount = Account::query()
-                ->with('settings', 'heroState', 'villages.runtimeState')
-                ->findOrFail($account->id);
+        $freshAccount = Account::query()
+            ->with('settings', 'heroState', 'villages.runtimeState')
+            ->findOrFail($account->id);
 
+        if ($freshAccount->is_active && ! $freshAccount->is_archived) {
+            $freshAccount->forceFill([
+                'status' => AccountStatus::Active,
+                'last_error_at' => null,
+                'last_error_message' => null,
+            ]);
+        }
+
+        if ($this->villageId === null) {
             $freshAccount->forceFill([
                 'next_automation_at' => $planNextAccountAutomation->handle($freshAccount),
-            ])->save();
+            ]);
+        }
+
+        if ($freshAccount->isDirty()) {
+            $freshAccount->save();
         }
     }
 

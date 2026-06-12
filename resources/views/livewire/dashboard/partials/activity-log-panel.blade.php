@@ -1,28 +1,23 @@
 @if ($showActivityLog)
-    <section
-        class="rounded-[1.35rem] border border-[var(--color-line)] bg-[var(--color-panel)] p-4 shadow-[0_14px_36px_rgba(24,20,12,0.08)]">
+    <section class="rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] p-4 shadow-sm">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <h2 class="font-[var(--font-display)] text-xl">Activity log</h2>
-                <p class="text-sm text-[var(--color-muted)]">
-                    Live timeline for sync, build, and manual activity.
-                </p>
+                <h2 class="font-[var(--font-display)] text-lg font-semibold">Activity log</h2>
             </div>
 
             <div class="flex items-center gap-2">
-                <span
-                    class="rounded-full bg-[var(--color-panel-alt)] px-3 py-1 text-[11px] font-semibold text-[var(--color-muted)]">
+                <span class="rounded-md bg-[var(--color-panel-alt)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-muted)]">
                     {{ $activityLogs->count() }} rows
                 </span>
                 <button type="button" wire:click="toggleActivityLog"
-                    class="inline-flex items-center justify-center rounded-full border border-[var(--color-line-strong)] px-3 py-2 text-xs font-semibold text-[var(--color-ink)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]">
+                    class="inline-flex items-center justify-center rounded-lg border border-[var(--color-line-strong)] px-3 py-2 text-xs font-semibold text-[var(--color-ink)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]">
                     Hide log
                 </button>
             </div>
         </div>
 
         <div
-            class="mt-4 h-[18rem] overflow-y-auto overscroll-contain rounded-[1.1rem] border border-[var(--color-line)] bg-[var(--color-panel-alt)] p-2.5">
+            class="mt-4 max-h-[calc(100vh-16rem)] min-h-[18rem] overflow-y-auto overscroll-contain rounded-lg border border-[var(--color-line)] bg-[var(--color-panel-alt)] p-2">
             <div class="space-y-2">
                 @forelse ($activityLogs as $activityLog)
                     @php
@@ -58,13 +53,13 @@
                                 : 'bg-emerald-500/10 text-emerald-900');
                     @endphp
                     <article wire:key="activity-log-{{ $activityLog->id }}"
-                        class="rounded-[1rem] border px-3 py-2.5 {{ $cardClasses }}">
+                        class="rounded-lg border px-3 py-2.5 {{ $cardClasses }}">
                         <div class="flex flex-wrap items-center gap-1.5 text-[11px]">
                             <span
-                                class="rounded-full bg-[var(--color-panel)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-muted)]">
+                                class="rounded-md bg-[var(--color-panel)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-muted)]">
                                 {{ $activityType }}
                             </span>
-                            <span class="rounded-full px-2.5 py-1 text-[11px] font-semibold {{ $statusClasses }}">
+                            <span class="rounded-md px-2.5 py-1 text-[11px] font-semibold {{ $statusClasses }}">
                                 {{ $statusValue }}
                             </span>
                             <span class="font-semibold text-[var(--color-ink)]">
@@ -73,7 +68,7 @@
 
                             @if (!empty($payload['building_name']))
                                 <span
-                                    class="rounded-full bg-[var(--color-panel)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-ink)]">
+                                    class="rounded-md bg-[var(--color-panel)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-ink)]">
                                     {{ $payload['building_name'] }}
                                     @if (!empty($payload['target_level']))
                                         Lv {{ $payload['target_level'] }}
@@ -83,14 +78,14 @@
 
                             @if (!empty($payload['field_key']))
                                 <span
-                                    class="rounded-full bg-[var(--color-panel)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-ink)]">
+                                    class="rounded-md bg-[var(--color-panel)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-ink)]">
                                     {{ strtoupper((string) $payload['field_key']) }}
                                 </span>
                             @endif
 
                             @if (!empty($payload['remaining_label']) || $logRemainingSeconds !== null)
                                 <span
-                                    class="rounded-full bg-[var(--color-panel)] px-2.5 py-1 text-[11px] font-mono font-semibold text-[var(--color-muted)]"
+                                    class="rounded-md bg-[var(--color-panel)] px-2.5 py-1 text-[11px] font-mono font-semibold text-[var(--color-muted)]"
                                     @if ($logRemainingSeconds !== null) x-data="{
                                             endsAt: {{ $logEndsAtTimestamp }},
                                             remaining: 0,
@@ -126,7 +121,7 @@
 
                             @if (!empty($payload['finish_label']))
                                 <span
-                                    class="rounded-full bg-[var(--color-panel)] px-2.5 py-1 text-[11px] font-mono font-semibold text-[var(--color-muted)]">
+                                    class="rounded-md bg-[var(--color-panel)] px-2.5 py-1 text-[11px] font-mono font-semibold text-[var(--color-muted)]">
                                     Ends {{ $payload['finish_label'] }}
                                 </span>
                             @endif
@@ -146,23 +141,21 @@
                     </article>
                 @empty
                     <div
-                        class="rounded-[1rem] border border-dashed border-[var(--color-line-strong)] px-4 py-5 text-sm text-[var(--color-muted)]">
-                        Activity entries will appear here as import, sync, build, and manual actions are recorded.
+                        class="rounded-lg border border-dashed border-[var(--color-line-strong)] px-4 py-5 text-sm text-[var(--color-muted)]">
+                        No activity yet.
                     </div>
                 @endforelse
             </div>
         </div>
     </section>
 @else
-    <section
-        class="rounded-[1.35rem] border border-[var(--color-line)] bg-[var(--color-panel)] p-4 shadow-[0_14px_36px_rgba(24,20,12,0.08)]">
+    <section class="rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] p-4 shadow-sm">
         <div class="flex items-center justify-between gap-3">
             <div>
-                <h2 class="font-[var(--font-display)] text-xl">Activity log</h2>
-                <p class="text-sm text-[var(--color-muted)]">The log is hidden, but live refresh is still running.</p>
+                <h2 class="font-[var(--font-display)] text-lg font-semibold">Activity log</h2>
             </div>
             <button type="button" wire:click="toggleActivityLog"
-                class="inline-flex items-center justify-center rounded-full border border-[var(--color-line-strong)] px-3 py-2 text-xs font-semibold text-[var(--color-ink)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]">
+                class="inline-flex items-center justify-center rounded-lg border border-[var(--color-line-strong)] px-3 py-2 text-xs font-semibold text-[var(--color-ink)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]">
                 Show log
             </button>
         </div>

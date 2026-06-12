@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\RunTravianAutomationJob;
 use App\Jobs\SyncTravianAccountJob;
 use App\Livewire\Dashboard\Index;
 use App\Models\Account;
@@ -52,7 +53,7 @@ test('dashboard shows imported account username', function () {
         ->assertSee('strategist');
 });
 
-test('village update queues the account overview sync job', function () {
+test('village update queues village sync followed by village automation', function () {
     Queue::fake();
 
     $account = Account::factory()->create();
@@ -69,6 +70,10 @@ test('village update queues the account overview sync job', function () {
         return $job->accountId === $account->id
             && $job->villageId === $village->id;
     });
+
+    Queue::assertPushedWithChain(SyncTravianAccountJob::class, [
+        new RunTravianAutomationJob($account->id, $village->id, false),
+    ]);
 });
 
 test('bulk import archives managed accounts removed from the latest snapshot', function () {
@@ -89,6 +94,27 @@ test('bulk import archives managed accounts removed from the latest snapshot', f
     expect($archivedAccount?->is_archived)->toBeTrue();
     expect($archivedAccount?->is_active)->toBeFalse();
     expect(Account::query()->where('is_archived', false)->pluck('username')->all())->toBe(['marshal']);
+});
+
+test('dashboard keeps accounts in the same order as the latest bulk import', function () {
+    Livewire::test(Index::class)
+        ->set('bulkImportDraft', implode("\n", [
+            '!https://ts7.x1.arabics.travian.com/!third!12345678!!!Mozilla/5.0',
+            '!https://ts7.x1.arabics.travian.com/!first!12345678!!!Mozilla/5.0',
+            '!https://ts7.x1.arabics.travian.com/!second!12345678!!!Mozilla/5.0',
+        ]))
+        ->call('importAccounts');
+
+    Account::query()->where('username', 'first')->update(['last_sync_at' => now()]);
+
+    expect(Account::query()->orderBy('import_position')->pluck('username')->all())->toBe([
+        'third',
+        'first',
+        'second',
+    ]);
+
+    Livewire::test(Index::class)
+        ->assertSeeInOrder(['third', 'first', 'second']);
 });
 
 test('dashboard toggles the global automation switch', function () {
@@ -142,8 +168,7 @@ test('dashboard shows the inherited global fallback user agent for accounts with
 
     $this->get(route('home'))
         ->assertOk()
-        ->assertSee('Mozilla/5.0 Shared Agent')
-        ->assertSee('Inherited from program settings when available');
+        ->assertSee('Mozilla/5.0 Shared Agent');
 });
 
 test('dashboard saves per account user agent and hero settings', function () {
@@ -250,6 +275,12 @@ test('dashboard opens the village settings modal with existing slot data', funct
         'building_type' => 'المبنى الرئيسي',
         'current_level' => 8,
     ]);
+    $village->buildings()->create([
+        'slot_id' => 37,
+        'building_gid' => 24,
+        'building_type' => 'البلدية',
+        'current_level' => 10,
+    ]);
 
     $village->buildingTargets()->create([
         'slot_id' => 26,
@@ -304,6 +335,12 @@ test('dashboard saves village field priorities, automation toggles, and building
         'building_type' => 'المبنى الرئيسي',
         'current_level' => 5,
     ]);
+    $village->buildings()->create([
+        'slot_id' => 37,
+        'building_gid' => 24,
+        'building_type' => 'البلدية',
+        'current_level' => 10,
+    ]);
 
     Livewire::test(Index::class)
         ->call('openVillageSettingsModal', $village->id)
@@ -314,6 +351,7 @@ test('dashboard saves village field priorities, automation toggles, and building
         ->set('villageCelebrationEnabledDraft', true)
         ->set('villageCelebrationTypeDraft', 'great')
         ->set('villageCelebrationMinimumCulturePointsDraft', 300)
+        ->set('villageTroopTrainingEnabledDraft', true)
         ->set('villagePrioritizeCropFieldsWhenNegativeDraft', false)
         ->set('villageFieldPriorityDraft', [
             'wood' => 4,
@@ -345,6 +383,7 @@ test('dashboard saves village field priorities, automation toggles, and building
     expect($savedSettings?->pause_buildings)->toBeFalse();
     expect($savedSettings?->inherit_from_account)->toBeFalse();
     expect($savedSettings?->send_enabled)->toBeFalse();
+    expect($savedSettings?->troop_training_enabled)->toBeTrue();
     expect($savedSettings?->celebration_enabled)->toBeTrue();
     expect($savedSettings?->celebration_type?->value)->toBe('great');
     expect($savedSettings?->celebration_min_culture_points)->toBe(300);
@@ -375,6 +414,70 @@ test('dashboard saves village field priorities, automation toggles, and building
         'priority' => 2,
         'is_enabled' => true,
     ]);
+});
+
+test('dashboard blocks village celebrations until a town hall exists', function () {
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23379',
+        'name' => 'قرية بدون بلدية',
+        'is_active' => true,
+    ]);
+
+    $village->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+    ]);
+
+    $village->runtimeState()->create([
+        'tribe_id' => 1,
+        'troop_slots' => [],
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('openVillageSettingsModal', $village->id)
+        ->set('villageCelebrationEnabledDraft', true)
+        ->assertSet('villageCelebrationReadinessMessage', 'Cannot enable celebrations yet: this village does not have a Town Hall.')
+        ->call('saveVillageSettings')
+        ->assertHasErrors('villageCelebrationEnabledDraft');
+});
+
+test('dashboard blocks great celebrations until town hall level ten', function () {
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23380',
+        'name' => 'قرية بلدية صغيرة',
+        'is_active' => true,
+    ]);
+
+    $village->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+    ]);
+
+    $village->runtimeState()->create([
+        'tribe_id' => 1,
+        'troop_slots' => [],
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+
+    $village->buildings()->create([
+        'slot_id' => 37,
+        'building_gid' => 24,
+        'building_type' => 'البلدية',
+        'current_level' => 5,
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('openVillageSettingsModal', $village->id)
+        ->set('villageCelebrationEnabledDraft', true)
+        ->set('villageCelebrationTypeDraft', 'great')
+        ->assertSet('villageCelebrationReadinessMessage', 'Cannot use Great celebrations yet: Town Hall is level 5, and level 10 is required.')
+        ->call('saveVillageSettings')
+        ->assertHasErrors('villageCelebrationTypeDraft');
 });
 
 test('dashboard allows duplicate field priorities in village settings', function () {
@@ -598,6 +701,8 @@ test('dashboard shows construction countdown and finish time in the village row 
         'field_priority' => VillageSetting::defaultFieldPriority(),
         'pause_fields' => false,
         'pause_buildings' => false,
+        'troop_training_enabled' => true,
+        'celebration_enabled' => true,
     ]);
 
     $village->resourceState()->create([
@@ -618,7 +723,15 @@ test('dashboard shows construction countdown and finish time in the village row 
     $village->runtimeState()->create([
         'tribe_id' => 1,
         'troop_slots' => array_fill(0, 11, 0),
-        'movement_entries' => [],
+        'incoming_reinforcement_count' => 1,
+        'movement_entries' => [
+            [
+                'kind' => 'incoming_reinforcement',
+                'label' => 'تعزيز',
+                'remaining_seconds' => 0,
+                'remaining_label' => '0:00:00',
+            ],
+        ],
         'construction_entries' => [
             [
                 'building_name' => 'حفرة الطين',
@@ -626,6 +739,13 @@ test('dashboard shows construction countdown and finish time in the village row 
                 'remaining_seconds' => 600,
                 'remaining_label' => '0:10:00',
                 'finish_label' => '22:25',
+            ],
+            [
+                'building_name' => 'حفرة منتهية',
+                'target_level' => 6,
+                'remaining_seconds' => 0,
+                'remaining_label' => '0:00:00',
+                'finish_label' => '19:53',
             ],
         ],
         'server_reported_at' => $now,
@@ -650,10 +770,135 @@ test('dashboard shows construction countdown and finish time in the village row 
     Livewire::test(Index::class)
         ->set("expandedAccounts.{$account->id}", true)
         ->assertSee('[0,0,0,0,0,0,0,0,0,0,0]')
-        ->assertSee('W 1800/4000')
+        ->assertSee('Troops')
+        ->assertSee('assets/troops-icons/hero.png')
+        ->assertSee('assets/troops-icons/u1.png')
+        ->assertSee('assets/res-icons/lumber_small.png')
+        ->assertSee('4000 /')
+        ->assertSee('1800')
         ->assertSee('+140/h')
+        ->assertSee('#11883d')
+        ->assertSee('#f88c1f')
+        ->assertSee('T ON')
+        ->assertSee('C ON')
         ->assertSee('0:10:00')
-        ->assertSee('Ends 22:25');
+        ->assertSee('Ends 22:25')
+        ->assertDontSee('حفرة منتهية')
+        ->assertDontSee('تعزيز')
+        ->assertDontSee('0:00:00');
+
+    Carbon::setTestNow();
+});
+
+test('dashboard account row uses recent account activity when it is newer than the last sync time', function () {
+    $now = now()->startOfSecond();
+    Carbon::setTestNow($now);
+
+    $account = Account::factory()->create([
+        'username' => 'marshal',
+        'last_sync_at' => $now->subHours(2),
+    ]);
+
+    $village = $account->villages()->create([
+        'travian_village_id' => '23392',
+        'name' => 'CR7',
+        'is_active' => true,
+    ]);
+
+    ActivityLog::query()->create([
+        'account_id' => $account->id,
+        'village_id' => $village->id,
+        'activity_type' => 'build',
+        'status' => 'done',
+        'message' => 'Field upgrade order issued successfully.',
+        'executed_at' => $now->subMinutes(8),
+    ]);
+
+    Livewire::test(Index::class)
+        ->assertSee('8 minutes ago')
+        ->assertDontSee('2 hours ago');
+
+    Carbon::setTestNow();
+});
+
+test('dashboard account row ignores internal activity logs when showing the last account contact', function () {
+    $now = now()->startOfSecond();
+    Carbon::setTestNow($now);
+
+    $account = Account::factory()->create([
+        'username' => 'marshal',
+        'last_sync_at' => $now->subHours(2),
+    ]);
+
+    ActivityLog::query()->create([
+        'account_id' => $account->id,
+        'activity_type' => 'manual',
+        'status' => 'done',
+        'message' => 'Account activated from dashboard.',
+        'executed_at' => $now->subMinutes(3),
+    ]);
+
+    ActivityLog::query()->create([
+        'account_id' => $account->id,
+        'activity_type' => 'build',
+        'status' => 'running',
+        'message' => 'Checking local account automation plan.',
+        'executed_at' => $now->subMinutes(1),
+    ]);
+
+    Livewire::test(Index::class)
+        ->set('showActivityLog', false)
+        ->assertSee('2 hours ago')
+        ->assertDontSee('1 minute ago')
+        ->assertDontSee('3 minutes ago');
+
+    Carbon::setTestNow();
+});
+
+test('dashboard styles outgoing attack movements with the attack icon palette', function () {
+    $now = now()->startOfSecond();
+    Carbon::setTestNow($now);
+
+    $account = Account::factory()->create([
+        'username' => 'marshal',
+    ]);
+
+    $village = $account->villages()->create([
+        'travian_village_id' => '23391',
+        'name' => 'قرية Movements',
+        'x' => 9,
+        'y' => 60,
+        'population' => 120,
+        'is_active' => true,
+    ]);
+
+    $village->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+        'pause_fields' => false,
+        'pause_buildings' => false,
+    ]);
+
+    $village->runtimeState()->create([
+        'tribe_id' => 1,
+        'troop_slots' => array_fill(0, 11, 0),
+        'outgoing_movement_count' => 1,
+        'movement_entries' => [
+            [
+                'kind' => 'outgoing',
+                'label' => '1 هجوم',
+                'remaining_seconds' => 300,
+                'remaining_label' => '0:05:00',
+            ],
+        ],
+        'construction_entries' => [],
+        'server_reported_at' => $now,
+    ]);
+
+    Livewire::test(Index::class)
+        ->set("expandedAccounts.{$account->id}", true)
+        ->assertSee('assets/movements-icons/att2.gif')
+        ->assertSee('#fff6b5')
+        ->assertSee('1 هجوم');
 
     Carbon::setTestNow();
 });

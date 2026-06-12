@@ -31,7 +31,14 @@ class SyncTravianAccountJob implements ShouldBeUnique, ShouldQueue
     /**
      * The maximum number of attempts for the job.
      */
-    public int $tries = 2;
+    public int $tries = 12;
+
+    /**
+     * Back off when another account job is holding the shared Travian session lock.
+     *
+     * @var list<int>
+     */
+    public array $backoff = [5, 10, 20, 30, 45, 60];
 
     /**
      * Keep duplicate account jobs out of the queue while one is pending or running.
@@ -64,7 +71,7 @@ class SyncTravianAccountJob implements ShouldBeUnique, ShouldQueue
         return [
             (new WithoutOverlapping("travian-account:{$this->accountId}"))
                 ->shared()
-                ->releaseAfter(30)
+                ->releaseAfter(15)
                 ->expireAfter(1800),
         ];
     }

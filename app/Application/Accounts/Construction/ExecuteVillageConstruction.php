@@ -336,7 +336,7 @@ class ExecuteVillageConstruction
     ): bool {
         $candidatePriority = $priorityMap[$candidateFieldKey] ?? 999;
         $candidateNextLevel = (int) $candidateSlot->current_level + 1;
-        $maxLevelByField = [];
+        $minLevelByField = [];
 
         foreach ($fieldSlots as $fieldSlot) {
             if (! $fieldSlot instanceof VillageBuilding) {
@@ -350,12 +350,12 @@ class ExecuteVillageConstruction
             }
 
             $fieldLevel = (int) $fieldSlot->current_level;
-            $maxLevelByField[$fieldKey] = isset($maxLevelByField[$fieldKey])
-                ? max($maxLevelByField[$fieldKey], $fieldLevel)
+            $minLevelByField[$fieldKey] = isset($minLevelByField[$fieldKey])
+                ? min($minLevelByField[$fieldKey], $fieldLevel)
                 : $fieldLevel;
         }
 
-        foreach ($maxLevelByField as $fieldKey => $maxLevel) {
+        foreach ($minLevelByField as $fieldKey => $minLevel) {
             if ($fieldKey === $candidateFieldKey) {
                 continue;
             }
@@ -368,7 +368,7 @@ class ExecuteVillageConstruction
                 $allowedLead = abs($otherPriority - $candidatePriority);
             }
 
-            if ($candidateNextLevel > ((int) $maxLevel + $allowedLead)) {
+            if ($candidateNextLevel > ((int) $minLevel + $allowedLead)) {
                 return false;
             }
         }
@@ -450,9 +450,18 @@ class ExecuteVillageConstruction
             (string) config('travian.paths.village_center', '/dorf2.php'),
             $this->documentRequestOptions($villageReferer),
         );
+        $liveDorf2Overview = $this->parseLiveDorf2Overview($villageCenterResponse);
         $firstResourceShortage = null;
 
         foreach ($candidates as $candidate) {
+            if ($liveDorf2Overview instanceof ParsedDorf2Overview) {
+                $candidate = $this->confirmBuildingCandidateAgainstLiveDorf2($village, $candidate, $liveDorf2Overview);
+
+                if ($candidate === null) {
+                    continue;
+                }
+            }
+
             $result = $this->executeBuildingCandidate($account, $village, $session, $candidate, $villageCenterResponse->effectiveUri);
             $firstResourceShortage ??= $result['resource_shortage'];
 
@@ -471,6 +480,67 @@ class ExecuteVillageConstruction
     }
 
     /**
+     * Parse the live village center page when available.
+     */
+    protected function parseLiveDorf2Overview(SessionResponse $villageCenterResponse): ?ParsedDorf2Overview
+    {
+        try {
+            return $this->dorf2OverviewParser->parse($villageCenterResponse->body);
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Re-check a building candidate against the live dorf2 snapshot before pressing build.
+     *
+     * @param  array{target: VillageBuildingTarget, current_slot: VillageBuilding, target_gid: int, mode: 'upgrade'|'construct'}  $candidate
+     * @return array{target: VillageBuildingTarget, current_slot: VillageBuilding, target_gid: int, mode: 'upgrade'|'construct'}|null
+     */
+    protected function confirmBuildingCandidateAgainstLiveDorf2(Village $village, array $candidate, ParsedDorf2Overview $dorf2Overview): ?array
+    {
+        $target = $candidate['target'];
+        $currentSlot = $candidate['current_slot'];
+        $targetGid = (int) $candidate['target_gid'];
+        $liveSlot = collect($dorf2Overview->buildingSlots)
+            ->first(fn (ParsedVillageSlot $slot): bool => $slot->slotId === (int) $currentSlot->slot_id);
+
+        if (! $liveSlot instanceof ParsedVillageSlot) {
+            return $candidate;
+        }
+
+        $liveGid = (int) $liveSlot->buildingGid;
+        $liveLevel = (int) $liveSlot->currentLevel;
+
+        $currentSlot->forceFill([
+            'building_gid' => $liveGid,
+            'building_type' => $liveSlot->buildingName,
+            'current_level' => $liveLevel,
+            'is_under_construction' => false,
+            'finish_at' => null,
+        ])->save();
+
+        if ($liveGid !== 0 && $liveGid !== $targetGid) {
+            return null;
+        }
+
+        if ($liveLevel >= (int) $target->target_level) {
+            $target->delete();
+
+            return null;
+        }
+
+        if ($liveGid === 0 && $candidate['mode'] === 'upgrade') {
+            return null;
+        }
+
+        $candidate['current_slot'] = $currentSlot->refresh();
+        $candidate['mode'] = $liveGid === 0 || $liveLevel < 1 ? 'construct' : 'upgrade';
+
+        return $candidate;
+    }
+
+    /**
      * Select building targets that can be upgraded or constructed in priority order.
      *
      * @return list<array{
@@ -483,8 +553,10 @@ class ExecuteVillageConstruction
     protected function selectBuildingCandidates(Account $account, Village $village): array
     {
         $candidates = [];
+        $candidateKeys = [];
+        $targets = $village->buildingTargets->sortBy('priority')->values();
 
-        foreach ($village->buildingTargets->sortBy('priority') as $target) {
+        foreach ($targets as $target) {
             if (! $target instanceof VillageBuildingTarget || ! $target->is_enabled) {
                 continue;
             }
@@ -532,17 +604,25 @@ class ExecuteVillageConstruction
                 $eligibility = TravianBuildingCatalog::canConstructInVillage($targetGid, $account, $village);
 
                 if (! $eligibility->allowed) {
+                    $prerequisiteCandidate = $this->selectMissingRequirementCandidate($account, $village, $targets, $eligibility->missingRequirements);
+
+                    if ($prerequisiteCandidate !== null) {
+                        $this->appendBuildingCandidate($candidates, $candidateKeys, $prerequisiteCandidate);
+
+                        continue;
+                    }
+
                     $this->recordBlockedBuildingCandidate($account, $village, $target, $eligibility);
 
                     continue;
                 }
 
-                $candidates[] = [
+                $this->appendBuildingCandidate($candidates, $candidateKeys, [
                     'target' => $target,
                     'current_slot' => $currentSlot,
                     'target_gid' => $targetGid,
                     'mode' => 'construct',
-                ];
+                ]);
 
                 continue;
             }
@@ -551,15 +631,131 @@ class ExecuteVillageConstruction
                 continue;
             }
 
-            $candidates[] = [
+            $this->appendBuildingCandidate($candidates, $candidateKeys, [
                 'target' => $target,
                 'current_slot' => $currentSlot,
                 'target_gid' => $targetGid,
                 'mode' => 'upgrade',
-            ];
+            ]);
         }
 
         return $candidates;
+    }
+
+    /**
+     * Prefer a configured prerequisite target before logging the desired building as blocked.
+     *
+     * @param  iterable<int, VillageBuildingTarget>  $targets
+     * @param  list<array{gid:int, name:string|null, required_level:int, current_level:int}>  $missingRequirements
+     * @return array{target: VillageBuildingTarget, current_slot: VillageBuilding, target_gid: int, mode: 'upgrade'|'construct'}|null
+     */
+    protected function selectMissingRequirementCandidate(Account $account, Village $village, iterable $targets, array $missingRequirements, int $depth = 0): ?array
+    {
+        if ($depth > 2) {
+            return null;
+        }
+
+        foreach ($missingRequirements as $missingRequirement) {
+            $requiredGid = (int) ($missingRequirement['gid'] ?? 0);
+            $requiredLevel = (int) ($missingRequirement['required_level'] ?? 0);
+
+            if ($requiredGid < 1 || $requiredLevel < 1) {
+                continue;
+            }
+
+            foreach ($targets as $target) {
+                if (! $target instanceof VillageBuildingTarget || ! $target->is_enabled) {
+                    continue;
+                }
+
+                $targetGid = $this->resolveTargetGid($target);
+
+                if ($targetGid !== $requiredGid || (int) $target->target_level < $requiredLevel) {
+                    continue;
+                }
+
+                $targetSlotId = TravianBuildingCatalog::fixedSlotForGid(
+                    $targetGid,
+                    $village->runtimeState?->tribe_id !== null ? (int) $village->runtimeState->tribe_id : null,
+                ) ?? (int) $target->slot_id;
+                $currentSlot = $village->buildings->firstWhere('slot_id', $targetSlotId);
+
+                if (! $currentSlot instanceof VillageBuilding) {
+                    continue;
+                }
+
+                $currentGid = (int) $currentSlot->building_gid;
+                $currentLevel = (int) $currentSlot->current_level;
+
+                if ($currentGid !== 0 && $currentGid !== $targetGid) {
+                    continue;
+                }
+
+                if ($currentLevel >= $requiredLevel) {
+                    continue;
+                }
+
+                if ($currentGid === 0) {
+                    $eligibility = TravianBuildingCatalog::canConstructInVillage($targetGid, $account, $village);
+
+                    if (! $eligibility->allowed) {
+                        return $this->selectMissingRequirementCandidate($account, $village, $targets, $eligibility->missingRequirements, $depth + 1);
+                    }
+
+                    return [
+                        'target' => $target,
+                        'current_slot' => $currentSlot,
+                        'target_gid' => $targetGid,
+                        'mode' => 'construct',
+                    ];
+                }
+
+                return [
+                    'target' => $target,
+                    'current_slot' => $currentSlot,
+                    'target_gid' => $targetGid,
+                    'mode' => 'upgrade',
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  list<array{target: VillageBuildingTarget, current_slot: VillageBuilding, target_gid: int, mode: 'upgrade'|'construct'}>  $candidates
+     * @param  array<string, true>  $candidateKeys
+     * @param  array{target: VillageBuildingTarget, current_slot: VillageBuilding, target_gid: int, mode: 'upgrade'|'construct'}  $candidate
+     */
+    protected function appendBuildingCandidate(array &$candidates, array &$candidateKeys, array $candidate): void
+    {
+        $key = (int) $candidate['current_slot']->slot_id.':'.(int) $candidate['target_gid'].':'.$candidate['mode'];
+
+        if (isset($candidateKeys[$key])) {
+            return;
+        }
+
+        $candidateKeys[$key] = true;
+        $candidates[] = $candidate;
+    }
+
+    protected function resolveTargetGid(VillageBuildingTarget $target): int
+    {
+        $targetGid = (int) $target->building_gid;
+
+        if ($targetGid !== 0) {
+            return $targetGid;
+        }
+
+        $targetGid = TravianBuildingCatalog::gidForName($target->building_type) ?? 0;
+
+        if ($targetGid > 0) {
+            $target->forceFill([
+                'building_gid' => $targetGid,
+            ])->save();
+        }
+
+        return $targetGid;
     }
 
     /**

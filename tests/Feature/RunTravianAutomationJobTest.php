@@ -3,6 +3,7 @@
 use App\Application\Accounts\Automation\PlanNextAccountAutomation;
 use App\Application\Accounts\Construction\RunAccountAutomation;
 use App\Application\Accounts\Sync\SyncAccountOverview;
+use App\Enums\AccountStatus;
 use App\Jobs\RunTravianAutomationJob;
 use App\Models\Account;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -14,6 +15,9 @@ test('smart automation uses a fresh local snapshot without syncing first', funct
         'is_active' => true,
         'is_archived' => false,
         'last_sync_at' => now(),
+        'status' => AccountStatus::Error,
+        'last_error_at' => now(),
+        'last_error_message' => 'Previous queue failure.',
     ]);
     $village = $account->villages()->create([
         'travian_village_id' => '12345',
@@ -51,7 +55,12 @@ test('smart automation uses a fresh local snapshot without syncing first', funct
 
     (new RunTravianAutomationJob($account->id))->handle($syncAccountOverview, $runAccountAutomation, app(PlanNextAccountAutomation::class));
 
-    expect($account->fresh()->next_automation_at)->not->toBeNull();
+    $freshAccount = $account->fresh();
+
+    expect($freshAccount->next_automation_at)->not->toBeNull();
+    expect($freshAccount->status)->toBe(AccountStatus::Active);
+    expect($freshAccount->last_error_at)->toBeNull();
+    expect($freshAccount->last_error_message)->toBeNull();
 });
 
 test('smart automation does not refresh only because a complete snapshot is old', function () {

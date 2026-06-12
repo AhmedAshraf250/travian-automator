@@ -30,7 +30,7 @@ class ImportBulkAccounts
         DB::transaction(function () use ($records, &$importedCount, &$updatedCount, &$archivedCount): void {
             $activeImportKeys = [];
 
-            foreach ($records as $record) {
+            foreach ($records as $position => $record) {
                 $activeImportKeys[$this->buildImportKey($record->serverUrl, $record->username)] = true;
 
                 $account = Account::query()->firstOrNew([
@@ -47,6 +47,7 @@ class ImportBulkAccounts
                     'user_agent' => $record->userAgent,
                     'managed_by_import' => true,
                     'is_archived' => false,
+                    'import_position' => $position + 1,
                     'is_active' => true,
                     'status' => $account->status ?? AccountStatus::Paused,
                 ]);
