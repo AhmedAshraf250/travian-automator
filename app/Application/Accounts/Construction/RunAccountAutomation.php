@@ -3,9 +3,14 @@
 namespace App\Application\Accounts\Construction;
 
 use App\Application\Accounts\Celebrations\ExecuteVillageCelebration;
+use App\Application\Accounts\Connection\RecordsAccountAuthenticationFailure;
+use App\Application\Accounts\Connection\RecordsAccountConnectionFailure;
 use App\Application\Accounts\Hero\ExecuteHeroAutomation;
 use App\Application\Accounts\Session\Actions\TravianLoginAction;
 use App\Application\Accounts\Session\Contracts\AccountSessionFactory;
+use App\Application\Accounts\Session\Exceptions\AuthenticationFailedException;
+use App\Application\Accounts\Session\Exceptions\ExternalAccountRequestsPaused;
+use App\Application\Accounts\Trading\ExecuteVillageResourceTransfer;
 use App\Enums\ActivityLogStatus;
 use App\Enums\ActivityType;
 use App\Models\Account;
@@ -25,8 +30,11 @@ class RunAccountAutomation
         protected AccountSessionFactory $accountSessionFactory,
         protected TravianLoginAction $travianLoginAction,
         protected ExecuteVillageConstruction $executeVillageConstruction,
+        protected ExecuteVillageResourceTransfer $executeVillageResourceTransfer,
         protected ExecuteVillageCelebration $executeVillageCelebration,
         protected ExecuteHeroAutomation $executeHeroAutomation,
+        protected RecordsAccountAuthenticationFailure $recordsAccountAuthenticationFailure,
+        protected RecordsAccountConnectionFailure $recordsAccountConnectionFailure,
     ) {}
 
     /**
@@ -34,7 +42,7 @@ class RunAccountAutomation
      */
     public function handle(Account $account, ?int $targetVillageId = null): void
     {
-        if (! $account->is_active || ! SystemSetting::automationEnabled()) {
+        if (! $account->is_active || $account->isWaitingForConnectionRetry() || ! SystemSetting::automationEnabled()) {
             return;
         }
 
@@ -64,13 +72,29 @@ class RunAccountAutomation
 
             foreach ($account->villages as $village) {
                 $this->executeVillageConstruction->handle($account, $village, $session);
+                $this->executeVillageResourceTransfer->supportNegativeCrop($account, $village, $session);
                 $this->executeVillageCelebration->handle($account, $village, $session);
             }
 
             $this->executeHeroAutomation->handle($account, $session);
 
+            $this->recordsAccountConnectionFailure->clear($account);
             $session->persist();
+        } catch (ExternalAccountRequestsPaused $throwable) {
+            ActivityLog::query()->create([
+                'account_id' => $account->id,
+                'activity_type' => ActivityType::Build,
+                'status' => ActivityLogStatus::Done,
+                'message' => $throwable->getMessage(),
+                'executed_at' => now(),
+            ]);
+        } catch (AuthenticationFailedException $throwable) {
+            $this->recordsAccountAuthenticationFailure->handle($account, ActivityType::Build, null, $throwable);
         } catch (Throwable $throwable) {
+            if ($this->recordsAccountConnectionFailure->shouldBackOff($throwable)) {
+                throw $this->recordsAccountConnectionFailure->handle($account, ActivityType::Build, null, $throwable);
+            }
+
             ActivityLog::query()->create([
                 'account_id' => $account->id,
                 'activity_type' => ActivityType::Build,

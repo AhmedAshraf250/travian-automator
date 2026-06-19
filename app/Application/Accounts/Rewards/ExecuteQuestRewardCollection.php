@@ -2,6 +2,7 @@
 
 namespace App\Application\Accounts\Rewards;
 
+use App\Application\Accounts\Connection\RecordsAccountConnectionFailure;
 use App\Application\Accounts\Rewards\Data\CollectableQuestReward;
 use App\Application\Accounts\Rewards\Parsers\QuestRewardsParser;
 use App\Application\Accounts\Session\Contracts\AccountSession;
@@ -27,6 +28,7 @@ class ExecuteQuestRewardCollection
      */
     public function __construct(
         protected QuestRewardsParser $questRewardsParser,
+        protected RecordsAccountConnectionFailure $recordsAccountConnectionFailure,
     ) {}
 
     /**
@@ -105,6 +107,10 @@ class ExecuteQuestRewardCollection
                 ]);
             }
         } catch (Throwable $throwable) {
+            if ($this->recordsAccountConnectionFailure->shouldBackOff($throwable)) {
+                throw $throwable;
+            }
+
             $this->logRewardActivity($account, $village, ActivityLogStatus::Failed, 'Quest reward automation failed: '.$throwable->getMessage());
         }
     }

@@ -14,8 +14,11 @@ final readonly class AccountImportRecord
         public string $serverUrl,
         public string $username,
         public string $password,
+        public string $proxyScheme,
         public ?string $proxyIp,
         public ?int $proxyPort,
+        public ?string $proxyUsername,
+        public ?string $proxyPassword,
         public ?string $userAgent,
     ) {}
 }

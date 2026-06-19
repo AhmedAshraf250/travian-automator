@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\AccountStatus;
 use App\Enums\ActivityLogStatus;
 use App\Enums\ActivityType;
+use Carbon\CarbonInterface;
 use Database\Factories\AccountFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,6 +21,7 @@ use JsonException;
     'server_url',
     'username',
     'password',
+    'proxy_scheme',
     'proxy_ip',
     'proxy_port',
     'proxy_username',
@@ -35,9 +37,13 @@ use JsonException;
     'last_sync_at',
     'next_automation_at',
     'automation_dispatched_at',
+    'connection_failure_count',
+    'connection_retry_after',
     'last_login_at',
     'last_error_at',
     'last_error_message',
+    'last_connection_error_at',
+    'last_connection_error_message',
 ])]
 class Account extends Model
 {
@@ -63,8 +69,11 @@ class Account extends Model
             'last_sync_at' => 'immutable_datetime',
             'next_automation_at' => 'immutable_datetime',
             'automation_dispatched_at' => 'immutable_datetime',
+            'connection_failure_count' => 'integer',
+            'connection_retry_after' => 'immutable_datetime',
             'last_login_at' => 'immutable_datetime',
             'last_error_at' => 'immutable_datetime',
+            'last_connection_error_at' => 'immutable_datetime',
         ];
     }
 
@@ -119,9 +128,17 @@ class Account extends Model
             ])
             ->whereIn('status', [
                 ActivityLogStatus::Done,
-                ActivityLogStatus::Failed,
             ])
             ->latestOfMany();
+    }
+
+    /**
+     * Determine whether external requests should wait for the current retry window.
+     */
+    public function isWaitingForConnectionRetry(): bool
+    {
+        return $this->connection_retry_after instanceof CarbonInterface
+            && $this->connection_retry_after->isFuture();
     }
 
     /**
@@ -132,6 +149,7 @@ class Account extends Model
         try {
             $payload = json_encode([
                 'server_url' => $this->server_url,
+                'proxy_scheme' => $this->proxy_scheme,
                 'proxy_ip' => $this->proxy_ip,
                 'proxy_port' => $this->proxy_port,
                 'proxy_username' => $this->proxy_username,
@@ -141,6 +159,7 @@ class Account extends Model
         } catch (JsonException) {
             $payload = implode('|', [
                 (string) $this->server_url,
+                (string) $this->proxy_scheme,
                 (string) $this->proxy_ip,
                 (string) $this->proxy_port,
                 (string) $this->proxy_username,

@@ -7,7 +7,6 @@ namespace App\Enums;
  */
 enum VillageCelebrationType: string
 {
-    case Auto = 'auto';
     case Small = 'small';
     case Great = 'great';
 }

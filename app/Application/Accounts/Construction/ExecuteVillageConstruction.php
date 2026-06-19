@@ -2,7 +2,9 @@
 
 namespace App\Application\Accounts\Construction;
 
+use App\Application\Accounts\Connection\RecordsAccountConnectionFailure;
 use App\Application\Accounts\Construction\Data\BuildPageAnalysis;
+use App\Application\Accounts\Hero\UseHeroResourcesForConstruction;
 use App\Application\Accounts\Session\Actions\TravianLoginAction;
 use App\Application\Accounts\Session\Contracts\AccountSession;
 use App\Application\Accounts\Session\Data\SessionResponse;
@@ -38,10 +40,12 @@ class ExecuteVillageConstruction
     public function __construct(
         protected TravianLoginAction $travianLoginAction,
         protected BuildPageAnalyzer $buildPageAnalyzer,
+        protected UseHeroResourcesForConstruction $useHeroResourcesForConstruction,
         protected ExecuteVillageResourceTransfer $executeVillageResourceTransfer,
         protected Dorf1OverviewParser $dorf1OverviewParser,
         protected Dorf2OverviewParser $dorf2OverviewParser,
         protected PersistVillageOverview $persistVillageOverview,
+        protected RecordsAccountConnectionFailure $recordsAccountConnectionFailure,
     ) {}
 
     /**
@@ -87,23 +91,44 @@ class ExecuteVillageConstruction
             $buildingCandidates = ! $settings->pause_buildings && $queueAvailability['building']
                 ? $this->selectBuildingCandidates($account, $village)
                 : [];
+            $fieldCandidates = $this->applySchedulePreferences($fieldCandidates, $settings, 'field');
+            $buildingCandidates = $this->applySchedulePreferences($buildingCandidates, $settings, 'building');
+            $visibleScheduleKeys = $this->visibleScheduleKeys($fieldCandidates, $buildingCandidates, $settings);
+            $fieldCandidates = $this->filterCandidatesByScheduleKeys($fieldCandidates, $visibleScheduleKeys, 'field');
+            $buildingCandidates = $this->filterCandidatesByScheduleKeys($buildingCandidates, $visibleScheduleKeys, 'building');
             $firstResourceShortage = null;
             $anyConstructionExecuted = false;
 
             if (TravianBuildingCatalog::isRomanTribe($tribeId)) {
-                if ($fieldCandidates !== [] && $queueAvailability['field']) {
-                    $fieldResult = $this->executeFirstFieldCandidate($account, $village, $session, $fieldCandidates);
-                    $anyConstructionExecuted = $anyConstructionExecuted || $fieldResult['executed'];
-                    $firstResourceShortage ??= $fieldResult['resource_shortage'];
-                }
+                foreach ($this->resolveRomanQueueOrder($fieldCandidates, $buildingCandidates, $settings) as $queueKind) {
+                    if ($queueKind === 'field' && $fieldCandidates !== [] && $queueAvailability['field']) {
+                        $fieldResult = $this->executeFirstFieldCandidate($account, $village, $session, $fieldCandidates, $settings);
+                        $anyConstructionExecuted = $anyConstructionExecuted || $fieldResult['executed'];
+                        $firstResourceShortage ??= $fieldResult['resource_shortage'];
 
-                if ($buildingCandidates !== [] && $queueAvailability['building']) {
-                    $buildingResult = $this->executeFirstBuildingCandidate($account, $village, $session, $buildingCandidates, $switchResponse->effectiveUri);
-                    $anyConstructionExecuted = $anyConstructionExecuted || $buildingResult['executed'];
-                    $firstResourceShortage ??= $buildingResult['resource_shortage'];
+                        if ($fieldResult['blocked_by_schedule_stop']) {
+                            break;
+                        }
+
+                        continue;
+                    }
+
+                    if ($queueKind === 'building' && $buildingCandidates !== [] && $queueAvailability['building']) {
+                        $buildingResult = $this->executeFirstBuildingCandidate($account, $village, $session, $buildingCandidates, $switchResponse->effectiveUri, $settings);
+                        $anyConstructionExecuted = $anyConstructionExecuted || $buildingResult['executed'];
+                        $firstResourceShortage ??= $buildingResult['resource_shortage'];
+
+                        if ($buildingResult['blocked_by_schedule_stop']) {
+                            break;
+                        }
+                    }
                 }
 
                 if (! $anyConstructionExecuted && $firstResourceShortage !== null) {
+                    if ($this->retryConstructionAfterHeroResources($account, $village, $session, $firstResourceShortage)) {
+                        return;
+                    }
+
                     $this->executeVillageResourceTransfer->handle(
                         $account,
                         $village,
@@ -116,27 +141,43 @@ class ExecuteVillageConstruction
                 return;
             }
 
-            if ($fieldCandidates !== [] && $queueAvailability['field']) {
-                $fieldResult = $this->executeFirstFieldCandidate($account, $village, $session, $fieldCandidates);
+            foreach ($this->resolveSingleQueueOrder($fieldCandidates, $buildingCandidates, $settings) as $queueKind) {
+                if ($queueKind === 'field' && $fieldCandidates !== [] && $queueAvailability['field']) {
+                    $fieldResult = $this->executeFirstFieldCandidate($account, $village, $session, $fieldCandidates, $settings);
 
-                if ($fieldResult['executed']) {
-                    return;
+                    if ($fieldResult['executed']) {
+                        return;
+                    }
+
+                    $firstResourceShortage ??= $fieldResult['resource_shortage'];
+
+                    if ($fieldResult['blocked_by_schedule_stop']) {
+                        break;
+                    }
+
+                    continue;
                 }
 
-                $firstResourceShortage ??= $fieldResult['resource_shortage'];
-            }
+                if ($queueKind === 'building' && $buildingCandidates !== [] && $queueAvailability['building']) {
+                    $buildingResult = $this->executeFirstBuildingCandidate($account, $village, $session, $buildingCandidates, $switchResponse->effectiveUri, $settings);
 
-            if ($buildingCandidates !== [] && $queueAvailability['building']) {
-                $buildingResult = $this->executeFirstBuildingCandidate($account, $village, $session, $buildingCandidates, $switchResponse->effectiveUri);
+                    if ($buildingResult['executed']) {
+                        return;
+                    }
 
-                if ($buildingResult['executed']) {
-                    return;
+                    $firstResourceShortage ??= $buildingResult['resource_shortage'];
+
+                    if ($buildingResult['blocked_by_schedule_stop']) {
+                        break;
+                    }
                 }
-
-                $firstResourceShortage ??= $buildingResult['resource_shortage'];
             }
 
             if ($firstResourceShortage !== null) {
+                if ($this->retryConstructionAfterHeroResources($account, $village, $session, $firstResourceShortage)) {
+                    return;
+                }
+
                 $this->executeVillageResourceTransfer->handle(
                     $account,
                     $village,
@@ -146,6 +187,10 @@ class ExecuteVillageConstruction
                 );
             }
         } catch (Throwable $throwable) {
+            if ($this->recordsAccountConnectionFailure->shouldBackOff($throwable)) {
+                throw $throwable;
+            }
+
             ActivityLog::query()->create([
                 'account_id' => $account->id,
                 'village_id' => $village->id,
@@ -213,7 +258,11 @@ class ExecuteVillageConstruction
         $priorityMap = $this->resolveEffectiveFieldPriority($settings);
         $prioritizeCropRecovery = $this->shouldPrioritizeCropFieldsForNegativeProduction($village, $settings);
         $fieldSlots = $village->buildings
-            ->filter(static fn (VillageBuilding $slot): bool => $slot->slot_id >= 1 && $slot->slot_id <= 18 && $slot->building_gid >= 1 && $slot->building_gid <= 4)
+            ->filter(static fn (VillageBuilding $slot): bool => $slot->slot_id >= 1
+                && $slot->slot_id <= 18
+                && $slot->building_gid >= 1
+                && $slot->building_gid <= 4
+                && (bool) $slot->automation_enabled)
             ->values()
             ->all();
 
@@ -307,7 +356,8 @@ class ExecuteVillageConstruction
             ->filter(static fn (VillageBuilding $slot): bool => $slot->slot_id >= 1
                 && $slot->slot_id <= 18
                 && (int) $slot->building_gid === 4
-                && (int) $slot->current_level < 10)
+                && (int) $slot->current_level < 10
+                && (bool) $slot->automation_enabled)
             ->sortBy([
                 ['current_level', 'asc'],
                 ['slot_id', 'asc'],
@@ -362,11 +412,7 @@ class ExecuteVillageConstruction
 
             $otherPriority = $priorityMap[$fieldKey] ?? 999;
 
-            if ($otherPriority === $candidatePriority) {
-                $allowedLead = 0;
-            } else {
-                $allowedLead = abs($otherPriority - $candidatePriority);
-            }
+            $allowedLead = max(2, abs($otherPriority - $candidatePriority));
 
             if ($candidateNextLevel > ((int) $minLevel + $allowedLead)) {
                 return false;
@@ -380,10 +426,15 @@ class ExecuteVillageConstruction
      * Try field candidates in order until one can actually issue a build action.
      *
      * @param  list<array{slot: VillageBuilding, field_key: string}>  $candidates
-     * @return array{executed: bool, resource_shortage: array{payload: array<string, mixed>, analysis: BuildPageAnalysis}|null}
+     * @return array{executed: bool, blocked_by_schedule_stop: bool, resource_shortage: array{payload: array<string, mixed>, analysis: BuildPageAnalysis}|null}
      */
-    protected function executeFirstFieldCandidate(Account $account, Village $village, AccountSession $session, array $candidates): array
-    {
+    protected function executeFirstFieldCandidate(
+        Account $account,
+        Village $village,
+        AccountSession $session,
+        array $candidates,
+        VillageSetting $settings,
+    ): array {
         $cropFallbackNeeded = false;
         $firstResourceShortage = null;
 
@@ -394,7 +445,16 @@ class ExecuteVillageConstruction
             if ($result['executed']) {
                 return [
                     'executed' => true,
+                    'blocked_by_schedule_stop' => false,
                     'resource_shortage' => null,
+                ];
+            }
+
+            if ($this->candidateIsHeld($candidate, $settings, 'field')) {
+                return [
+                    'executed' => false,
+                    'blocked_by_schedule_stop' => true,
+                    'resource_shortage' => $firstResourceShortage,
                 ];
             }
 
@@ -406,6 +466,7 @@ class ExecuteVillageConstruction
         if (! $cropFallbackNeeded) {
             return [
                 'executed' => false,
+                'blocked_by_schedule_stop' => false,
                 'resource_shortage' => $firstResourceShortage,
             ];
         }
@@ -417,6 +478,7 @@ class ExecuteVillageConstruction
             if ($result['executed']) {
                 return [
                     'executed' => true,
+                    'blocked_by_schedule_stop' => false,
                     'resource_shortage' => null,
                 ];
             }
@@ -424,6 +486,7 @@ class ExecuteVillageConstruction
 
         return [
             'executed' => false,
+            'blocked_by_schedule_stop' => false,
             'resource_shortage' => $firstResourceShortage,
         ];
     }
@@ -437,7 +500,7 @@ class ExecuteVillageConstruction
      *     target_gid: int,
      *     mode: 'upgrade'|'construct'
      * }>  $candidates
-     * @return array{executed: bool, resource_shortage: array{payload: array<string, mixed>, analysis: BuildPageAnalysis}|null}
+     * @return array{executed: bool, blocked_by_schedule_stop: bool, resource_shortage: array{payload: array<string, mixed>, analysis: BuildPageAnalysis}|null}
      */
     protected function executeFirstBuildingCandidate(
         Account $account,
@@ -445,6 +508,7 @@ class ExecuteVillageConstruction
         AccountSession $session,
         array $candidates,
         string $villageReferer,
+        VillageSetting $settings,
     ): array {
         $villageCenterResponse = $session->get(
             (string) config('travian.paths.village_center', '/dorf2.php'),
@@ -454,10 +518,20 @@ class ExecuteVillageConstruction
         $firstResourceShortage = null;
 
         foreach ($candidates as $candidate) {
+            $originalCandidate = $candidate;
+
             if ($liveDorf2Overview instanceof ParsedDorf2Overview) {
                 $candidate = $this->confirmBuildingCandidateAgainstLiveDorf2($village, $candidate, $liveDorf2Overview);
 
                 if ($candidate === null) {
+                    if ($this->candidateIsHeld($originalCandidate, $settings, 'building')) {
+                        return [
+                            'executed' => false,
+                            'blocked_by_schedule_stop' => true,
+                            'resource_shortage' => null,
+                        ];
+                    }
+
                     continue;
                 }
             }
@@ -468,13 +542,23 @@ class ExecuteVillageConstruction
             if ($result['executed']) {
                 return [
                     'executed' => true,
+                    'blocked_by_schedule_stop' => false,
                     'resource_shortage' => null,
+                ];
+            }
+
+            if ($this->candidateIsHeld($candidate, $settings, 'building')) {
+                return [
+                    'executed' => false,
+                    'blocked_by_schedule_stop' => true,
+                    'resource_shortage' => $firstResourceShortage,
                 ];
             }
         }
 
         return [
             'executed' => false,
+            'blocked_by_schedule_stop' => false,
             'resource_shortage' => $firstResourceShortage,
         ];
     }
@@ -593,6 +677,10 @@ class ExecuteVillageConstruction
                 continue;
             }
 
+            if (! (bool) $currentSlot->automation_enabled) {
+                continue;
+            }
+
             $currentGid = (int) $currentSlot->building_gid;
             $currentLevel = (int) $currentSlot->current_level;
 
@@ -681,6 +769,10 @@ class ExecuteVillageConstruction
                 $currentSlot = $village->buildings->firstWhere('slot_id', $targetSlotId);
 
                 if (! $currentSlot instanceof VillageBuilding) {
+                    continue;
+                }
+
+                if (! (bool) $currentSlot->automation_enabled) {
                     continue;
                 }
 
@@ -793,6 +885,7 @@ class ExecuteVillageConstruction
             'build_page_uri' => $buildPageUri,
             'build_effective_uri' => $resolvedAction['build_effective_uri'],
             'field_key' => $candidate['field_key'],
+            'schedule_key' => $this->fieldCandidateScheduleKey($candidate),
         ];
 
         if ($resolvedAction['action_uri'] === null) {
@@ -896,6 +989,7 @@ class ExecuteVillageConstruction
             'mode' => $candidate['mode'],
             'build_page_uri' => $buildPageUri,
             'build_effective_uri' => $resolvedAction['build_effective_uri'],
+            'schedule_key' => $this->buildingCandidateScheduleKey($candidate),
         ];
 
         if ($resolvedAction['action_uri'] === null) {
@@ -995,6 +1089,91 @@ class ExecuteVillageConstruction
             'message' => $successMessage,
             'executed_at' => now(),
         ]);
+    }
+
+    /**
+     * Try to fill the first shortage from hero inventory, then immediately press the build action.
+     *
+     * @param  array{payload: array<string, mixed>, analysis: BuildPageAnalysis}  $resourceShortage
+     */
+    protected function retryConstructionAfterHeroResources(
+        Account $account,
+        Village $village,
+        AccountSession $session,
+        array $resourceShortage,
+    ): bool {
+        $payload = $resourceShortage['payload'];
+        $analysis = $resourceShortage['analysis'];
+
+        if (! $this->useHeroResourcesForConstruction->handle($account, $village, $session, $payload, $analysis)) {
+            return false;
+        }
+
+        $buildPageUri = (string) ($payload['build_page_uri'] ?? '');
+
+        if ($buildPageUri === '') {
+            return false;
+        }
+
+        $reloadBuildPageUri = $this->appendReloadAuto($buildPageUri);
+        $targetGid = (string) ($payload['queue_kind'] ?? '') === 'building'
+            && (string) ($payload['mode'] ?? '') === 'construct'
+            ? (int) ($payload['building_gid'] ?? 0)
+            : null;
+        $resolvedAction = $this->resolveActionUri(
+            $session,
+            $reloadBuildPageUri,
+            $this->absoluteUri((string) ($payload['build_effective_uri'] ?? $buildPageUri), $account),
+            $targetGid !== null && $targetGid > 0 ? $targetGid : null,
+        );
+
+        if ($resolvedAction === null) {
+            return false;
+        }
+
+        $payload['build_page_uri'] = $reloadBuildPageUri;
+        $payload['build_effective_uri'] = $resolvedAction['build_effective_uri'];
+
+        if ($resolvedAction['action_uri'] === null) {
+            $this->recordResourceShortageCandidate($village, $payload, $resolvedAction['analysis']);
+            $this->recordBuildPageBlockedCandidate($account, $village, $payload, $resolvedAction['analysis']);
+
+            return false;
+        }
+
+        $this->performBuildAction(
+            account: $account,
+            village: $village,
+            session: $session,
+            actionUri: $resolvedAction['action_uri'],
+            payload: $payload,
+            successMessage: $this->successMessageForConstructionPayload($payload),
+        );
+
+        return true;
+    }
+
+    protected function appendReloadAuto(string $uri): string
+    {
+        if (preg_match('/([?&])reload=[^&]*/', $uri) === 1) {
+            return preg_replace('/([?&])reload=[^&]*/', '$1reload=auto', $uri) ?? $uri;
+        }
+
+        return $uri.(str_contains($uri, '?') ? '&' : '?').'reload=auto';
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    protected function successMessageForConstructionPayload(array $payload): string
+    {
+        if (($payload['queue_kind'] ?? null) === 'field') {
+            return 'Field upgrade order issued successfully.';
+        }
+
+        return ($payload['mode'] ?? null) === 'construct'
+            ? 'Building construction order issued successfully.'
+            : 'Building upgrade order issued successfully.';
     }
 
     /**
@@ -1241,6 +1420,7 @@ class ExecuteVillageConstruction
             'remaining_seconds' => null,
             'remaining_label' => 'Queued now',
             'finish_label' => null,
+            'recorded_at' => now()->toIso8601String(),
         ];
 
         $constructionEntries = array_values(array_filter(
@@ -1296,6 +1476,7 @@ class ExecuteVillageConstruction
             'final_target_level' => isset($payload['final_target_level']) ? (int) $payload['final_target_level'] : null,
             'mode' => $payload['mode'] ?? null,
             'field_key' => $payload['field_key'] ?? null,
+            'schedule_key' => $payload['schedule_key'] ?? null,
             'build_page_uri' => $payload['build_page_uri'] ?? null,
             'build_effective_uri' => $payload['build_effective_uri'] ?? null,
             'required_resources' => $analysis->requiredResources,
@@ -1412,6 +1593,271 @@ class ExecuteVillageConstruction
             'message' => 'Construction candidate blocked by build page.',
             'executed_at' => now(),
         ]);
+    }
+
+    /**
+     * Move dashboard-pinned schedule entries to the front without changing the natural order of everything else.
+     *
+     * @template T of array<string, mixed>
+     *
+     * @param  list<T>  $candidates
+     * @return list<T>
+     */
+    protected function applySchedulePreferences(array $candidates, VillageSetting $settings, string $queueKind): array
+    {
+        if ($candidates === []) {
+            return [];
+        }
+
+        $pinnedKeys = $this->constructionSchedulePreferences($settings)['pinned'];
+
+        if ($pinnedKeys === []) {
+            return $candidates;
+        }
+
+        $pinnedPositions = array_flip($pinnedKeys);
+        $indexedCandidates = array_map(
+            fn (array $candidate, int $index): array => [
+                'candidate' => $candidate,
+                'index' => $index,
+                'pinned_position' => $pinnedPositions[$this->candidateScheduleKey($candidate, $queueKind)] ?? PHP_INT_MAX,
+            ],
+            $candidates,
+            array_keys($candidates),
+        );
+
+        usort($indexedCandidates, static function (array $left, array $right): int {
+            if ($left['pinned_position'] !== $right['pinned_position']) {
+                return $left['pinned_position'] <=> $right['pinned_position'];
+            }
+
+            return $left['index'] <=> $right['index'];
+        });
+
+        return array_values(array_map(
+            static fn (array $row): array => $row['candidate'],
+            $indexedCandidates,
+        ));
+    }
+
+    /**
+     * Keep execution aligned with the compact dashboard schedule window.
+     *
+     * @param  list<array<string, mixed>>  $fieldCandidates
+     * @param  list<array<string, mixed>>  $buildingCandidates
+     * @return list<string>
+     */
+    protected function visibleScheduleKeys(array $fieldCandidates, array $buildingCandidates, VillageSetting $settings): array
+    {
+        $rows = [];
+
+        foreach ($fieldCandidates as $candidate) {
+            $rows[] = [
+                'key' => $this->candidateScheduleKey($candidate, 'field'),
+                'kind' => 'field',
+            ];
+        }
+
+        foreach ($buildingCandidates as $candidate) {
+            $rows[] = [
+                'key' => $this->candidateScheduleKey($candidate, 'building'),
+                'kind' => 'building',
+            ];
+        }
+
+        $pinnedPositions = array_flip($this->constructionSchedulePreferences($settings)['pinned']);
+
+        $orderedRows = collect($rows)
+            ->values()
+            ->map(static fn (array $row, int $index): array => [
+                ...$row,
+                'index' => $index,
+                'pinned_position' => $pinnedPositions[$row['key']] ?? PHP_INT_MAX,
+            ])
+            ->sortBy([
+                ['pinned_position', 'asc'],
+                ['index', 'asc'],
+            ])
+            ->values();
+
+        $primaryRows = $orderedRows->take(8)->values();
+        $visibleRows = $primaryRows;
+
+        if ($orderedRows->contains(static fn (array $row): bool => $row['kind'] === 'building')
+            && $primaryRows->where('kind', 'building')->isEmpty()) {
+            $primaryKeys = $primaryRows->pluck('key')->all();
+            $buildingReserveRows = $orderedRows
+                ->where('kind', 'building')
+                ->reject(static fn (array $row): bool => in_array($row['key'], $primaryKeys, true))
+                ->take(2)
+                ->values();
+
+            $visibleRows = $primaryRows->concat($buildingReserveRows)->take(10)->values();
+        }
+
+        return $visibleRows->pluck('key')->values()->all();
+    }
+
+    /**
+     * @template T of array<string, mixed>
+     *
+     * @param  list<T>  $candidates
+     * @param  list<string>  $visibleScheduleKeys
+     * @return list<T>
+     */
+    protected function filterCandidatesByScheduleKeys(array $candidates, array $visibleScheduleKeys, string $queueKind): array
+    {
+        if ($candidates === [] || $visibleScheduleKeys === []) {
+            return [];
+        }
+
+        $visibleLookup = array_flip($visibleScheduleKeys);
+
+        return array_values(array_filter(
+            $candidates,
+            fn (array $candidate): bool => isset($visibleLookup[$this->candidateScheduleKey($candidate, $queueKind)]),
+        ));
+    }
+
+    /**
+     * Let dashboard pins choose between the Roman field and building lanes.
+     *
+     * @param  list<array<string, mixed>>  $fieldCandidates
+     * @param  list<array<string, mixed>>  $buildingCandidates
+     * @return list<'field'|'building'>
+     */
+    protected function resolveRomanQueueOrder(array $fieldCandidates, array $buildingCandidates, VillageSetting $settings): array
+    {
+        return $this->resolveSingleQueueOrder($fieldCandidates, $buildingCandidates, $settings);
+    }
+
+    /**
+     * Let dashboard pins choose between field and building lanes.
+     *
+     * @param  list<array<string, mixed>>  $fieldCandidates
+     * @param  list<array<string, mixed>>  $buildingCandidates
+     * @return list<'field'|'building'>
+     */
+    protected function resolveSingleQueueOrder(array $fieldCandidates, array $buildingCandidates, VillageSetting $settings): array
+    {
+        $bestFieldPin = $this->firstCandidatePinnedPosition($fieldCandidates, $settings, 'field');
+        $bestBuildingPin = $this->firstCandidatePinnedPosition($buildingCandidates, $settings, 'building');
+
+        if ($bestBuildingPin !== null && ($bestFieldPin === null || $bestBuildingPin < $bestFieldPin)) {
+            return ['building', 'field'];
+        }
+
+        return ['field', 'building'];
+    }
+
+    /**
+     * Find the first dashboard pin position that matches the supplied candidates.
+     *
+     * @param  list<array<string, mixed>>  $candidates
+     */
+    protected function firstCandidatePinnedPosition(array $candidates, VillageSetting $settings, string $queueKind): ?int
+    {
+        $pinnedKeys = $this->constructionSchedulePreferences($settings)['pinned'];
+
+        if ($pinnedKeys === [] || $candidates === []) {
+            return null;
+        }
+
+        $pinnedPositions = array_flip($pinnedKeys);
+        $bestPosition = null;
+
+        foreach ($candidates as $candidate) {
+            $position = $pinnedPositions[$this->candidateScheduleKey($candidate, $queueKind)] ?? null;
+
+            if ($position === null) {
+                continue;
+            }
+
+            $bestPosition = $bestPosition === null ? $position : min($bestPosition, $position);
+        }
+
+        return $bestPosition;
+    }
+
+    /**
+     * Determine whether this candidate is marked as a stop point in the dashboard schedule.
+     *
+     * @param  array<string, mixed>  $candidate
+     */
+    protected function candidateIsHeld(array $candidate, VillageSetting $settings, string $queueKind): bool
+    {
+        $scheduleKey = $this->candidateScheduleKey($candidate, $queueKind);
+        $preferences = $this->constructionSchedulePreferences($settings);
+
+        return in_array($scheduleKey, $preferences['held'], true);
+    }
+
+    /**
+     * @return array{pinned: list<string>, held: list<string>}
+     */
+    protected function constructionSchedulePreferences(VillageSetting $settings): array
+    {
+        $preferences = is_array($settings->construction_schedule)
+            ? $settings->construction_schedule
+            : [];
+
+        return [
+            'pinned' => $this->normalizeScheduleKeys($preferences['pinned'] ?? []),
+            'held' => $this->normalizeScheduleKeys($preferences['held'] ?? []),
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function normalizeScheduleKeys(mixed $keys): array
+    {
+        if (! is_array($keys)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(
+            array_map(static fn (mixed $key): string => is_scalar($key) ? (string) $key : '', $keys),
+            static fn (string $key): bool => $key !== '',
+        )));
+    }
+
+    /**
+     * @param  array<string, mixed>  $candidate
+     */
+    protected function candidateScheduleKey(array $candidate, string $queueKind): string
+    {
+        return $queueKind === 'field'
+            ? $this->fieldCandidateScheduleKey($candidate)
+            : $this->buildingCandidateScheduleKey($candidate);
+    }
+
+    /**
+     * @param  array{slot: VillageBuilding, field_key: string}  $candidate
+     */
+    protected function fieldCandidateScheduleKey(array $candidate): string
+    {
+        $slot = $candidate['slot'];
+
+        return 'field:'.(int) $slot->slot_id.':'.((int) $slot->current_level + 1);
+    }
+
+    /**
+     * @param  array{
+     *     target: VillageBuildingTarget,
+     *     current_slot: VillageBuilding,
+     *     target_gid: int,
+     *     mode: 'upgrade'|'construct'
+     * }  $candidate
+     */
+    protected function buildingCandidateScheduleKey(array $candidate): string
+    {
+        $currentSlot = $candidate['current_slot'];
+        $targetLevel = $candidate['mode'] === 'construct'
+            ? 1
+            : (int) $currentSlot->current_level + 1;
+
+        return 'building:'.(int) $currentSlot->slot_id.':'.$targetLevel;
     }
 
     /**

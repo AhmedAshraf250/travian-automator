@@ -4,6 +4,7 @@ namespace App\Application\Accounts\Celebrations;
 
 use App\Application\Accounts\Celebrations\Data\ParsedCelebrationOption;
 use App\Application\Accounts\Celebrations\Parsers\TownHallCelebrationPageParser;
+use App\Application\Accounts\Connection\RecordsAccountConnectionFailure;
 use App\Application\Accounts\Session\Contracts\AccountSession;
 use App\Enums\ActivityLogStatus;
 use App\Enums\ActivityType;
@@ -24,6 +25,7 @@ class ExecuteVillageCelebration
      */
     public function __construct(
         protected TownHallCelebrationPageParser $townHallCelebrationPageParser,
+        protected RecordsAccountConnectionFailure $recordsAccountConnectionFailure,
     ) {}
 
     /**
@@ -99,6 +101,10 @@ class ExecuteVillageCelebration
                 'executed_at' => now(),
             ]);
         } catch (Throwable $throwable) {
+            if ($this->recordsAccountConnectionFailure->shouldBackOff($throwable)) {
+                throw $throwable;
+            }
+
             ActivityLog::query()->create([
                 'account_id' => $account->id,
                 'village_id' => $village->id,
@@ -126,7 +132,6 @@ class ExecuteVillageCelebration
         $preferredOrder = match ($preferredType) {
             VillageCelebrationType::Great => [VillageCelebrationType::Great, VillageCelebrationType::Small],
             VillageCelebrationType::Small => [VillageCelebrationType::Small, VillageCelebrationType::Great],
-            VillageCelebrationType::Auto => [VillageCelebrationType::Great, VillageCelebrationType::Small],
         };
 
         foreach ($preferredOrder as $candidateType) {

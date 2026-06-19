@@ -210,7 +210,7 @@ test('village celebration automation skips celebrations below the configured thr
     expect(ActivityLog::query()->where('activity_type', ActivityType::Celebration)->exists())->toBeFalse();
 });
 
-test('village celebration automation prefers a great celebration in auto mode when it is available', function () {
+test('village celebration automation prefers a great celebration in great mode when it is available', function () {
     $account = Account::factory()->create([
         'server_url' => 'https://example.com/',
     ]);
@@ -224,7 +224,7 @@ test('village celebration automation prefers a great celebration in auto mode wh
     $village->settings()->create([
         'field_priority' => VillageSetting::defaultFieldPriority(),
         'celebration_enabled' => true,
-        'celebration_type' => 'auto',
+        'celebration_type' => 'great',
         'celebration_min_culture_points' => 300,
     ]);
 

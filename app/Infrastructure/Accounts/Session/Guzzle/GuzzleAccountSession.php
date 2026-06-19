@@ -4,7 +4,9 @@ namespace App\Infrastructure\Accounts\Session\Guzzle;
 
 use App\Application\Accounts\Session\Contracts\AccountSession;
 use App\Application\Accounts\Session\Data\SessionResponse;
+use App\Application\Accounts\Session\Exceptions\ExternalAccountRequestsPaused;
 use App\Models\Account;
+use App\Models\SystemSetting;
 use GuzzleHttp\Client;
 use GuzzleHttp\Cookie\CookieJar;
 use GuzzleHttp\TransferStats;
@@ -80,6 +82,8 @@ class GuzzleAccountSession implements AccountSession
      */
     protected function request(string $method, string $uri, array $options = []): SessionResponse
     {
+        $this->ensureExternalRequestsAreAllowed();
+
         $effectiveUri = $this->buildAbsoluteUri($uri);
 
         $response = $this->client->request($method, $uri, array_merge([
@@ -116,5 +120,24 @@ class GuzzleAccountSession implements AccountSession
         }
 
         return rtrim($this->account->server_url, '/').'/'.ltrim($uri, '/');
+    }
+
+    /**
+     * Stop queued or long-running flows once the user pauses the account/program.
+     */
+    protected function ensureExternalRequestsAreAllowed(): void
+    {
+        $freshAccount = Account::query()
+            ->select(['id', 'is_active', 'is_archived'])
+            ->find($this->account->id);
+
+        if (
+            $freshAccount === null
+            || ! $freshAccount->is_active
+            || $freshAccount->is_archived
+            || ! SystemSetting::automationEnabled()
+        ) {
+            throw new ExternalAccountRequestsPaused('External Travian requests are paused for this account or program.');
+        }
     }
 }

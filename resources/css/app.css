@@ -41,4 +41,8 @@
     * {
         scrollbar-color: color-mix(in oklab, var(--color-muted) 42%, transparent) transparent;
     }
+
+    [x-cloak] {
+        display: none !important;
+    }
 }

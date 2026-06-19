@@ -64,13 +64,25 @@
 
                             <div class="mt-3 flex flex-wrap gap-2">
                                 <button type="button" wire:click="$toggle('villageFieldsAutomationDraft')"
-                                    class="rounded-lg border px-3 py-2 text-xs font-semibold transition {{ $villageFieldsAutomationDraft ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-800 hover:bg-emerald-500/15' : 'border-[var(--color-line-strong)] text-[var(--color-muted)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]' }}">
-                                    Fields {{ $villageFieldsAutomationDraft ? 'ON' : 'OFF' }}
+                                    class="inline-flex items-center gap-2 rounded-full border px-2 py-1.5 text-xs font-semibold transition {{ $villageFieldsAutomationDraft ? 'border-emerald-600/35 bg-emerald-500/10 text-emerald-800' : 'border-rose-600/30 bg-rose-500/10 text-rose-800' }}"
+                                    title="Enable or pause all field upgrades">
+                                    <span class="relative inline-flex h-6 w-11 items-center rounded-full {{ $villageFieldsAutomationDraft ? 'bg-emerald-500' : 'bg-rose-500' }}">
+                                        <span class="absolute inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-black shadow-sm transition {{ $villageFieldsAutomationDraft ? 'right-0.5 text-emerald-700' : 'left-0.5 text-rose-700' }}">
+                                            {{ $villageFieldsAutomationDraft ? '✓' : '×' }}
+                                        </span>
+                                    </span>
+                                    Fields
                                 </button>
 
                                 <button type="button" wire:click="$toggle('villageBuildingsAutomationDraft')"
-                                    class="rounded-lg border px-3 py-2 text-xs font-semibold transition {{ $villageBuildingsAutomationDraft ? 'border-sky-500/35 bg-sky-500/10 text-sky-800 hover:bg-sky-500/15' : 'border-[var(--color-line-strong)] text-[var(--color-muted)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]' }}">
-                                    Buildings {{ $villageBuildingsAutomationDraft ? 'ON' : 'OFF' }}
+                                    class="inline-flex items-center gap-2 rounded-full border px-2 py-1.5 text-xs font-semibold transition {{ $villageBuildingsAutomationDraft ? 'border-emerald-600/35 bg-emerald-500/10 text-emerald-800' : 'border-rose-600/30 bg-rose-500/10 text-rose-800' }}"
+                                    title="Enable or pause all building upgrades">
+                                    <span class="relative inline-flex h-6 w-11 items-center rounded-full {{ $villageBuildingsAutomationDraft ? 'bg-emerald-500' : 'bg-rose-500' }}">
+                                        <span class="absolute inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-black shadow-sm transition {{ $villageBuildingsAutomationDraft ? 'right-0.5 text-emerald-700' : 'left-0.5 text-rose-700' }}">
+                                            {{ $villageBuildingsAutomationDraft ? '✓' : '×' }}
+                                        </span>
+                                    </span>
+                                    Buildings
                                 </button>
                             </div>
                         </section>
@@ -112,6 +124,24 @@
                                 <p class="mt-3 text-xs font-medium text-red-700">{{ $message }}</p>
                             @enderror
                         </section>
+
+                        <section class="rounded-lg border border-[var(--color-line)] bg-[var(--color-panel-alt)] p-4 lg:col-span-2">
+                            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div class="min-w-0">
+                                    <h3 class="text-sm font-semibold text-[var(--color-ink)]">Hero resources</h3>
+                                    <p class="mt-1 max-w-2xl text-xs leading-5 text-[var(--color-muted)]">
+                                        Use stored hero resource rewards to cover construction shortages before trying marketplace support.
+                                    </p>
+                                </div>
+
+                                <label class="inline-flex shrink-0 items-center gap-2 rounded-lg bg-[var(--color-panel)] px-3 py-2 text-xs font-semibold text-[var(--color-muted)]"
+                                    title="Use hero inventory resources before marketplace support">
+                                    <input type="checkbox" wire:model.live="villageHeroResourcesDraft"
+                                        class="h-3.5 w-3.5 rounded border-[var(--color-line-strong)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]" />
+                                    Use Hero Resources
+                                </label>
+                            </div>
+                        </section>
                     </div>
                 @elseif ($villageSettingsTab === 'layouts')
                     <section class="space-y-3">
@@ -131,7 +161,7 @@
                                         <th class="border-b border-[var(--color-line)] px-3 py-2 font-semibold">Building</th>
                                         <th class="border-b border-[var(--color-line)] px-3 py-2 font-semibold">Max level</th>
                                         <th class="border-b border-[var(--color-line)] px-3 py-2 font-semibold">Priority</th>
-                                        <th class="border-b border-[var(--color-line)] px-3 py-2 font-semibold">On</th>
+                                        <th class="border-b border-[var(--color-line)] px-3 py-2 font-semibold">Active</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -258,7 +288,6 @@
                                 <select wire:model.live="villageCelebrationTypeDraft"
                                     @disabled(! $villageCelebrationEnabledDraft)
                                     class="rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition disabled:opacity-50 focus:border-[var(--color-accent)]">
-                                    <option value="auto">Auto prefer great</option>
                                     <option value="small">Small first</option>
                                     <option value="great">Great first</option>
                                 </select>
@@ -284,10 +313,28 @@
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <h3 class="text-sm font-semibold text-[var(--color-ink)]">Trading</h3>
 
-                            <label class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-panel)] px-3 py-2 text-xs font-semibold text-[var(--color-muted)]">
+                            <label class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-panel)] px-3 py-2 text-xs font-semibold text-[var(--color-muted)]"
+                                title="Send Resources From this Village">
                                 <input type="checkbox" wire:model.live="villageSendResourcesDraft"
                                     class="h-3.5 w-3.5 rounded border-[var(--color-line-strong)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]" />
                                 Allow sending resources
+                            </label>
+                        </div>
+
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            <label class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-panel)] px-3 py-2 text-xs font-semibold text-[var(--color-muted)]"
+                                title="Send Resources From Other Villages when needed">
+                                <input type="checkbox" wire:model.live="villageSupplyResourcesDraft"
+                                    class="h-3.5 w-3.5 rounded border-[var(--color-line-strong)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]" />
+                                Supply this Village
+                            </label>
+
+                            <label class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-panel)] px-3 py-2 text-xs font-semibold text-[var(--color-muted)]"
+                                title="feed Troops with Crop">
+                                <input type="checkbox" wire:model.live="villageSupplyNegativeCropDraft"
+                                    @disabled(! $villageSupplyResourcesDraft)
+                                    class="h-3.5 w-3.5 rounded border-[var(--color-line-strong)] text-[var(--color-accent)] disabled:opacity-50 focus:ring-[var(--color-accent)]" />
+                                Supply Negative Crop
                             </label>
                         </div>
 

@@ -2,9 +2,13 @@
 
 namespace App\Application\Accounts\Sync;
 
+use App\Application\Accounts\Connection\RecordsAccountAuthenticationFailure;
+use App\Application\Accounts\Connection\RecordsAccountConnectionFailure;
 use App\Application\Accounts\Session\Actions\TravianLoginAction;
 use App\Application\Accounts\Session\Contracts\AccountSession;
 use App\Application\Accounts\Session\Contracts\AccountSessionFactory;
+use App\Application\Accounts\Session\Exceptions\AuthenticationFailedException;
+use App\Application\Accounts\Session\Exceptions\ExternalAccountRequestsPaused;
 use App\Application\Accounts\Sync\Data\ParsedDorf1Overview;
 use App\Application\Accounts\Sync\Data\ParsedDorf2Overview;
 use App\Application\Accounts\Sync\Data\ParsedVillageSummary;
@@ -35,12 +39,14 @@ class SyncAccountOverview
         protected Dorf1OverviewParser $dorf1OverviewParser,
         protected Dorf2OverviewParser $dorf2OverviewParser,
         protected PersistVillageOverview $persistVillageOverview,
+        protected RecordsAccountAuthenticationFailure $recordsAccountAuthenticationFailure,
+        protected RecordsAccountConnectionFailure $recordsAccountConnectionFailure,
     ) {}
 
     /**
      * Synchronize the given account overview.
      */
-    public function handle(Account $account, ?Village $targetVillage = null): void
+    public function handle(Account $account, ?Village $targetVillage = null, bool $useReloadAuto = false): void
     {
         $accountShouldRemainActive = (bool) $account->is_active;
         $finalAccountStatus = $accountShouldRemainActive ? AccountStatus::Active : AccountStatus::Paused;
@@ -55,8 +61,8 @@ class SyncAccountOverview
             $this->travianLoginAction->handle($account, $session);
 
             $villageSnapshots = $targetVillage instanceof Village
-                ? $this->collectSingleVillageSnapshot($session, $targetVillage)
-                : $this->collectAllVillageSnapshots($account, $session);
+                ? $this->collectSingleVillageSnapshot($session, $targetVillage, $useReloadAuto)
+                : $this->collectAllVillageSnapshots($account, $session, $useReloadAuto);
 
             DB::transaction(function () use ($account, $villageSnapshots, $finalAccountStatus, $accountShouldRemainActive, $targetVillage): void {
                 foreach ($villageSnapshots as $snapshot) {
@@ -67,10 +73,12 @@ class SyncAccountOverview
                     'status' => $finalAccountStatus,
                     'is_active' => $accountShouldRemainActive,
                     'last_sync_at' => now(),
-                    'last_login_at' => now(),
                     'last_error_at' => null,
                     'last_error_message' => null,
-                ])->save();
+                ]);
+
+                $this->recordsAccountConnectionFailure->clear($account);
+                $account->save();
 
                 ActivityLog::query()->create([
                     'account_id' => $account->id,
@@ -85,8 +93,29 @@ class SyncAccountOverview
             });
 
             $session->persist();
+        } catch (ExternalAccountRequestsPaused $throwable) {
+            $account->refresh();
+
+            $account->forceFill([
+                'status' => $account->is_active ? AccountStatus::Active : AccountStatus::Paused,
+            ])->save();
+
+            ActivityLog::query()->create([
+                'account_id' => $account->id,
+                'village_id' => $targetVillage?->id,
+                'activity_type' => ActivityType::Sync,
+                'status' => ActivityLogStatus::Done,
+                'message' => $throwable->getMessage(),
+                'executed_at' => now(),
+            ]);
+        } catch (AuthenticationFailedException $throwable) {
+            $this->recordsAccountAuthenticationFailure->handle($account, ActivityType::Sync, $targetVillage, $throwable);
         } catch (Throwable $throwable) {
             $message = $this->normalizeSyncErrorMessage($throwable);
+
+            if ($this->recordsAccountConnectionFailure->shouldBackOff($throwable)) {
+                throw $this->recordsAccountConnectionFailure->handle($account, ActivityType::Sync, $targetVillage, $throwable);
+            }
 
             $account->forceFill([
                 'status' => AccountStatus::Error,
@@ -116,16 +145,16 @@ class SyncAccountOverview
      *     dorf2: ParsedDorf2Overview
      * }>
      */
-    protected function collectAllVillageSnapshots(Account $account, AccountSession $session): array
+    protected function collectAllVillageSnapshots(Account $account, AccountSession $session, bool $useReloadAuto): array
     {
-        $dorf1Response = $session->get((string) config('travian.paths.overview', '/dorf1.php'));
+        $dorf1Response = $session->get($this->dorf1Path($useReloadAuto));
         $this->dumpDorf1Response($account, $dorf1Response->body, $dorf1Response->effectiveUri);
 
         $initialDorf1Overview = $this->dorf1OverviewParser->parse($dorf1Response->body);
         $dorf2Response = $session->get((string) config('travian.paths.village_center', '/dorf2.php'));
         $initialDorf2Overview = $this->dorf2OverviewParser->parse($dorf2Response->body);
 
-        return $this->collectVillageSnapshots($session, $initialDorf1Overview, $initialDorf2Overview);
+        return $this->collectVillageSnapshots($session, $initialDorf1Overview, $initialDorf2Overview, $useReloadAuto);
     }
 
     /**
@@ -137,14 +166,14 @@ class SyncAccountOverview
      *     dorf2: ParsedDorf2Overview
      * }>
      */
-    protected function collectSingleVillageSnapshot(AccountSession $session, Village $targetVillage): array
+    protected function collectSingleVillageSnapshot(AccountSession $session, Village $targetVillage, bool $useReloadAuto): array
     {
         $session->get(
             (string) config('travian.paths.overview', '/dorf1.php')
             .'?newdid='.rawurlencode((string) $targetVillage->travian_village_id),
         );
 
-        $dorf1Response = $session->get((string) config('travian.paths.overview', '/dorf1.php'));
+        $dorf1Response = $session->get($this->dorf1Path($useReloadAuto));
         $dorf1Overview = $this->dorf1OverviewParser->parse($dorf1Response->body);
         $dorf2Response = $session->get((string) config('travian.paths.village_center', '/dorf2.php'));
         $dorf2Overview = $this->dorf2OverviewParser->parse($dorf2Response->body);
@@ -171,6 +200,7 @@ class SyncAccountOverview
         AccountSession $session,
         ParsedDorf1Overview $initialDorf1Overview,
         ParsedDorf2Overview $initialDorf2Overview,
+        bool $useReloadAuto,
     ): array {
         $snapshots = [
             $initialDorf1Overview->activeVillage->travianVillageId => [
@@ -187,7 +217,7 @@ class SyncAccountOverview
 
             $session->get($this->resolveVillageSwitchUri($villageSummary));
 
-            $dorf1Response = $session->get((string) config('travian.paths.overview', '/dorf1.php'));
+            $dorf1Response = $session->get($this->dorf1Path($useReloadAuto));
             $dorf1Overview = $this->dorf1OverviewParser->parse($dorf1Response->body);
             $dorf2Response = $session->get((string) config('travian.paths.village_center', '/dorf2.php'));
             $dorf2Overview = $this->dorf2OverviewParser->parse($dorf2Response->body);
@@ -272,6 +302,22 @@ class SyncAccountOverview
         }
 
         return $switchUri;
+    }
+
+    protected function dorf1Path(bool $useReloadAuto): string
+    {
+        $path = (string) config('travian.paths.overview', '/dorf1.php');
+
+        return $useReloadAuto ? $this->appendReloadAuto($path) : $path;
+    }
+
+    protected function appendReloadAuto(string $uri): string
+    {
+        if (preg_match('/([?&])reload=[^&]*/', $uri) === 1) {
+            return preg_replace('/([?&])reload=[^&]*/', '$1reload=auto', $uri) ?? $uri;
+        }
+
+        return $uri.(str_contains($uri, '?') ? '&' : '?').'reload=auto';
     }
 
     /**

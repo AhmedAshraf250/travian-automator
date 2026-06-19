@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Application\Accounts\Automation\PlanNextAccountAutomation;
+use App\Application\Accounts\Connection\AccountConnectionBackoffStarted;
 use App\Application\Accounts\Construction\RunAccountAutomation;
 use App\Application\Accounts\Sync\SyncAccountOverview;
 use App\Enums\AccountStatus;
@@ -12,6 +13,7 @@ use App\Models\Account;
 use App\Models\ActivityLog;
 use App\Models\SystemSetting;
 use App\Models\Village;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -56,6 +58,7 @@ class RunTravianAutomationJob implements ShouldBeUnique, ShouldQueue
         public int $accountId,
         public ?int $villageId = null,
         public bool $syncWhenStale = true,
+        public bool $ignoreConnectionBackoff = false,
     ) {}
 
     /**
@@ -94,9 +97,18 @@ class RunTravianAutomationJob implements ShouldBeUnique, ShouldQueue
             ? Village::query()->where('account_id', $account->id)->findOrFail($this->villageId)
             : null;
 
-        if (! SystemSetting::automationEnabled() || ! $account->is_active || $account->is_archived) {
+        if (
+            ! SystemSetting::automationEnabled()
+            || ! $account->is_active
+            || $account->is_archived
+            || $account->isWaitingForConnectionRetry()
+        ) {
             return;
         }
+
+        $account->forceFill([
+            'automation_dispatched_at' => now(),
+        ])->save();
 
         ActivityLog::query()->create([
             'account_id' => $account->id,
@@ -109,17 +121,31 @@ class RunTravianAutomationJob implements ShouldBeUnique, ShouldQueue
             'executed_at' => now(),
         ]);
 
-        if ($this->syncWhenStale && $this->snapshotIsStale($account, $village)) {
-            $syncAccountOverview->handle($account, $village);
-        }
+        try {
+            if ($this->syncWhenStale && $this->snapshotIsStale($account, $village)) {
+                $syncAccountOverview->handle($account, $village);
+            }
 
-        $runAccountAutomation->handle($account->fresh(), $this->villageId);
+            $accountAfterSync = Account::query()->findOrFail($account->id);
+
+            if (
+                ! $accountAfterSync->is_active
+                || $accountAfterSync->is_archived
+                || $accountAfterSync->isWaitingForConnectionRetry()
+            ) {
+                return;
+            }
+
+            $runAccountAutomation->handle($accountAfterSync, $this->villageId);
+        } catch (AccountConnectionBackoffStarted) {
+            return;
+        }
 
         $freshAccount = Account::query()
             ->with('settings', 'heroState', 'villages.runtimeState')
             ->findOrFail($account->id);
 
-        if ($freshAccount->is_active && ! $freshAccount->is_archived) {
+        if ($freshAccount->is_active && ! $freshAccount->is_archived && ! $freshAccount->isWaitingForConnectionRetry()) {
             $freshAccount->forceFill([
                 'status' => AccountStatus::Active,
                 'last_error_at' => null,
@@ -127,7 +153,7 @@ class RunTravianAutomationJob implements ShouldBeUnique, ShouldQueue
             ]);
         }
 
-        if ($this->villageId === null) {
+        if ($freshAccount->is_active && ! $freshAccount->is_archived && ! $freshAccount->isWaitingForConnectionRetry()) {
             $freshAccount->forceFill([
                 'next_automation_at' => $planNextAccountAutomation->handle($freshAccount),
             ]);
@@ -178,7 +204,7 @@ class RunTravianAutomationJob implements ShouldBeUnique, ShouldQueue
             $village->loadMissing('runtimeState', 'resourceState');
 
             return $this->villageSnapshotIsMissing($village)
-                || $this->hasElapsedConstructionTimer($village);
+                || $this->hasElapsedVillageTimer($village);
         }
 
         if ($account->last_sync_at === null || ! $account->villages()->where('is_active', true)->exists()) {
@@ -191,8 +217,9 @@ class RunTravianAutomationJob implements ShouldBeUnique, ShouldQueue
             ->get()
             ->contains(function (Village $village): bool {
                 return $this->villageSnapshotIsMissing($village)
-                    || $this->hasElapsedConstructionTimer($village);
-            });
+                    || $this->hasElapsedVillageTimer($village);
+            })
+            || $this->hasElapsedHeroTimer($account);
     }
 
     /**
@@ -206,10 +233,10 @@ class RunTravianAutomationJob implements ShouldBeUnique, ShouldQueue
     }
 
     /**
-     * Treat completed stored build timers as stale, because levels/resources
-     * only become trustworthy after opening the village again.
+     * Treat completed stored village timers as stale, because local state only
+     * becomes trustworthy after opening the village again.
      */
-    protected function hasElapsedConstructionTimer(Village $village): bool
+    protected function hasElapsedVillageTimer(Village $village): bool
     {
         $runtimeState = $village->runtimeState;
 
@@ -217,14 +244,66 @@ class RunTravianAutomationJob implements ShouldBeUnique, ShouldQueue
             return false;
         }
 
-        $elapsedSeconds = max(0, now()->getTimestamp() - $runtimeState->server_reported_at->getTimestamp());
-
-        foreach ($runtimeState->construction_entries ?? [] as $entry) {
-            if (isset($entry['remaining_seconds']) && (int) $entry['remaining_seconds'] <= $elapsedSeconds) {
-                return true;
+        foreach ([
+            $runtimeState->construction_entries ?? [],
+            $runtimeState->movement_entries ?? [],
+        ] as $entries) {
+            foreach ($entries as $entry) {
+                if (isset($entry['remaining_seconds']) && (int) $entry['remaining_seconds'] <= $this->entryElapsedSeconds($entry, $runtimeState->server_reported_at)) {
+                    return true;
+                }
             }
         }
 
+        $elapsedSeconds = max(0, now()->getTimestamp() - $runtimeState->server_reported_at->getTimestamp());
+
+        if (
+            $runtimeState->hero_remaining_seconds !== null
+            && $runtimeState->hero_status !== null
+            && $runtimeState->hero_status !== 'home'
+            && (int) $runtimeState->hero_remaining_seconds <= $elapsedSeconds
+        ) {
+            return true;
+        }
+
         return false;
+    }
+
+    /**
+     * @param  array<string, mixed>  $entry
+     */
+    protected function entryElapsedSeconds(array $entry, CarbonImmutable $fallbackReportedAt): int
+    {
+        $recordedAt = $entry['recorded_at'] ?? null;
+
+        if (is_string($recordedAt) && $recordedAt !== '') {
+            try {
+                return max(0, now()->getTimestamp() - CarbonImmutable::parse($recordedAt)->getTimestamp());
+            } catch (Throwable) {
+            }
+        }
+
+        return max(0, now()->getTimestamp() - $fallbackReportedAt->getTimestamp());
+    }
+
+    /**
+     * Treat completed account-level hero timers as stale as well.
+     */
+    protected function hasElapsedHeroTimer(Account $account): bool
+    {
+        $account->loadMissing('heroState');
+        $heroState = $account->heroState;
+
+        if ($heroState === null || $heroState->seen_at === null || $heroState->hero_remaining_seconds === null) {
+            return false;
+        }
+
+        if (! in_array($heroState->status, ['adventure', 'returning', 'regenerating'], true)) {
+            return false;
+        }
+
+        $elapsedSeconds = max(0, now()->getTimestamp() - $heroState->seen_at->getTimestamp());
+
+        return (int) $heroState->hero_remaining_seconds <= $elapsedSeconds;
     }
 }

@@ -31,6 +31,11 @@ class DispatchDueAccountAutomation
             ->with('settings', 'heroState', 'villages.runtimeState')
             ->where('is_active', true)
             ->where('is_archived', false)
+            ->where(function ($query) use ($now): void {
+                $query
+                    ->whereNull('connection_retry_after')
+                    ->orWhere('connection_retry_after', '<=', $now);
+            })
             ->when(
                 $accountId !== null,
                 fn ($query) => $query->whereKey($accountId),

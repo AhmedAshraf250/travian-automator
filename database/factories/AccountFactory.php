@@ -22,6 +22,7 @@ class AccountFactory extends Factory
             'server_url' => 'https://ts7.x1.arabics.travian.com/',
             'username' => fake()->unique()->userName(),
             'password' => 'secret-password',
+            'proxy_scheme' => 'http',
             'proxy_ip' => null,
             'proxy_port' => null,
             'proxy_username' => null,
@@ -35,9 +36,13 @@ class AccountFactory extends Factory
             'is_active' => true,
             'status' => AccountStatus::Paused,
             'last_sync_at' => null,
+            'connection_failure_count' => 0,
+            'connection_retry_after' => null,
             'last_login_at' => null,
             'last_error_at' => null,
             'last_error_message' => null,
+            'last_connection_error_at' => null,
+            'last_connection_error_message' => null,
         ];
     }
 }

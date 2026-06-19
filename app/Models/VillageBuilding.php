@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'building_type',
     'current_level',
     'is_under_construction',
+    'automation_enabled',
     'finish_at',
 ])]
 class VillageBuilding extends Model
@@ -32,6 +33,7 @@ class VillageBuilding extends Model
             'building_gid' => 'integer',
             'current_level' => 'integer',
             'is_under_construction' => 'boolean',
+            'automation_enabled' => 'boolean',
             'finish_at' => 'immutable_datetime',
         ];
     }

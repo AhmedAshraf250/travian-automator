@@ -5,7 +5,6 @@ namespace App\Application\Accounts\Session\Actions;
 use App\Application\Accounts\Session\Contracts\AccountSession;
 use App\Application\Accounts\Session\Exceptions\AuthenticationFailedException;
 use App\Models\Account;
-use Illuminate\Support\Facades\Log;
 use JsonException;
 
 /**
@@ -19,39 +18,37 @@ class TravianLoginAction
     public function handle(Account $account, AccountSession $session): void
     {
         $landingPage = $session->get((string) config('travian.paths.landing', '/dorf1.php'));
-        // Log::debug('1', ['start login']);
-        if ($this->isAuthenticatedHtml($landingPage->body)) {
-            // Log::debug('2', ['Already authenticated']);
 
+        if ($this->isAuthenticatedHtml($landingPage->body)) {
             $session->persist();
 
             return;
         }
-        // Log::debug('3', ['Not authenticated, starting login flow']);
+
         $loginResponse = $session->postJson(
             (string) config('travian.paths.auth_login', '/api/v1/auth/login'),
             $this->buildApiLoginPayload($account),
             $this->buildApiLoginOptions($landingPage->body),
         );
-        // Log::debug('4', ['response received', 'body' => $loginResponse->body]);
+
         if (! $loginResponse->successful()) {
-            // Log::debug('5', ['Login failed']);
             throw new AuthenticationFailedException('Travian login API rejected the provided credentials or request context.');
         }
 
         $authRedirectUri = $this->extractAuthRedirectUri($loginResponse->body);
-        // Log::debug('6', ['Auth redirect URI extracted', 'uri' => $authRedirectUri]);
         $authResponse = $session->get($authRedirectUri);
-        // Log::debug('7', ['body' => $authResponse]);
 
         if (! $this->isAuthenticatedHtml($authResponse->body)) {
-            // Log::debug('8', ['body' => '!!']);
             $overviewResponse = $session->get((string) config('travian.paths.overview', '/dorf1.php'));
 
             if (! $this->isAuthenticatedHtml($overviewResponse->body)) {
                 throw new AuthenticationFailedException('Travian login completed, but the session did not reach an authenticated game page.');
             }
         }
+
+        $account->forceFill([
+            'last_login_at' => now(),
+        ]);
 
         $session->persist();
     }

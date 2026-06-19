@@ -17,7 +17,7 @@ class ImportBulkAccounts
     /**
      * Create or update accounts from textarea content.
      *
-     * @return array{imported:int, updated:int, archived:int}
+     * @return array{imported:int, updated:int, archived:int, account_ids:list<int>}
      */
     public function handle(string $contents): array
     {
@@ -26,8 +26,9 @@ class ImportBulkAccounts
         $importedCount = 0;
         $updatedCount = 0;
         $archivedCount = 0;
+        $accountIds = [];
 
-        DB::transaction(function () use ($records, &$importedCount, &$updatedCount, &$archivedCount): void {
+        DB::transaction(function () use ($records, &$importedCount, &$updatedCount, &$archivedCount, &$accountIds): void {
             $activeImportKeys = [];
 
             foreach ($records as $position => $record) {
@@ -42,8 +43,11 @@ class ImportBulkAccounts
 
                 $account->fill([
                     'password' => $record->password,
+                    'proxy_scheme' => $record->proxyScheme,
                     'proxy_ip' => $record->proxyIp,
                     'proxy_port' => $record->proxyPort,
+                    'proxy_username' => $record->proxyUsername,
+                    'proxy_password' => $record->proxyPassword,
                     'user_agent' => $record->userAgent,
                     'managed_by_import' => true,
                     'is_archived' => false,
@@ -53,6 +57,7 @@ class ImportBulkAccounts
                 ]);
 
                 $account->save();
+                $accountIds[] = (int) $account->id;
 
                 $account->settings()->updateOrCreate(
                     [],
@@ -116,6 +121,7 @@ class ImportBulkAccounts
             'imported' => $importedCount,
             'updated' => $updatedCount,
             'archived' => $archivedCount,
+            'account_ids' => array_values(array_unique($accountIds)),
         ];
     }
 

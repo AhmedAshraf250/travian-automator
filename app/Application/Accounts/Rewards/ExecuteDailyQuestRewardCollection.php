@@ -2,6 +2,7 @@
 
 namespace App\Application\Accounts\Rewards;
 
+use App\Application\Accounts\Connection\RecordsAccountConnectionFailure;
 use App\Application\Accounts\Rewards\Data\CollectableDailyQuestReward;
 use App\Application\Accounts\Rewards\Parsers\DailyQuestRewardsParser;
 use App\Application\Accounts\Session\Contracts\AccountSession;
@@ -34,6 +35,7 @@ class ExecuteDailyQuestRewardCollection
      */
     public function __construct(
         protected DailyQuestRewardsParser $dailyQuestRewardsParser,
+        protected RecordsAccountConnectionFailure $recordsAccountConnectionFailure,
     ) {}
 
     /**
@@ -113,6 +115,10 @@ class ExecuteDailyQuestRewardCollection
                 'refresh_status_code' => $refreshResponse?->statusCode,
             ]);
         } catch (Throwable $throwable) {
+            if ($this->recordsAccountConnectionFailure->shouldBackOff($throwable)) {
+                throw $throwable;
+            }
+
             $this->logRewardActivity($account, ActivityLogStatus::Failed, 'Daily quest reward automation failed: '.$throwable->getMessage());
         }
     }

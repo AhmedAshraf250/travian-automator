@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Dashboard;
 
+use App\Application\Accounts\Connection\DispatchDueConnectionRetries;
+use App\Application\Accounts\Import\BulkAccountImportParser;
 use App\Application\Accounts\Import\ImportBulkAccounts;
 use App\Application\Accounts\Import\ImportDraftStore;
 use App\Application\Travian\TravianBuildingCatalog;
@@ -55,6 +57,11 @@ class Index extends Component
      * Keeps the activity log panel visible or hidden.
      */
     public bool $showActivityLog = true;
+
+    /**
+     * Stores the activity log drawer height as a viewport percentage.
+     */
+    public int $activityLogHeight = 22;
 
     /**
      * Stores which account rows are expanded in the UI.
@@ -216,6 +223,21 @@ class Index extends Component
     public bool $villageSendResourcesDraft = true;
 
     /**
+     * Stores whether the edited village accepts resources from other villages.
+     */
+    public bool $villageSupplyResourcesDraft = true;
+
+    /**
+     * Stores whether the edited village may use hero resource items before marketplace support.
+     */
+    public bool $villageHeroResourcesDraft = true;
+
+    /**
+     * Stores whether the edited village may receive crop while crop production is negative.
+     */
+    public bool $villageSupplyNegativeCropDraft = true;
+
+    /**
      * Stores the minimum stock percentage required before the edited village can send one resource.
      */
     public int $villageSendMinResourcePercentageDraft = 30;
@@ -238,7 +260,7 @@ class Index extends Component
     /**
      * Stores the preferred celebration type for the edited village.
      */
-    public string $villageCelebrationTypeDraft = 'auto';
+    public string $villageCelebrationTypeDraft = 'small';
 
     /**
      * Stores the minimum culture points required before starting a celebration.
@@ -293,12 +315,16 @@ class Index extends Component
     /**
      * Poll only a tiny local revision marker, and render the full dashboard only when data changed.
      */
-    public function refreshDashboardIfChanged(): void
+    public function refreshDashboardIfChanged(DispatchDueConnectionRetries $dispatchDueConnectionRetries): void
     {
         if ($this->showProgramSettingsModal || $this->showAccountSettingsModal || $this->showImportModal || $this->showVillageBuildPlanModal) {
             $this->skipRender();
 
             return;
+        }
+
+        if ($dispatchDueConnectionRetries->handle() > 0) {
+            $this->dashboardRevision = '';
         }
 
         $latestRevision = $this->computeDashboardRevision();
@@ -336,6 +362,22 @@ class Index extends Component
     public function toggleActivityLog(): void
     {
         $this->showActivityLog = ! $this->showActivityLog;
+    }
+
+    /**
+     * Increase the activity log drawer height.
+     */
+    public function increaseActivityLogHeight(): void
+    {
+        $this->activityLogHeight = min(36, $this->activityLogHeight + 4);
+    }
+
+    /**
+     * Decrease the activity log drawer height.
+     */
+    public function decreaseActivityLogHeight(): void
+    {
+        $this->activityLogHeight = max(16, $this->activityLogHeight - 4);
     }
 
     /**
@@ -453,6 +495,10 @@ class Index extends Component
      */
     public function updatedVillageCelebrationEnabledDraft(): void
     {
+        if ($this->villageCelebrationEnabledDraft && ! in_array($this->villageCelebrationTypeDraft, [VillageCelebrationType::Small->value, VillageCelebrationType::Great->value], true)) {
+            $this->villageCelebrationTypeDraft = VillageCelebrationType::Small->value;
+        }
+
         $this->refreshVillageCelebrationReadinessMessage();
     }
 
@@ -502,12 +548,15 @@ class Index extends Component
         $this->villageBuildingsAutomationDraft = ! (bool) $settings->pause_buildings;
         $this->villageInheritProgramPriorityDraft = (bool) $settings->inherit_from_account;
         $this->villageSendResourcesDraft = (bool) $settings->send_enabled;
+        $this->villageSupplyResourcesDraft = (bool) $settings->support_enabled;
+        $this->villageHeroResourcesDraft = (bool) $settings->hero_resources_enabled;
+        $this->villageSupplyNegativeCropDraft = (bool) $settings->supply_negative_crop_enabled;
         $this->villageSendMinResourcePercentageDraft = max(0, min(100, (int) ($settings->send_min_resource_percentage ?? 30)));
         $this->villageSendReserveResourcePercentageDraft = max(0, min(100, (int) ($settings->send_reserve_resource_percentage ?? 10)));
         $this->villageCelebrationEnabledDraft = (bool) $settings->celebration_enabled;
-        $this->villageCelebrationTypeDraft = ($settings->celebration_type instanceof VillageCelebrationType
-            ? $settings->celebration_type
-            : VillageSetting::defaultCelebrationType())->value;
+        $this->villageCelebrationTypeDraft = $settings->celebration_type === VillageCelebrationType::Great
+            ? VillageCelebrationType::Great->value
+            : VillageSetting::defaultCelebrationType()->value;
         $this->villageCelebrationMinimumCulturePointsDraft = max(
             0,
             (int) ($settings->celebration_min_culture_points ?? VillageSetting::defaultCelebrationMinCulturePoints()),
@@ -559,10 +608,13 @@ class Index extends Component
             'villageBuildingsAutomationDraft' => ['boolean'],
             'villageInheritProgramPriorityDraft' => ['boolean'],
             'villageSendResourcesDraft' => ['boolean'],
+            'villageSupplyResourcesDraft' => ['boolean'],
+            'villageHeroResourcesDraft' => ['boolean'],
+            'villageSupplyNegativeCropDraft' => ['boolean'],
             'villageSendMinResourcePercentageDraft' => ['required', 'integer', 'min:0', 'max:100'],
             'villageSendReserveResourcePercentageDraft' => ['required', 'integer', 'min:0', 'max:100'],
             'villageCelebrationEnabledDraft' => ['boolean'],
-            'villageCelebrationTypeDraft' => ['required', 'string', 'in:auto,small,great'],
+            'villageCelebrationTypeDraft' => ['required', 'string', 'in:small,great'],
             'villageCelebrationMinimumCulturePointsDraft' => ['required', 'integer', 'min:0', 'max:2000'],
             'villageTroopTrainingEnabledDraft' => ['boolean'],
             'villagePrioritizeCropFieldsWhenNegativeDraft' => ['boolean'],
@@ -608,6 +660,9 @@ class Index extends Component
             'pause_fields' => ! $this->villageFieldsAutomationDraft,
             'pause_buildings' => ! $this->villageBuildingsAutomationDraft,
             'send_enabled' => $this->villageSendResourcesDraft,
+            'support_enabled' => $this->villageSupplyResourcesDraft,
+            'hero_resources_enabled' => $this->villageHeroResourcesDraft,
+            'supply_negative_crop_enabled' => $this->villageSupplyNegativeCropDraft,
             'send_min_resource_percentage' => max(0, min(100, (int) $this->villageSendMinResourcePercentageDraft)),
             'send_reserve_resource_percentage' => max(0, min(100, (int) $this->villageSendReserveResourcePercentageDraft)),
             'celebration_enabled' => $this->villageCelebrationEnabledDraft,
@@ -635,6 +690,13 @@ class Index extends Component
             $targetLevel = (int) ($row['target_level'] ?? 0);
             $buildingGid = (int) ($row['building_gid'] ?? 0);
             $fixedSlotGid = TravianBuildingCatalog::fixedSlotGidForSlot($slotId, $tribeId);
+            $isEnabled = (bool) ($row['is_enabled'] ?? true);
+
+            if ($currentSlot instanceof VillageBuilding) {
+                $currentSlot->forceFill([
+                    'automation_enabled' => $isEnabled,
+                ])->save();
+            }
 
             if ($targetLevel > 0 && $buildingGid === 0 && $currentGid !== 0) {
                 $buildingGid = $currentGid;
@@ -693,7 +755,7 @@ class Index extends Component
                     'building_type' => $buildingName,
                     'target_level' => $targetLevel,
                     'priority' => max(1, (int) ($row['priority'] ?? $slotId)),
-                    'is_enabled' => (bool) ($row['is_enabled'] ?? true),
+                    'is_enabled' => $isEnabled,
                 ],
             );
         }
@@ -724,9 +786,11 @@ class Index extends Component
         $draftStore->put($this->bulkImportDraft);
         $this->showImportModal = false;
 
+        $queuedLoginCount = $this->queueImportedAccountLogins($result['account_ids']);
+
         session()->flash(
             'dashboard-banner',
-            "Imported {$result['imported']} new account(s), refreshed {$result['updated']} existing account(s), and archived {$result['archived']} account(s) removed from the latest bulk import snapshot.",
+            "Accounts & Login updated {$result['imported']} new account(s), refreshed {$result['updated']}, archived {$result['archived']}, and queued {$queuedLoginCount} login/sync check(s).",
         );
     }
 
@@ -747,7 +811,7 @@ class Index extends Component
             'dashboard-banner',
             $enabled
                 ? 'Global automation is now ON. Read and execution flows may continue.'
-                : 'Global automation is now OFF. Read-only sync remains available, but future execution flows should stay paused.',
+                : 'Global automation is now OFF. Queued Travian sync and execution flows will stop before sending external requests.',
         );
     }
 
@@ -881,8 +945,15 @@ class Index extends Component
     {
         $account = Account::query()->findOrFail($accountId);
 
+        if (! $account->is_active || $account->is_archived) {
+            session()->flash('dashboard-banner', "Account {$account->username} is paused. Activate it before requesting an update.");
+
+            return;
+        }
+
         $account->forceFill([
             'status' => AccountStatus::Syncing,
+            'connection_retry_after' => null,
         ])->save();
 
         ActivityLog::query()->create([
@@ -893,11 +964,50 @@ class Index extends Component
             'scheduled_at' => now(),
         ]);
 
-        SyncTravianAccountJob::dispatch($account->id);
+        SyncTravianAccountJob::dispatch($account->id, null, true);
 
         $this->dashboardRevision = '';
 
         session()->flash('dashboard-banner', "Account {$account->username} was queued for background sync.");
+    }
+
+    /**
+     * Queue login/sync checks for accounts touched by Accounts & Login.
+     *
+     * @param  list<int>  $accountIds
+     */
+    protected function queueImportedAccountLogins(array $accountIds): int
+    {
+        if ($accountIds === []) {
+            return 0;
+        }
+
+        $queuedCount = 0;
+
+        Account::query()
+            ->whereKey($accountIds)
+            ->where('is_archived', false)
+            ->orderBy('id')
+            ->get()
+            ->each(function (Account $account) use (&$queuedCount): void {
+                $account->forceFill([
+                    'status' => AccountStatus::Syncing,
+                    'connection_retry_after' => null,
+                ])->save();
+
+                ActivityLog::query()->create([
+                    'account_id' => $account->id,
+                    'activity_type' => ActivityType::Login,
+                    'status' => ActivityLogStatus::Pending,
+                    'message' => 'Login and account sync queued from Accounts & Login.',
+                    'scheduled_at' => now(),
+                ]);
+
+                SyncTravianAccountJob::dispatch($account->id, null, true);
+                $queuedCount++;
+            });
+
+        return $queuedCount;
     }
 
     /**
@@ -965,14 +1075,244 @@ class Index extends Component
     }
 
     /**
+     * Toggle hero resource usage for construction shortages in one village.
+     */
+    public function toggleVillageHeroResources(int $villageId): void
+    {
+        $village = Village::query()->with(['account', 'settings'])->findOrFail($villageId);
+        $settings = $village->settings ?? $village->settings()->create([
+            'field_priority' => VillageSetting::defaultFieldPriority(),
+        ]);
+        $isEnabled = ! (bool) $settings->hero_resources_enabled;
+
+        $settings->forceFill([
+            'hero_resources_enabled' => $isEnabled,
+        ])->save();
+
+        $this->logManualActivity(
+            $village->account,
+            $village,
+            'Village hero resource usage '.($isEnabled ? 'enabled' : 'paused').' from dashboard.',
+        );
+
+        session()->flash('dashboard-banner', "{$village->name}: hero resources are now ".($isEnabled ? 'ON.' : 'OFF.'));
+    }
+
+    /**
+     * Toggle one field slot inside the village field automation list.
+     */
+    public function toggleVillageFieldSlotAutomation(int $villageId, int $slotId): void
+    {
+        if ($slotId < 1 || $slotId > 18) {
+            return;
+        }
+
+        $village = Village::query()->with('account')->findOrFail($villageId);
+        $slot = $village->buildings()
+            ->where('slot_id', $slotId)
+            ->whereBetween('building_gid', [1, 4])
+            ->firstOrFail();
+        $isEnabled = ! (bool) $slot->automation_enabled;
+
+        $slot->forceFill([
+            'automation_enabled' => $isEnabled,
+        ])->save();
+
+        $this->logManualActivity(
+            $village->account,
+            $village,
+            "Field slot {$slotId} automation ".($isEnabled ? 'enabled' : 'paused').' from dashboard.',
+        );
+    }
+
+    /**
+     * Toggle one existing building slot and mirror the state to its layout target.
+     */
+    public function toggleVillageBuildingSlotAutomation(int $villageId, int $slotId): void
+    {
+        if ($slotId < 19 || $slotId > 40) {
+            return;
+        }
+
+        $village = Village::query()->with('account')->findOrFail($villageId);
+        $slot = $village->buildings()
+            ->where('slot_id', $slotId)
+            ->where('building_gid', '>', 0)
+            ->firstOrFail();
+        $isEnabled = ! (bool) $slot->automation_enabled;
+
+        $slot->forceFill([
+            'automation_enabled' => $isEnabled,
+        ])->save();
+
+        $village->buildingTargets()
+            ->where('slot_id', $slotId)
+            ->update([
+                'is_enabled' => $isEnabled,
+            ]);
+
+        $this->logManualActivity(
+            $village->account,
+            $village,
+            "Building slot {$slotId} automation ".($isEnabled ? 'enabled' : 'paused').' from dashboard.',
+        );
+    }
+
+    /**
+     * Toggle celebration automation for one village from the compact row button.
+     */
+    public function toggleVillageCelebrationAutomation(int $villageId): void
+    {
+        $village = Village::query()->with(['account', 'settings'])->findOrFail($villageId);
+        $settings = $village->settings ?? $village->settings()->create([
+            'field_priority' => VillageSetting::defaultFieldPriority(),
+        ]);
+        $isEnabled = ! (bool) $settings->celebration_enabled;
+
+        $updates = [
+            'celebration_enabled' => $isEnabled,
+        ];
+
+        if ($isEnabled && ! in_array($settings->celebration_type?->value, [VillageCelebrationType::Small->value, VillageCelebrationType::Great->value], true)) {
+            $updates['celebration_type'] = VillageCelebrationType::Small;
+        }
+
+        $settings->forceFill($updates)->save();
+
+        $this->logManualActivity(
+            $village->account,
+            $village,
+            'Village celebration automation '.($isEnabled ? 'enabled' : 'paused').' from dashboard.',
+        );
+    }
+
+    /**
+     * Toggle troop training automation for one village from the compact row button.
+     */
+    public function toggleVillageTroopTrainingAutomation(int $villageId): void
+    {
+        $village = Village::query()->with(['account', 'settings'])->findOrFail($villageId);
+        $settings = $village->settings ?? $village->settings()->create([
+            'field_priority' => VillageSetting::defaultFieldPriority(),
+        ]);
+        $isEnabled = ! (bool) $settings->troop_training_enabled;
+
+        $settings->forceFill([
+            'troop_training_enabled' => $isEnabled,
+        ])->save();
+
+        $this->logManualActivity(
+            $village->account,
+            $village,
+            'Village troop training automation '.($isEnabled ? 'enabled' : 'paused').' from dashboard.',
+        );
+    }
+
+    /**
+     * Move one schedule entry to the front of its queue, or remove that override.
+     */
+    public function toggleVillageSchedulePin(int $villageId, string $scheduleKey): void
+    {
+        if (! $this->isSupportedScheduleKey($scheduleKey)) {
+            return;
+        }
+
+        $isPinned = false;
+
+        $this->updateVillageConstructionSchedule($villageId, function (array &$schedule) use ($scheduleKey, &$isPinned): void {
+            if (in_array($scheduleKey, $schedule['pinned'], true)) {
+                $schedule['pinned'] = $this->withoutScheduleKey($schedule['pinned'], $scheduleKey);
+                $isPinned = false;
+
+                return;
+            }
+
+            $schedule['pinned'] = $this->withoutScheduleKey($schedule['pinned'], $scheduleKey);
+            array_unshift($schedule['pinned'], $scheduleKey);
+            $isPinned = true;
+        }, function () use ($scheduleKey, &$isPinned): string {
+            return "Schedule entry {$scheduleKey} ".($isPinned ? 'moved to the front' : 'removed from pinned schedule').' from dashboard.';
+        });
+    }
+
+    /**
+     * Toggle whether one schedule entry blocks later candidates until it can run.
+     */
+    public function toggleVillageScheduleHold(int $villageId, string $scheduleKey): void
+    {
+        if (! $this->isSupportedScheduleKey($scheduleKey)) {
+            return;
+        }
+
+        $heldAfterToggle = false;
+
+        $this->updateVillageConstructionSchedule($villageId, function (array &$schedule) use ($scheduleKey, &$heldAfterToggle): void {
+            if (in_array($scheduleKey, $schedule['held'], true)) {
+                $schedule['held'] = $this->withoutScheduleKey($schedule['held'], $scheduleKey);
+                $heldAfterToggle = false;
+
+                return;
+            }
+
+            $schedule['held'][] = $scheduleKey;
+            $heldAfterToggle = true;
+        }, function () use ($scheduleKey, &$heldAfterToggle): string {
+            return "Schedule entry {$scheduleKey} ".($heldAfterToggle ? 'held' : 'released').' from dashboard.';
+        });
+    }
+
+    /**
      * Queue a manual village sync marker.
      */
     public function requestVillageSync(int $villageId): void
     {
         $village = Village::query()->with('account')->findOrFail($villageId);
 
+        if (! $this->queueVillageSync($village, 'Village-only update requested and queued.')) {
+            session()->flash('dashboard-banner', "Village {$village->name} was not queued because its account or village is paused.");
+
+            return;
+        }
+
+        $this->dashboardRevision = '';
+
+        session()->flash('dashboard-banner', "Village {$village->name} was queued for sync, then village automation.");
+    }
+
+    /**
+     * Queue one quiet village sync when a visible construction or movement timer elapsed.
+     */
+    public function queueVillageTimerSync(int $villageId): void
+    {
+        $village = Village::query()->with('account')->findOrFail($villageId);
+
+        if (! $this->villageCanQueueSync($village)) {
+            $this->skipRender();
+
+            return;
+        }
+
+        if ($this->recentVillageSyncAlreadyQueued($village)) {
+            $this->skipRender();
+
+            return;
+        }
+
+        $this->queueVillageSync($village, 'Village timer elapsed; sync queued automatically.', true);
+
+        $this->dashboardRevision = '';
+        $this->skipRender();
+    }
+
+    protected function queueVillageSync(Village $village, string $message, bool $useReloadAuto = false): bool
+    {
+        if (! $this->villageCanQueueSync($village)) {
+            return false;
+        }
+
         $village->account->forceFill([
             'status' => AccountStatus::Syncing,
+            'connection_retry_after' => null,
         ])->save();
 
         ActivityLog::query()->create([
@@ -980,17 +1320,40 @@ class Index extends Component
             'village_id' => $village->id,
             'activity_type' => ActivityType::Sync,
             'status' => ActivityLogStatus::Pending,
-            'message' => 'Village-only update requested and queued.',
+            'message' => $message,
             'scheduled_at' => now(),
         ]);
 
-        SyncTravianAccountJob::withChain([
-            new RunTravianAutomationJob($village->account->id, $village->id, false),
-        ])->dispatch($village->account->id, $village->id);
+        if (SystemSetting::automationEnabled()) {
+            SyncTravianAccountJob::withChain([
+                new RunTravianAutomationJob($village->account->id, $village->id, false, true),
+            ])->dispatch($village->account->id, $village->id, true, $useReloadAuto);
+        } else {
+            SyncTravianAccountJob::dispatch($village->account->id, $village->id, true, $useReloadAuto);
+        }
 
-        $this->dashboardRevision = '';
+        return true;
+    }
 
-        session()->flash('dashboard-banner', "Village {$village->name} was queued for sync, then village automation.");
+    protected function villageCanQueueSync(Village $village): bool
+    {
+        $account = $village->account;
+
+        return $account instanceof Account
+            && $account->is_active
+            && ! $account->is_archived
+            && $village->is_active;
+    }
+
+    protected function recentVillageSyncAlreadyQueued(Village $village): bool
+    {
+        return ActivityLog::query()
+            ->where('account_id', $village->account_id)
+            ->where('village_id', $village->id)
+            ->where('activity_type', ActivityType::Sync->value)
+            ->whereIn('status', [ActivityLogStatus::Pending->value, ActivityLogStatus::Running->value])
+            ->where('created_at', '>=', now()->subMinutes(2))
+            ->exists();
     }
 
     /**
@@ -1001,6 +1364,7 @@ class Index extends Component
         if (! Schema::hasTable('accounts') || ! Schema::hasTable('activity_logs')) {
             return view('livewire.dashboard.index', [
                 ...$this->emptyDashboardState(),
+                'importPreviewRows' => $this->buildImportPreviewRows(),
             ]);
         }
 
@@ -1012,6 +1376,7 @@ class Index extends Component
             'accounts' => $accounts,
             'activityLogs' => $activityLogs,
             'stats' => $this->buildStats($accounts),
+            'importPreviewRows' => $this->buildImportPreviewRows(),
             ...$this->buildSystemSettingsViewData(),
         ]);
     }
@@ -1063,6 +1428,54 @@ class Index extends Component
             ->latest()
             ->limit(50)
             ->get();
+    }
+
+    /**
+     * Build a per-line visual preview for Accounts & Login input.
+     *
+     * @return list<array{line:int, valid:bool, server:string, username:string, password:string, proxy:string, user_agent:string, error:string|null}>
+     */
+    protected function buildImportPreviewRows(): array
+    {
+        $rows = [];
+        $parser = app(BulkAccountImportParser::class);
+
+        foreach (preg_split('/\R/u', $this->bulkImportDraft) ?: [] as $lineIndex => $line) {
+            $trimmedLine = trim($line);
+
+            if ($trimmedLine === '') {
+                continue;
+            }
+
+            try {
+                $record = $parser->parsePreviewLine($trimmedLine, $lineIndex + 1);
+                $rows[] = [
+                    'line' => $lineIndex + 1,
+                    'valid' => true,
+                    'server' => $record->serverUrl,
+                    'username' => $record->username,
+                    'password' => str_repeat('•', max(4, min(10, mb_strlen($record->password)))),
+                    'proxy' => $record->proxyIp !== null && $record->proxyPort !== null
+                        ? "{$record->proxyScheme}://{$record->proxyIp}:{$record->proxyPort}"
+                        : 'Direct',
+                    'user_agent' => $record->userAgent ?? 'Default UA',
+                    'error' => null,
+                ];
+            } catch (Throwable $throwable) {
+                $rows[] = [
+                    'line' => $lineIndex + 1,
+                    'valid' => false,
+                    'server' => trim($trimmedLine, '|'),
+                    'username' => '',
+                    'password' => '',
+                    'proxy' => '',
+                    'user_agent' => '',
+                    'error' => $throwable->getMessage(),
+                ];
+            }
+        }
+
+        return $rows;
     }
 
     /**
@@ -1158,6 +1571,7 @@ class Index extends Component
             'accounts' => 'updated_at',
             'account_hero_states' => 'updated_at',
             'villages' => 'updated_at',
+            'village_settings' => 'updated_at',
             'village_resource_states' => 'updated_at',
             'village_runtime_states' => 'updated_at',
             'village_buildings' => 'updated_at',
@@ -1194,6 +1608,99 @@ class Index extends Component
             'message' => $message,
             'executed_at' => now(),
         ]);
+    }
+
+    /**
+     * Update the saved construction schedule preferences for one village.
+     */
+    protected function updateVillageConstructionSchedule(int $villageId, callable $callback, callable $messageResolver): void
+    {
+        $village = Village::query()->with(['account', 'settings'])->findOrFail($villageId);
+        $settings = $village->settings ?? $village->settings()->create([
+            'field_priority' => VillageSetting::defaultFieldPriority(),
+        ]);
+        $schedule = $this->normalizeConstructionSchedule($settings->construction_schedule);
+
+        $callback($schedule);
+
+        $settings->forceFill([
+            'construction_schedule' => $schedule,
+        ])->save();
+
+        $this->logManualActivity($village->account, $village, $messageResolver());
+    }
+
+    /**
+     * @return array{pinned: list<string>, held: list<string>}
+     */
+    protected function normalizeConstructionSchedule(mixed $schedule): array
+    {
+        if (! is_array($schedule)) {
+            return [
+                'pinned' => [],
+                'held' => [],
+            ];
+        }
+
+        return [
+            'pinned' => $this->normalizeScheduleKeyList($schedule['pinned'] ?? []),
+            'held' => $this->normalizeScheduleKeyList($schedule['held'] ?? []),
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function normalizeScheduleKeyList(mixed $scheduleKeys): array
+    {
+        if (! is_array($scheduleKeys)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(
+            array_map(static fn (mixed $scheduleKey): string => is_scalar($scheduleKey) ? (string) $scheduleKey : '', $scheduleKeys),
+            fn (string $scheduleKey): bool => $this->isSupportedScheduleKey($scheduleKey),
+        )));
+    }
+
+    /**
+     * @param  list<string>  $scheduleKeys
+     * @return list<string>
+     */
+    protected function withoutScheduleKey(array $scheduleKeys, string $scheduleKey): array
+    {
+        return array_values(array_filter(
+            $scheduleKeys,
+            static fn (string $existingScheduleKey): bool => $existingScheduleKey !== $scheduleKey,
+        ));
+    }
+
+    /**
+     * Validate dashboard schedule keys formatted as "field:slot:target" or "building:slot:target".
+     */
+    protected function isSupportedScheduleKey(string $scheduleKey): bool
+    {
+        $parts = explode(':', $scheduleKey);
+
+        if (count($parts) !== 3) {
+            return false;
+        }
+
+        [$queueKind, $slotId, $targetLevel] = $parts;
+
+        if (! in_array($queueKind, ['field', 'building'], true) || ! ctype_digit($slotId) || ! ctype_digit($targetLevel)) {
+            return false;
+        }
+
+        $slotId = (int) $slotId;
+        $targetLevel = (int) $targetLevel;
+
+        return $targetLevel >= 1
+            && $targetLevel <= 20
+            && (
+                ($queueKind === 'field' && $slotId >= 1 && $slotId <= 18)
+                || ($queueKind === 'building' && $slotId >= 19 && $slotId <= 40)
+            );
     }
 
     /**
@@ -1419,6 +1926,9 @@ class Index extends Component
         $this->villageBuildingsAutomationDraft = true;
         $this->villageInheritProgramPriorityDraft = true;
         $this->villageSendResourcesDraft = true;
+        $this->villageSupplyResourcesDraft = true;
+        $this->villageHeroResourcesDraft = true;
+        $this->villageSupplyNegativeCropDraft = true;
         $this->villageSendMinResourcePercentageDraft = 30;
         $this->villageSendReserveResourcePercentageDraft = 10;
         $this->villageCelebrationEnabledDraft = false;

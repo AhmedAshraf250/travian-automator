@@ -12,8 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('village_settings', function (Blueprint $table): void {
-            $table->string('celebration_type')->default('small')->after('celebration_enabled');
-            $table->unsignedSmallInteger('celebration_min_culture_points')->default(200)->after('celebration_type');
+            $table->boolean('hero_resources_enabled')->default(true)->after('support_enabled');
         });
     }
 
@@ -23,10 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('village_settings', function (Blueprint $table): void {
-            $table->dropColumn([
-                'celebration_type',
-                'celebration_min_culture_points',
-            ]);
+            $table->dropColumn('hero_resources_enabled');
         });
     }
 };

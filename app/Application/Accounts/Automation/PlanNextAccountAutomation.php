@@ -178,27 +178,45 @@ class PlanNextAccountAutomation
 
         $timers = [];
 
-        $elapsedSeconds = $runtimeState->server_reported_at !== null
-            ? max(0, now()->getTimestamp() - $runtimeState->server_reported_at->getTimestamp())
-            : 0;
-
         foreach ($runtimeState->construction_entries ?? [] as $entry) {
             if (isset($entry['remaining_seconds'])) {
-                $timers[] = (int) $entry['remaining_seconds'] - $elapsedSeconds;
+                $timers[] = (int) $entry['remaining_seconds'] - $this->entryElapsedSeconds($entry, $runtimeState->server_reported_at);
             }
         }
 
         foreach ($runtimeState->movement_entries ?? [] as $entry) {
             if (isset($entry['remaining_seconds'])) {
-                $timers[] = (int) $entry['remaining_seconds'] - $elapsedSeconds;
+                $timers[] = (int) $entry['remaining_seconds'] - $this->entryElapsedSeconds($entry, $runtimeState->server_reported_at);
             }
         }
 
         if ($runtimeState->hero_remaining_seconds !== null && $runtimeState->hero_status !== 'home') {
+            $elapsedSeconds = $runtimeState->server_reported_at !== null
+                ? max(0, now()->getTimestamp() - $runtimeState->server_reported_at->getTimestamp())
+                : 0;
             $timers[] = (int) $runtimeState->hero_remaining_seconds - $elapsedSeconds;
         }
 
         return $timers;
+    }
+
+    /**
+     * @param  array<string, mixed>  $entry
+     */
+    protected function entryElapsedSeconds(array $entry, ?CarbonImmutable $fallbackReportedAt): int
+    {
+        $recordedAt = $entry['recorded_at'] ?? null;
+
+        if (is_string($recordedAt) && $recordedAt !== '') {
+            try {
+                return max(0, now()->getTimestamp() - CarbonImmutable::parse($recordedAt)->getTimestamp());
+            } catch (Throwable) {
+            }
+        }
+
+        return $fallbackReportedAt instanceof CarbonImmutable
+            ? max(0, now()->getTimestamp() - $fallbackReportedAt->getTimestamp())
+            : 0;
     }
 
     /**

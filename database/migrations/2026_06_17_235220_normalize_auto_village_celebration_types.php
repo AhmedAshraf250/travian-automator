@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -11,9 +12,16 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (! Schema::hasTable('village_settings') || ! Schema::hasColumn('village_settings', 'celebration_type')) {
+            return;
+        }
+
+        DB::table('village_settings')
+            ->where('celebration_type', 'auto')
+            ->update(['celebration_type' => 'small']);
+
         Schema::table('village_settings', function (Blueprint $table): void {
-            $table->string('celebration_type')->default('small')->after('celebration_enabled');
-            $table->unsignedSmallInteger('celebration_min_culture_points')->default(200)->after('celebration_type');
+            $table->string('celebration_type')->default('small')->change();
         });
     }
 
@@ -22,11 +30,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('village_settings', function (Blueprint $table): void {
-            $table->dropColumn([
-                'celebration_type',
-                'celebration_min_culture_points',
-            ]);
-        });
+        //
     }
 };

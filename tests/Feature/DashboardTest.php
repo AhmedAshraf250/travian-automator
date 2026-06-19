@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\AccountStatus;
 use App\Jobs\RunTravianAutomationJob;
 use App\Jobs\SyncTravianAccountJob;
 use App\Livewire\Dashboard\Index;
@@ -24,19 +25,53 @@ test('dashboard page loads successfully', function () {
 });
 
 test('bulk import creates accounts and persists encrypted draft', function () {
+    Queue::fake();
+
     Livewire::test(Index::class)
-        ->set('bulkImportDraft', '!https://ts7.x1.arabics.travian.com/!marshal!12345678!127.0.0.1!8080!Mozilla/5.0')
+        ->call('openImportModal')
+        ->set('bulkImportDraft', 'https://ts7.x1.arabics.travian.com/ marshal 12345678 127.0.0.1 8080 Mozilla/5.0')
+        ->assertSee('Input account lines')
+        ->assertSee('Preview generated from input')
+        ->assertSee('server: https://ts7.x1.arabics.travian.com/')
+        ->assertSee('user: marshal')
         ->call('importAccounts');
 
     $account = Account::query()->first();
 
     expect($account)->not->toBeNull();
     expect($account?->username)->toBe('marshal');
+    expect($account?->proxy_scheme)->toBe('http');
     expect($account?->proxy_ip)->toBe('127.0.0.1');
     expect($account?->proxy_port)->toBe(8080);
     expect(AccountSetting::query()->count())->toBe(1);
-    expect(ActivityLog::query()->count())->toBe(1);
+    expect(ActivityLog::query()->count())->toBe(2);
+    expect(ActivityLog::query()->where('message', 'Login and account sync queued from Accounts & Login.')->exists())->toBeTrue();
     expect(ImportDraft::query()->where('key', 'bulk-account-import')->exists())->toBeTrue();
+
+    Queue::assertPushed(SyncTravianAccountJob::class, function (SyncTravianAccountJob $job) use ($account) {
+        return $job->accountId === $account?->id
+            && $job->villageId === null
+            && $job->ignoreConnectionBackoff === true;
+    });
+});
+
+test('bulk import stores proxy protocol and credentials from proxy url', function () {
+    Queue::fake();
+
+    Livewire::test(Index::class)
+        ->call('openImportModal')
+        ->set('bulkImportDraft', '!https://ts7.x1.arabics.travian.com/!marshal!12345678!socks5://proxy-user:proxy-pass@127.0.0.1:1080!Mozilla/5.0')
+        ->assertSee('proxy: socks5://127.0.0.1:1080')
+        ->call('importAccounts');
+
+    $account = Account::query()->first();
+
+    expect($account)->not->toBeNull();
+    expect($account?->proxy_scheme)->toBe('socks5');
+    expect($account?->proxy_ip)->toBe('127.0.0.1');
+    expect($account?->proxy_port)->toBe(1080);
+    expect($account?->proxy_username)->toBe('proxy-user');
+    expect($account?->proxy_password)->toBe('proxy-pass');
 });
 
 test('dashboard shows imported account username', function () {
@@ -68,15 +103,140 @@ test('village update queues village sync followed by village automation', functi
 
     Queue::assertPushed(SyncTravianAccountJob::class, function (SyncTravianAccountJob $job) use ($account, $village) {
         return $job->accountId === $account->id
-            && $job->villageId === $village->id;
+            && $job->villageId === $village->id
+            && $job->ignoreConnectionBackoff === true
+            && $job->useReloadAuto === false;
     });
 
     Queue::assertPushedWithChain(SyncTravianAccountJob::class, [
-        new RunTravianAutomationJob($account->id, $village->id, false),
+        new RunTravianAutomationJob($account->id, $village->id, false, true),
     ]);
 });
 
+test('elapsed village timer queues one quiet village sync', function () {
+    Queue::fake();
+
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23379',
+        'name' => 'قرية Timer',
+        'is_active' => true,
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('queueVillageTimerSync', $village->id)
+        ->call('queueVillageTimerSync', $village->id);
+
+    Queue::assertPushed(SyncTravianAccountJob::class, function (SyncTravianAccountJob $job) use ($account, $village) {
+        return $job->accountId === $account->id
+            && $job->villageId === $village->id
+            && $job->ignoreConnectionBackoff === true
+            && $job->useReloadAuto === true;
+    });
+    Queue::assertPushed(SyncTravianAccountJob::class, 1);
+    expect(ActivityLog::query()
+        ->where('village_id', $village->id)
+        ->where('message', 'Village timer elapsed; sync queued automatically.')
+        ->count())->toBe(1);
+});
+
+test('elapsed village timer does not queue sync for a paused account', function () {
+    Queue::fake();
+
+    $account = Account::factory()->create([
+        'is_active' => false,
+        'status' => AccountStatus::Paused,
+    ]);
+    $village = $account->villages()->create([
+        'travian_village_id' => '23380',
+        'name' => 'قرية Paused Account',
+        'is_active' => true,
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('queueVillageTimerSync', $village->id);
+
+    Queue::assertNothingPushed();
+    expect(ActivityLog::query()
+        ->where('village_id', $village->id)
+        ->where('message', 'Village timer elapsed; sync queued automatically.')
+        ->exists())->toBeFalse();
+    expect($account->fresh()->status)->toBe(AccountStatus::Paused);
+});
+
+test('elapsed village timer does not queue sync for a paused village', function () {
+    Queue::fake();
+
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23380',
+        'name' => 'قرية Paused Village',
+        'is_active' => false,
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('queueVillageTimerSync', $village->id);
+
+    Queue::assertNothingPushed();
+    expect(ActivityLog::query()
+        ->where('village_id', $village->id)
+        ->where('message', 'Village timer elapsed; sync queued automatically.')
+        ->exists())->toBeFalse();
+    expect($account->fresh()->status)->not->toBe(AccountStatus::Syncing);
+});
+
+test('account update queues a manual sync even during connection cooldown', function () {
+    Queue::fake();
+
+    $account = Account::factory()->create([
+        'status' => 'connection_issue',
+        'connection_retry_after' => now()->addMinutes(5),
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('requestAccountSync', $account->id);
+
+    Queue::assertPushed(SyncTravianAccountJob::class, function (SyncTravianAccountJob $job) use ($account) {
+        return $job->accountId === $account->id
+            && $job->villageId === null
+            && $job->ignoreConnectionBackoff === true;
+    });
+});
+
+test('account update is not queued while account is paused', function () {
+    Queue::fake();
+
+    $account = Account::factory()->create([
+        'is_active' => false,
+        'status' => AccountStatus::Paused,
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('requestAccountSync', $account->id);
+
+    Queue::assertNothingPushed();
+    expect(ActivityLog::query()->where('account_id', $account->id)->exists())->toBeFalse();
+    expect($account->fresh()->status)->toBe(AccountStatus::Paused);
+});
+
+test('dashboard displays paused for inactive accounts even if an old syncing status is stored', function () {
+    $account = Account::factory()->create([
+        'username' => 'stale-sync',
+        'is_active' => false,
+        'status' => AccountStatus::Syncing,
+    ]);
+
+    Livewire::test(Index::class)
+        ->assertSee('stale-sync')
+        ->assertSee('paused')
+        ->assertDontSee('syncing');
+
+    expect($account->fresh()->status)->toBe(AccountStatus::Syncing);
+});
+
 test('bulk import archives managed accounts removed from the latest snapshot', function () {
+    Queue::fake();
+
     Livewire::test(Index::class)
         ->set('bulkImportDraft', implode("\n", [
             '!https://ts7.x1.arabics.travian.com/!marshal!12345678!127.0.0.1!8080!Mozilla/5.0',
@@ -97,6 +257,8 @@ test('bulk import archives managed accounts removed from the latest snapshot', f
 });
 
 test('dashboard keeps accounts in the same order as the latest bulk import', function () {
+    Queue::fake();
+
     Livewire::test(Index::class)
         ->set('bulkImportDraft', implode("\n", [
             '!https://ts7.x1.arabics.travian.com/!third!12345678!!!Mozilla/5.0',
@@ -219,7 +381,7 @@ test('dashboard saves per account user agent and hero settings', function () {
         ]);
 });
 
-test('dashboard toggles village field and building automation flags', function () {
+test('dashboard toggles village field, building, and hero resource automation flags', function () {
     $account = Account::factory()->create();
     $village = $account->villages()->create([
         'travian_village_id' => '23378',
@@ -229,7 +391,8 @@ test('dashboard toggles village field and building automation flags', function (
 
     Livewire::test(Index::class)
         ->call('toggleVillageFieldsAutomation', $village->id)
-        ->call('toggleVillageBuildingsAutomation', $village->id);
+        ->call('toggleVillageBuildingsAutomation', $village->id)
+        ->call('toggleVillageHeroResources', $village->id);
 
     $village->refresh();
 
@@ -237,6 +400,81 @@ test('dashboard toggles village field and building automation flags', function (
     expect($village->settings?->field_priority)->toBe(VillageSetting::defaultFieldPriority());
     expect($village->settings?->pause_fields)->toBeTrue();
     expect($village->settings?->pause_buildings)->toBeTrue();
+    expect($village->settings?->hero_resources_enabled)->toBeFalse();
+});
+
+test('dashboard toggles individual field and building slot automation', function () {
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23378',
+        'name' => 'قرية Marshal25',
+        'is_active' => true,
+    ]);
+
+    $village->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+    ]);
+
+    $fieldSlot = $village->buildings()->create([
+        'slot_id' => 1,
+        'building_gid' => 1,
+        'building_type' => 'الحطاب',
+        'current_level' => 4,
+    ]);
+    $buildingSlot = $village->buildings()->create([
+        'slot_id' => 26,
+        'building_gid' => 15,
+        'building_type' => 'المبنى الرئيسي',
+        'current_level' => 5,
+    ]);
+    $target = $village->buildingTargets()->create([
+        'slot_id' => 26,
+        'building_gid' => 15,
+        'building_type' => 'المبنى الرئيسي',
+        'target_level' => 8,
+        'priority' => 1,
+        'is_enabled' => true,
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('toggleVillageFieldSlotAutomation', $village->id, 1)
+        ->call('toggleVillageBuildingSlotAutomation', $village->id, 26);
+
+    expect($fieldSlot->fresh()?->automation_enabled)->toBeFalse();
+    expect($buildingSlot->fresh()?->automation_enabled)->toBeFalse();
+    expect($target->fresh()?->is_enabled)->toBeFalse();
+});
+
+test('dashboard stores schedule pin and hold preferences', function () {
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23378',
+        'name' => 'قرية Marshal25',
+        'is_active' => true,
+    ]);
+
+    $village->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('toggleVillageSchedulePin', $village->id, 'field:1:5')
+        ->call('toggleVillageScheduleHold', $village->id, 'field:1:5')
+        ->call('toggleVillageSchedulePin', $village->id, 'building:26:6');
+
+    expect($village->fresh()->settings?->construction_schedule)->toBe([
+        'pinned' => ['building:26:6', 'field:1:5'],
+        'held' => ['field:1:5'],
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('toggleVillageSchedulePin', $village->id, 'field:1:5')
+        ->call('toggleVillageScheduleHold', $village->id, 'field:1:5');
+
+    expect($village->fresh()->settings?->construction_schedule)->toBe([
+        'pinned' => ['building:26:6'],
+        'held' => [],
+    ]);
 });
 
 test('dashboard opens the village settings modal with existing slot data', function () {
@@ -296,17 +534,24 @@ test('dashboard opens the village settings modal with existing slot data', funct
         ->assertSet('showVillageBuildPlanModal', true)
         ->assertSet('editingVillageId', $village->id)
         ->assertSet('editingVillageTribeLabel', 'Roman')
+        ->assertSee('Hero resources')
+        ->assertSee('Use Hero Resources')
         ->assertSet('villageFieldsAutomationDraft', false)
         ->assertSet('villageBuildingsAutomationDraft', true)
         ->assertSet('villageInheritProgramPriorityDraft', true)
         ->assertSet('villageSendResourcesDraft', true)
+        ->assertSet('villageSupplyResourcesDraft', true)
+        ->assertSet('villageHeroResourcesDraft', true)
+        ->assertSet('villageSupplyNegativeCropDraft', true)
         ->assertSet('villageCelebrationEnabledDraft', true)
         ->assertSet('villageCelebrationTypeDraft', 'great')
         ->assertSet('villageCelebrationMinimumCulturePointsDraft', 300)
         ->assertSet('villagePrioritizeCropFieldsWhenNegativeDraft', true)
         ->assertSet('villageFieldPriorityDraft.wood', 4)
         ->assertSet('villageBuildingPlanDraft.26.current_gid', 15)
-        ->assertSet('villageBuildingPlanDraft.26.target_level', 12);
+        ->assertSet('villageBuildingPlanDraft.26.target_level', 12)
+        ->call('setVillageSettingsTab', 'trading')
+        ->assertDontSee('Use Hero Resources');
 });
 
 test('dashboard saves village field priorities, automation toggles, and building targets from the settings modal', function () {
@@ -348,6 +593,9 @@ test('dashboard saves village field priorities, automation toggles, and building
         ->set('villageBuildingsAutomationDraft', true)
         ->set('villageInheritProgramPriorityDraft', false)
         ->set('villageSendResourcesDraft', false)
+        ->set('villageSupplyResourcesDraft', false)
+        ->set('villageHeroResourcesDraft', false)
+        ->set('villageSupplyNegativeCropDraft', false)
         ->set('villageCelebrationEnabledDraft', true)
         ->set('villageCelebrationTypeDraft', 'great')
         ->set('villageCelebrationMinimumCulturePointsDraft', 300)
@@ -383,6 +631,9 @@ test('dashboard saves village field priorities, automation toggles, and building
     expect($savedSettings?->pause_buildings)->toBeFalse();
     expect($savedSettings?->inherit_from_account)->toBeFalse();
     expect($savedSettings?->send_enabled)->toBeFalse();
+    expect($savedSettings?->support_enabled)->toBeFalse();
+    expect($savedSettings?->hero_resources_enabled)->toBeFalse();
+    expect($savedSettings?->supply_negative_crop_enabled)->toBeFalse();
     expect($savedSettings?->troop_training_enabled)->toBeTrue();
     expect($savedSettings?->celebration_enabled)->toBeTrue();
     expect($savedSettings?->celebration_type?->value)->toBe('great');
@@ -442,6 +693,39 @@ test('dashboard blocks village celebrations until a town hall exists', function 
         ->assertSet('villageCelebrationReadinessMessage', 'Cannot enable celebrations yet: this village does not have a Town Hall.')
         ->call('saveVillageSettings')
         ->assertHasErrors('villageCelebrationEnabledDraft');
+});
+
+test('dashboard defaults newly enabled celebrations to small celebrations', function () {
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23381',
+        'name' => 'قرية احتفالات',
+        'is_active' => true,
+    ]);
+
+    $village->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+    ]);
+
+    $village->runtimeState()->create([
+        'tribe_id' => 1,
+        'troop_slots' => [],
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+
+    $village->buildings()->create([
+        'slot_id' => 37,
+        'building_gid' => 24,
+        'building_type' => 'البلدية',
+        'current_level' => 10,
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('openVillageSettingsModal', $village->id)
+        ->set('villageCelebrationEnabledDraft', true)
+        ->assertSet('villageCelebrationTypeDraft', 'small');
 });
 
 test('dashboard blocks great celebrations until town hall level ten', function () {
@@ -774,13 +1058,15 @@ test('dashboard shows construction countdown and finish time in the village row 
         ->assertSee('assets/troops-icons/hero.png')
         ->assertSee('assets/troops-icons/u1.png')
         ->assertSee('assets/res-icons/lumber_small.png')
-        ->assertSee('4000 /')
+        ->assertSee('assets/buildings-icons/type10_small.png')
+        ->assertSee('assets/buildings-icons/type11_small.png')
+        ->assertSee('4000')
         ->assertSee('1800')
         ->assertSee('+140/h')
-        ->assertSee('#11883d')
         ->assertSee('#f88c1f')
-        ->assertSee('T ON')
-        ->assertSee('C ON')
+        ->assertSee('T - Troops: train enabled troop queues for this village')
+        ->assertSee('C - Celebrations: start town hall celebrations when ready')
+        ->assertDontSee('WH 4000')
         ->assertSee('0:10:00')
         ->assertSee('Ends 22:25')
         ->assertDontSee('حفرة منتهية')
@@ -821,6 +1107,154 @@ test('dashboard account row uses recent account activity when it is newer than t
     Carbon::setTestNow();
 });
 
+test('dashboard keeps elapsed construction visible until the next sync confirms it is gone', function () {
+    $now = now()->startOfSecond();
+    Carbon::setTestNow($now);
+
+    $account = Account::factory()->create([
+        'username' => 'marshal',
+    ]);
+
+    $village = $account->villages()->create([
+        'travian_village_id' => '23394',
+        'name' => 'قرية بناء',
+        'is_active' => true,
+    ]);
+
+    $village->runtimeState()->create([
+        'troop_slots' => array_fill(0, 11, 0),
+        'movement_entries' => [],
+        'construction_entries' => [
+            [
+                'building_name' => 'الحطاب',
+                'target_level' => 7,
+                'remaining_seconds' => 30,
+                'remaining_label' => '0:00:30',
+                'finish_label' => '16:33',
+            ],
+        ],
+        'server_reported_at' => $now->subMinute(),
+    ]);
+
+    Livewire::test(Index::class)
+        ->set("expandedAccounts.{$account->id}", true)
+        ->assertSee('الحطاب')
+        ->assertSee('Lv 7')
+        ->assertSee('Sync due');
+
+    Carbon::setTestNow();
+});
+
+test('dashboard schedule hides construction already running locally', function () {
+    $now = now()->startOfSecond();
+    Carbon::setTestNow($now);
+
+    $account = Account::factory()->create([
+        'username' => 'marshal',
+    ]);
+
+    $village = $account->villages()->create([
+        'travian_village_id' => '23395',
+        'name' => 'قرية جدول',
+        'is_active' => true,
+    ]);
+
+    $village->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+        'pause_fields' => false,
+        'pause_buildings' => false,
+        'construction_schedule' => [
+            'pinned' => ['building:33:5'],
+            'held' => [],
+        ],
+    ]);
+
+    $village->runtimeState()->create([
+        'tribe_id' => 2,
+        'troop_slots' => array_fill(0, 11, 0),
+        'movement_entries' => [],
+        'construction_entries' => [
+            [
+                'building_name' => 'الأكاديمية',
+                'target_level' => 5,
+                'remaining_seconds' => 600,
+                'remaining_label' => '0:10:00',
+                'finish_label' => '19:47',
+            ],
+        ],
+        'server_reported_at' => $now,
+    ]);
+
+    $village->buildings()->create([
+        'slot_id' => 33,
+        'building_gid' => 22,
+        'building_type' => 'الأكاديمية',
+        'current_level' => 4,
+    ]);
+    $village->buildingTargets()->create([
+        'slot_id' => 33,
+        'building_gid' => 22,
+        'building_type' => 'الأكاديمية',
+        'target_level' => 5,
+        'priority' => 1,
+        'is_enabled' => true,
+    ]);
+
+    Livewire::test(Index::class)
+        ->set("expandedAccounts.{$account->id}", true)
+        ->assertSee('الأكاديمية')
+        ->assertDontSee("schedule-entry-{$village->id}-building:33:5");
+
+    Carbon::setTestNow();
+});
+
+test('dashboard field schedule allows candidates within the two level resource family gap', function () {
+    $account = Account::factory()->create([
+        'username' => 'marshal',
+    ]);
+
+    $village = $account->villages()->create([
+        'travian_village_id' => '23396',
+        'name' => 'قرية جدول الحقول',
+        'is_active' => true,
+    ]);
+
+    $village->settings()->create([
+        'inherit_from_account' => false,
+        'field_priority' => [
+            'wood' => 1,
+            'clay' => 2,
+            'iron' => 3,
+            'crop' => 4,
+        ],
+        'pause_fields' => false,
+        'pause_buildings' => true,
+    ]);
+
+    $village->runtimeState()->create([
+        'tribe_id' => 2,
+        'troop_slots' => array_fill(0, 11, 0),
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+
+    foreach ([
+        ['slot_id' => 1, 'building_gid' => 1, 'building_type' => 'الحطاب', 'current_level' => 7],
+        ['slot_id' => 4, 'building_gid' => 3, 'building_type' => 'منجم حديد', 'current_level' => 5],
+        ['slot_id' => 5, 'building_gid' => 2, 'building_type' => 'حفرة الطين', 'current_level' => 6],
+        ['slot_id' => 8, 'building_gid' => 4, 'building_type' => 'حقل القمح', 'current_level' => 5],
+    ] as $slot) {
+        $village->buildings()->create($slot);
+    }
+
+    Livewire::test(Index::class)
+        ->set("expandedAccounts.{$account->id}", true)
+        ->assertSeeHtml("schedule-entry-{$village->id}-field:5:7")
+        ->assertSeeHtml("schedule-entry-{$village->id}-field:4:6")
+        ->assertSeeHtml("schedule-entry-{$village->id}-field:8:6");
+});
+
 test('dashboard account row ignores internal activity logs when showing the last account contact', function () {
     $now = now()->startOfSecond();
     Carbon::setTestNow($now);
@@ -853,6 +1287,101 @@ test('dashboard account row ignores internal activity logs when showing the last
         ->assertDontSee('3 minutes ago');
 
     Carbon::setTestNow();
+});
+
+test('dashboard activity log displays the local PHP application timezone', function () {
+    config()->set('app.timezone', date_default_timezone_get());
+    $occurredAt = Carbon::parse('2026-06-18 10:00:00', 'UTC');
+
+    $account = Account::factory()->create([
+        'username' => 'marshal',
+    ]);
+
+    $village = $account->villages()->create([
+        'travian_village_id' => '23393',
+        'name' => 'Server Clock',
+        'is_active' => true,
+    ]);
+
+    ActivityLog::query()->create([
+        'account_id' => $account->id,
+        'village_id' => $village->id,
+        'activity_type' => 'sync',
+        'status' => 'done',
+        'message' => 'Village overview synced successfully from dorf1 and dorf2.',
+        'executed_at' => $occurredAt,
+    ]);
+
+    $expectedLocalTime = $occurredAt
+        ->copy()
+        ->timezone(date_default_timezone_get())
+        ->format('d/m/Y H:i:s');
+
+    Livewire::test(Index::class)
+        ->assertSee($expectedLocalTime);
+});
+
+test('dashboard resizes the activity log drawer within bounds', function () {
+    Livewire::test(Index::class)
+        ->assertSet('activityLogHeight', 22)
+        ->call('increaseActivityLogHeight')
+        ->assertSet('activityLogHeight', 26)
+        ->call('decreaseActivityLogHeight')
+        ->call('decreaseActivityLogHeight')
+        ->call('decreaseActivityLogHeight')
+        ->assertSet('activityLogHeight', 16);
+});
+
+test('dashboard separates successful sync age from connection retry status', function () {
+    $now = now()->startOfSecond();
+    Carbon::setTestNow($now);
+
+    $account = Account::factory()->create([
+        'username' => 'marshal',
+        'status' => 'connection_issue',
+        'last_sync_at' => $now->subHours(21),
+        'connection_failure_count' => 2,
+        'connection_retry_after' => $now->addSeconds(30),
+        'last_connection_error_at' => $now->subSeconds(4),
+        'last_connection_error_message' => 'cURL error 28: Connection timed out.',
+    ]);
+
+    $account->settings()->create([
+        'resource_priorities' => [15, 11, 1, 1],
+    ]);
+
+    Livewire::test(Index::class)
+        ->assertSee('connection')
+        ->assertSee('Synced 21 hours ago')
+        ->assertSee('Retry 30 seconds from now')
+        ->assertDontSee('Last connection issue')
+        ->assertDontSee('Synced 4 seconds ago');
+
+    Carbon::setTestNow();
+});
+
+test('dashboard poll queues due connection retries automatically', function () {
+    Queue::fake();
+
+    $account = Account::factory()->create([
+        'status' => 'connection_issue',
+        'connection_retry_after' => now()->subSecond(),
+        'connection_failure_count' => 2,
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('refreshDashboardIfChanged');
+
+    $account->refresh();
+
+    expect($account->status)->toBe(AccountStatus::Syncing);
+
+    Queue::assertPushed(SyncTravianAccountJob::class, function (SyncTravianAccountJob $job) use ($account) {
+        return $job->accountId === $account->id
+            && $job->ignoreConnectionBackoff === true;
+    });
+
+    expect(ActivityLog::query()->where('message', 'Connection retry window elapsed; sync queued automatically.')->exists())->toBeTrue();
 });
 
 test('dashboard styles outgoing attack movements with the attack icon palette', function () {

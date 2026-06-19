@@ -4,8 +4,8 @@ return [
     'http' => [
         'verify' => env('TRAVIAN_HTTP_VERIFY', true),
         'ca_bundle' => env('TRAVIAN_HTTP_CA_BUNDLE'),
-        'timeout' => (int) env('TRAVIAN_HTTP_TIMEOUT', 20),
-        'connect_timeout' => (int) env('TRAVIAN_HTTP_CONNECT_TIMEOUT', 10),
+        'timeout' => (int) env('TRAVIAN_HTTP_TIMEOUT', 45),
+        'connect_timeout' => (int) env('TRAVIAN_HTTP_CONNECT_TIMEOUT', 20),
     ],
     'paths' => [
         'landing' => env('TRAVIAN_PATH_LANDING', '/dorf1.php'),
@@ -17,6 +17,7 @@ return [
     ],
     'client' => [
         'accept_language' => env('TRAVIAN_CLIENT_ACCEPT_LANGUAGE', 'en-US,en;q=0.9'),
+        'accept_encoding' => env('TRAVIAN_CLIENT_ACCEPT_ENCODING', 'gzip, deflate'),
         'window_size' => env('TRAVIAN_CLIENT_WINDOW_SIZE', '1920:1200'),
         'mobile_optimizations' => env('TRAVIAN_CLIENT_MOBILE_OPTIMIZATIONS', false),
     ],

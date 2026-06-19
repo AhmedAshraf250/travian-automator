@@ -19,6 +19,11 @@ use App\Models\VillageSetting;
 class PersistVillageOverview
 {
     /**
+     * @var list<int>
+     */
+    private const DEFAULT_ENABLED_BUILDING_GIDS = [10, 11, 15, 23];
+
+    /**
      * Persist one dorf1 + dorf2 snapshot onto an existing village model.
      */
     public function handle(
@@ -70,7 +75,8 @@ class PersistVillageOverview
         ParsedDorf1Overview $dorf1Overview,
     ): void {
         $isNewVillage = ! $village->exists;
-        $serverReportedAt = $dorf1Overview->runtimeState->serverReportedAt ?? now();
+        $recordedAt = now();
+        $serverReportedAt = $dorf1Overview->runtimeState->serverReportedAt ?? $recordedAt;
 
         $village->fill([
             'name' => $summary->name,
@@ -123,6 +129,7 @@ class PersistVillageOverview
                         'count' => $entry->count,
                         'remaining_seconds' => $entry->remainingSeconds,
                         'remaining_label' => $entry->remainingLabel,
+                        'recorded_at' => $recordedAt->toIso8601String(),
                     ],
                     $dorf1Overview->runtimeState->movementEntries,
                 ),
@@ -133,6 +140,7 @@ class PersistVillageOverview
                         'remaining_seconds' => $entry->remainingSeconds,
                         'remaining_label' => $entry->remainingLabel,
                         'finish_label' => $entry->finishLabel,
+                        'recorded_at' => $recordedAt->toIso8601String(),
                     ],
                     $dorf1Overview->runtimeState->constructionEntries,
                 ),
@@ -184,16 +192,25 @@ class PersistVillageOverview
         foreach ($slots as $slot) {
             $slotIds[] = $slot->slotId;
 
-            $village->buildings()->updateOrCreate(
-                ['slot_id' => $slot->slotId],
-                [
-                    'building_gid' => $slot->buildingGid,
-                    'building_type' => $slot->isEmpty ? null : $slot->buildingName,
-                    'current_level' => $slot->currentLevel,
-                    'is_under_construction' => false,
-                    'finish_at' => null,
-                ],
-            );
+            $building = $village->buildings()->firstOrNew([
+                'slot_id' => $slot->slotId,
+            ]);
+            $wasNew = ! $building->exists;
+            $previousGid = (int) ($building->building_gid ?? 0);
+
+            $building->fill([
+                'building_gid' => $slot->buildingGid,
+                'building_type' => $slot->isEmpty ? null : $slot->buildingName,
+                'current_level' => $slot->currentLevel,
+                'is_under_construction' => false,
+                'finish_at' => null,
+            ]);
+
+            if ($wasNew || ($previousGid === 0 && $slot->buildingGid > 0)) {
+                $building->automation_enabled = $this->defaultAutomationEnabledForSlot($slot);
+            }
+
+            $building->save();
         }
 
         if ($slotIds !== []) {
@@ -202,6 +219,22 @@ class PersistVillageOverview
                 ->whereNotIn('slot_id', $slotIds)
                 ->delete();
         }
+    }
+
+    /**
+     * Resolve the first-seen automation state for one village slot.
+     */
+    protected function defaultAutomationEnabledForSlot(ParsedVillageSlot $slot): bool
+    {
+        if ($slot->slotId >= 1 && $slot->slotId <= 18) {
+            return true;
+        }
+
+        if ($slot->buildingGid === 0) {
+            return true;
+        }
+
+        return in_array($slot->buildingGid, self::DEFAULT_ENABLED_BUILDING_GIDS, true);
     }
 
     /**

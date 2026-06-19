@@ -21,6 +21,10 @@ use Throwable;
  */
 class ExecuteVillageResourceTransfer
 {
+    private const int NEGATIVE_CROP_BUFFER_HOURS = 6;
+
+    private const int NEGATIVE_CROP_DANGER_HOURS = 4;
+
     private const string GRAPHQL_ENDPOINT = '/api/v1/graphql';
 
     private const string MARKETPLACE_SEND_ENDPOINT = '/api/v1/marketplace/resources/send';
@@ -43,18 +47,30 @@ class ExecuteVillageResourceTransfer
             return;
         }
 
-        $recipientVillage = $recipientVillage->fresh(['resourceState']);
+        $recipientVillage = $recipientVillage->fresh(['resourceState', 'settings']);
 
         if (! $recipientVillage instanceof Village || ! $recipientVillage->resourceState instanceof VillageResourceState) {
             return;
         }
 
+        if ($recipientVillage->settings instanceof VillageSetting && ! (bool) $recipientVillage->settings->support_enabled) {
+            $this->logTransferActivity($account, $recipientVillage, null, ActivityLogStatus::Pending, 'Recipient village is not configured to receive support resources.', [
+                'construction' => $constructionPayload,
+            ]);
+
+            return;
+        }
+
         $remainingResources = $this->roundedResourceShortages($recipientVillage, $analysis->requiredResources);
+        $remainingResources = $this->filterNegativeCropSupplyResources($recipientVillage, $remainingResources);
 
         if ($this->shipmentIsEmpty($remainingResources)) {
             return;
         }
 
+        $transferPurpose = (string) ($constructionPayload['queue_kind'] ?? '') === 'crop_support'
+            ? 'negative crop support'
+            : 'construction';
         $sentShipments = [];
 
         foreach ($this->supplierVillages($account, $recipientVillage) as $supplierVillage) {
@@ -99,7 +115,7 @@ class ExecuteVillageResourceTransfer
                     'result' => $result,
                 ];
 
-                $this->logTransferActivity($account, $recipientVillage, $supplierVillage, ActivityLogStatus::Done, 'Resource transfer sent to support construction.', [
+                $this->logTransferActivity($account, $recipientVillage, $supplierVillage, ActivityLogStatus::Done, "Resource transfer sent for {$transferPurpose}.", [
                     'construction' => $constructionPayload,
                     'resources' => $shipmentResources,
                     'remaining_resources' => $remainingResources,
@@ -118,7 +134,7 @@ class ExecuteVillageResourceTransfer
         }
 
         if ($sentShipments === []) {
-            $this->logTransferActivity($account, $recipientVillage, null, ActivityLogStatus::Pending, 'No eligible supplier village could send resources for the construction shortage.', [
+            $this->logTransferActivity($account, $recipientVillage, null, ActivityLogStatus::Pending, "No eligible supplier village could send resources for {$transferPurpose}.", [
                 'construction' => $constructionPayload,
                 'needed_resources' => $remainingResources,
             ]);
@@ -126,11 +142,86 @@ class ExecuteVillageResourceTransfer
             return;
         }
 
-        $this->logTransferActivity($account, $recipientVillage, null, ActivityLogStatus::Pending, 'Resource transfer partially covered the construction shortage.', [
+        $this->logTransferActivity($account, $recipientVillage, null, ActivityLogStatus::Pending, "Resource transfer partially covered {$transferPurpose}.", [
             'construction' => $constructionPayload,
             'remaining_resources' => $remainingResources,
             'shipments' => $sentShipments,
         ]);
+    }
+
+    /**
+     * Feed a village that is close to emptying its granary while crop production is negative.
+     */
+    public function supportNegativeCrop(Account $account, Village $recipientVillage, AccountSession $session): void
+    {
+        $recipientVillage = $recipientVillage->fresh(['resourceState', 'settings']);
+
+        if (! $recipientVillage instanceof Village || ! $recipientVillage->resourceState instanceof VillageResourceState) {
+            return;
+        }
+
+        $settings = $recipientVillage->settings;
+
+        if (! $settings instanceof VillageSetting || ! (bool) $settings->support_enabled || ! (bool) $settings->supply_negative_crop_enabled) {
+            return;
+        }
+
+        $resourceState = $recipientVillage->resourceState;
+        $cropProduction = (int) $resourceState->crop_production;
+
+        if ($cropProduction >= 0) {
+            return;
+        }
+
+        $granaryCapacity = max(0, (int) $resourceState->granary_capacity);
+        $currentCrop = max(0, (int) $resourceState->crop);
+        $cropBurnPerHour = abs($cropProduction);
+
+        if ($granaryCapacity <= 0 || $cropBurnPerHour <= 0) {
+            return;
+        }
+
+        $dangerCropFloor = max(100, (int) floor($granaryCapacity * 0.25));
+        $hoursUntilEmpty = $currentCrop > 0 ? $currentCrop / $cropBurnPerHour : 0.0;
+
+        if ($currentCrop > $dangerCropFloor && $hoursUntilEmpty > self::NEGATIVE_CROP_DANGER_HOURS) {
+            return;
+        }
+
+        $targetCrop = min(
+            $granaryCapacity,
+            max($dangerCropFloor, $cropBurnPerHour * self::NEGATIVE_CROP_BUFFER_HOURS),
+        );
+
+        if ($targetCrop <= $currentCrop) {
+            return;
+        }
+
+        $this->handle(
+            $account,
+            $recipientVillage,
+            $session,
+            [
+                'queue_kind' => 'crop_support',
+                'building_name' => 'Negative crop support',
+                'crop_production' => $cropProduction,
+                'current_crop' => $currentCrop,
+                'target_crop' => $targetCrop,
+            ],
+            new BuildPageAnalysis(
+                actionUri: null,
+                requiredResources: [
+                    'wood' => 0,
+                    'clay' => 0,
+                    'iron' => 0,
+                    'crop' => $targetCrop,
+                ],
+                blockedReason: 'resource_shortage',
+                blockedMessage: 'negative crop support',
+                resourceReadySeconds: null,
+                resourceReadyLabel: null,
+            ),
+        );
     }
 
     /**
@@ -160,6 +251,25 @@ class ExecuteVillageResourceTransfer
         }
 
         return $shortages;
+    }
+
+    /**
+     * @param  array{wood: int, clay: int, iron: int, crop: int}  $remainingResources
+     * @return array{wood: int, clay: int, iron: int, crop: int}
+     */
+    protected function filterNegativeCropSupplyResources(Village $recipientVillage, array $remainingResources): array
+    {
+        if ((int) ($recipientVillage->resourceState?->crop_production ?? 0) >= 0) {
+            return $remainingResources;
+        }
+
+        if (! $recipientVillage->settings instanceof VillageSetting || (bool) $recipientVillage->settings->supply_negative_crop_enabled) {
+            return $remainingResources;
+        }
+
+        $remainingResources['crop'] = 0;
+
+        return $remainingResources;
     }
 
     /**

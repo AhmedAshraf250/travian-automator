@@ -246,3 +246,298 @@ test('resource transfer skips low stock villages and confirms a rounded marketpl
         'crop' => 200,
     ]);
 });
+
+test('resource transfer does not send resources to villages without supply enabled', function () {
+    $account = Account::factory()->create([
+        'server_url' => 'https://example.com/',
+    ]);
+
+    $recipient = $account->villages()->create([
+        'travian_village_id' => '26000',
+        'name' => 'CR7',
+        'x' => 9,
+        'y' => 59,
+        'population' => 90,
+        'is_active' => true,
+    ]);
+    $recipient->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+        'support_enabled' => false,
+    ]);
+    $recipient->resourceState()->create([
+        'wood' => 100,
+        'clay' => 100,
+        'iron' => 100,
+        'crop' => 100,
+        'wood_production' => 0,
+        'clay_production' => 0,
+        'iron_production' => 0,
+        'crop_production' => 0,
+        'warehouse_capacity' => 10000,
+        'granary_capacity' => 10000,
+        'server_reported_at' => now(),
+    ]);
+
+    $session = new class implements AccountSession
+    {
+        /** @var list<string> */
+        public array $getRequests = [];
+
+        public function get(string $uri, array $options = []): SessionResponse
+        {
+            $this->getRequests[] = $uri;
+
+            return new SessionResponse(200, '', 'https://example.com'.$uri, []);
+        }
+
+        public function postForm(string $uri, array $formParams, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('postForm was not expected during resource transfer.');
+        }
+
+        public function postJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('postJson was not expected during resource transfer.');
+        }
+
+        public function putJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('putJson was not expected during resource transfer.');
+        }
+
+        public function persist(): void {}
+    };
+
+    app(ExecuteVillageResourceTransfer::class)->handle(
+        $account->fresh(),
+        $recipient->fresh(),
+        $session,
+        ['queue_kind' => 'building'],
+        new BuildPageAnalysis(
+            actionUri: null,
+            requiredResources: ['wood' => 500, 'clay' => 100, 'iron' => 100, 'crop' => 100],
+            blockedReason: 'resource_shortage',
+            blockedMessage: 'resources missing',
+            resourceReadySeconds: null,
+            resourceReadyLabel: null,
+        ),
+    );
+
+    expect($session->getRequests)->toBe([]);
+    expect(ActivityLog::query()->where('activity_type', ActivityType::Transfer)->latest('id')->value('message'))
+        ->toBe('Recipient village is not configured to receive support resources.');
+});
+
+test('resource transfer respects disabled negative crop feeding', function () {
+    $account = Account::factory()->create([
+        'server_url' => 'https://example.com/',
+    ]);
+
+    $recipient = $account->villages()->create([
+        'travian_village_id' => '26000',
+        'name' => 'CR7',
+        'x' => 9,
+        'y' => 59,
+        'population' => 90,
+        'is_active' => true,
+    ]);
+    $recipient->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+        'supply_negative_crop_enabled' => false,
+    ]);
+    $recipient->resourceState()->create([
+        'wood' => 1000,
+        'clay' => 1000,
+        'iron' => 1000,
+        'crop' => 0,
+        'wood_production' => 0,
+        'clay_production' => 0,
+        'iron_production' => 0,
+        'crop_production' => -120,
+        'warehouse_capacity' => 10000,
+        'granary_capacity' => 10000,
+        'server_reported_at' => now(),
+    ]);
+
+    $session = new class implements AccountSession
+    {
+        /** @var list<string> */
+        public array $getRequests = [];
+
+        public function get(string $uri, array $options = []): SessionResponse
+        {
+            $this->getRequests[] = $uri;
+
+            return new SessionResponse(200, '', 'https://example.com'.$uri, []);
+        }
+
+        public function postForm(string $uri, array $formParams, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('postForm was not expected during resource transfer.');
+        }
+
+        public function postJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('postJson was not expected during resource transfer.');
+        }
+
+        public function putJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('putJson was not expected during resource transfer.');
+        }
+
+        public function persist(): void {}
+    };
+
+    app(ExecuteVillageResourceTransfer::class)->handle(
+        $account->fresh(),
+        $recipient->fresh(),
+        $session,
+        ['queue_kind' => 'field'],
+        new BuildPageAnalysis(
+            actionUri: null,
+            requiredResources: ['wood' => 1000, 'clay' => 1000, 'iron' => 1000, 'crop' => 400],
+            blockedReason: 'resource_shortage',
+            blockedMessage: 'crop missing',
+            resourceReadySeconds: null,
+            resourceReadyLabel: null,
+        ),
+    );
+
+    expect($session->getRequests)->toBe([]);
+    expect(ActivityLog::query()->where('activity_type', ActivityType::Transfer)->exists())->toBeFalse();
+});
+
+test('resource transfer feeds villages with dangerous negative crop production', function () {
+    $account = Account::factory()->create([
+        'server_url' => 'https://example.com/',
+    ]);
+
+    $recipient = $account->villages()->create([
+        'travian_village_id' => '26000',
+        'name' => 'Hungry village',
+        'x' => 9,
+        'y' => 59,
+        'population' => 90,
+        'is_active' => true,
+    ]);
+    $recipient->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+        'support_enabled' => true,
+        'supply_negative_crop_enabled' => true,
+    ]);
+    $recipient->resourceState()->create([
+        'wood' => 1000,
+        'clay' => 1000,
+        'iron' => 1000,
+        'crop' => 100,
+        'wood_production' => 0,
+        'clay_production' => 0,
+        'iron_production' => 0,
+        'crop_production' => -100,
+        'warehouse_capacity' => 10000,
+        'granary_capacity' => 1000,
+        'server_reported_at' => now(),
+    ]);
+
+    $supplier = $account->villages()->create([
+        'travian_village_id' => '23379',
+        'name' => 'Crop supplier',
+        'x' => 2,
+        'y' => 2,
+        'population' => 300,
+        'is_active' => true,
+    ]);
+    $supplier->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+        'send_enabled' => true,
+        'send_min_resource_percentage' => 0,
+        'send_reserve_resource_percentage' => 0,
+    ]);
+    $supplier->resourceState()->create([
+        'wood' => 500,
+        'clay' => 500,
+        'iron' => 500,
+        'crop' => 1000,
+        'wood_production' => 0,
+        'clay_production' => 0,
+        'iron_production' => 0,
+        'crop_production' => 0,
+        'warehouse_capacity' => 1000,
+        'granary_capacity' => 1000,
+        'server_reported_at' => now(),
+    ]);
+    $supplier->buildings()->create([
+        'slot_id' => 32,
+        'building_gid' => 17,
+        'building_type' => 'السوق',
+        'current_level' => 10,
+    ]);
+
+    $session = new class implements AccountSession
+    {
+        /** @var list<string> */
+        public array $getRequests = [];
+
+        /** @var list<array{uri: string, payload: array<string, mixed>, options: array<string, mixed>}> */
+        public array $jsonRequests = [];
+
+        /** @var list<array{uri: string, payload: array<string, mixed>, options: array<string, mixed>}> */
+        public array $putRequests = [];
+
+        public function get(string $uri, array $options = []): SessionResponse
+        {
+            $this->getRequests[] = $uri;
+
+            return new SessionResponse(200, '<body></body>', 'https://example.com'.(str_starts_with($uri, '/') ? $uri : '/'.$uri), []);
+        }
+
+        public function postForm(string $uri, array $formParams, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('postForm was not expected during resource transfer.');
+        }
+
+        public function postJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            $this->jsonRequests[] = [
+                'uri' => $uri,
+                'payload' => $payload,
+                'options' => $options,
+            ];
+
+            if ($uri === '/api/v1/graphql') {
+                return new SessionResponse(200, '{"data":{"ownPlayer":{"village":{"marketplace":{"merchantsInfo":{"capacity":500,"available":1}}}}}}', 'https://example.com/api/v1/graphql', []);
+            }
+
+            return new SessionResponse(200, '', 'https://example.com'.$uri, []);
+        }
+
+        public function putJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            $this->putRequests[] = [
+                'uri' => $uri,
+                'payload' => $payload,
+                'options' => $options,
+            ];
+
+            return new SessionResponse(200, '{"duration":225,"merchantsAmount":1,"runs":1}', 'https://example.com'.$uri, [
+                'x-nonce' => ['nonce-123'],
+            ]);
+        }
+
+        public function persist(): void {}
+    };
+
+    app(ExecuteVillageResourceTransfer::class)->supportNegativeCrop($account->fresh(), $recipient->fresh(), $session);
+
+    expect($session->putRequests)->toHaveCount(1)
+        ->and($session->putRequests[0]['payload']['resources'])->toBe([
+            'lumber' => 0,
+            'clay' => 0,
+            'iron' => 0,
+            'crop' => 500,
+        ])
+        ->and($supplier->fresh()->resourceState?->crop)->toBe(500);
+    expect(ActivityLog::query()->where('activity_type', ActivityType::Transfer)->latest('id')->value('message'))
+        ->toBe('Resource transfer sent for negative crop support.');
+});

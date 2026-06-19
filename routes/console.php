@@ -2,6 +2,7 @@
 
 use App\Application\Accounts\Sync\SyncAccountOverview;
 use App\Models\Account;
+use App\Models\SystemSetting;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -21,5 +22,6 @@ Artisan::command('travian:sync-account {account}', function (int $account, SyncA
 })->purpose('Synchronize one Travian account overview using an isolated HTTP session.');
 
 Schedule::command('travian:automation-cycle')
-    ->everyFiveMinutes()
+    ->when(fn (): bool => SystemSetting::automationEnabled())
+    ->everyMinute()
     ->withoutOverlapping(10);

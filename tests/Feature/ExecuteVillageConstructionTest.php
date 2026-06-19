@@ -784,6 +784,701 @@ test('field automation can fall back to a lower priority field when the first ch
     expect($village->fresh()->runtimeState?->construction_entries[0]['target_level'] ?? null)->toBe(4);
 });
 
+test('field automation does not execute candidates outside the visible dashboard schedule window', function () {
+    $account = Account::factory()->create([
+        'server_url' => 'https://example.com/',
+    ]);
+
+    $village = $account->villages()->create([
+        'travian_village_id' => '23388',
+        'name' => 'قرية Visible Window',
+        'is_active' => true,
+    ]);
+
+    $village->settings()->create([
+        'inherit_from_account' => false,
+        'field_priority' => [
+            'clay' => 1,
+            'iron' => 2,
+            'crop' => 3,
+            'wood' => 4,
+        ],
+        'pause_fields' => false,
+        'pause_buildings' => true,
+    ]);
+
+    $village->runtimeState()->create([
+        'tribe_id' => 2,
+        'troop_slots' => [],
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+
+    foreach ([
+        ['slot_id' => 1, 'building_gid' => 1, 'building_type' => 'الحطاب', 'current_level' => 6],
+        ['slot_id' => 5, 'building_gid' => 2, 'building_type' => 'حفرة الطين', 'current_level' => 4],
+        ['slot_id' => 6, 'building_gid' => 2, 'building_type' => 'حفرة الطين', 'current_level' => 5],
+        ['slot_id' => 16, 'building_gid' => 2, 'building_type' => 'حفرة الطين', 'current_level' => 5],
+        ['slot_id' => 18, 'building_gid' => 2, 'building_type' => 'حفرة الطين', 'current_level' => 5],
+        ['slot_id' => 3, 'building_gid' => 3, 'building_type' => 'منجم حديد', 'current_level' => 4],
+        ['slot_id' => 7, 'building_gid' => 3, 'building_type' => 'منجم حديد', 'current_level' => 4],
+        ['slot_id' => 10, 'building_gid' => 3, 'building_type' => 'منجم حديد', 'current_level' => 4],
+        ['slot_id' => 2, 'building_gid' => 4, 'building_type' => 'حقل القمح', 'current_level' => 4],
+        ['slot_id' => 8, 'building_gid' => 4, 'building_type' => 'حقل القمح', 'current_level' => 4],
+        ['slot_id' => 9, 'building_gid' => 4, 'building_type' => 'حقل القمح', 'current_level' => 4],
+    ] as $slot) {
+        $village->buildings()->create($slot);
+    }
+
+    $session = new class implements AccountSession
+    {
+        /** @var list<string> */
+        public array $requests = [];
+
+        public function get(string $uri, array $options = []): SessionResponse
+        {
+            $this->requests[] = $uri;
+
+            return match ($uri) {
+                '/dorf1.php?newdid=23388' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php?newdid=23388'),
+                '/build.php?id=1' => $this->response('<button onclick="this.disabled = true; window.location.href = \'/dorf1.php?id=1&amp;gid=1&amp;action=build&amp;checksum=wood607\'; return false;"></button>', 'https://example.com/build.php?id=1&gid=1'),
+                default => str_starts_with($uri, '/build.php?id=')
+                    ? $this->response(fakeResourceShortageBuildHtml(), 'https://example.com'.$uri)
+                    : $this->response('<body class="village1"></body>', 'https://example.com'.$uri),
+            };
+        }
+
+        public function postForm(string $uri, array $formParams, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('postForm was not expected during construction execution.');
+        }
+
+        public function postJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('postJson was not expected during construction execution.');
+        }
+
+        public function putJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('putJson was not expected during construction execution.');
+        }
+
+        public function persist(): void {}
+
+        protected function response(string $body, string $effectiveUri): SessionResponse
+        {
+            return new SessionResponse(
+                statusCode: 200,
+                body: $body,
+                effectiveUri: $effectiveUri,
+                headers: [],
+            );
+        }
+    };
+
+    app(ExecuteVillageConstruction::class)->handle($account->fresh(), $village->fresh(['settings', 'runtimeState', 'buildings', 'buildingTargets']), $session);
+
+    expect($session->requests)->not->toContain('/build.php?id=1');
+    expect(ActivityLog::query()->where('message', 'Field upgrade order issued successfully.')->exists())->toBeFalse();
+});
+
+test('field automation allows candidates within the two level resource family gap', function () {
+    bindConstructionRefreshSnapshots(
+        [
+            fakeDorf1Overview('23387', 'قرية Priority Lead', 2, [
+                [
+                    'building_name' => 'حفرة الطين',
+                    'target_level' => 7,
+                    'remaining_seconds' => 360,
+                    'remaining_label' => '0:06:00',
+                    'finish_label' => '12:30',
+                ],
+            ], [
+                ['slot_id' => 4, 'building_gid' => 3, 'building_name' => 'منجم حديد', 'current_level' => 5],
+                ['slot_id' => 5, 'building_gid' => 2, 'building_name' => 'حفرة الطين', 'current_level' => 6],
+                ['slot_id' => 8, 'building_gid' => 4, 'building_name' => 'حقل القمح', 'current_level' => 5],
+            ]),
+        ],
+        [
+            fakeDorf2Overview(),
+        ],
+    );
+
+    $account = Account::factory()->create([
+        'server_url' => 'https://example.com/',
+    ]);
+
+    $village = $account->villages()->create([
+        'travian_village_id' => '23387',
+        'name' => 'قرية Priority Lead',
+        'is_active' => true,
+    ]);
+
+    $village->settings()->create([
+        'inherit_from_account' => false,
+        'field_priority' => [
+            'wood' => 1,
+            'clay' => 2,
+            'iron' => 3,
+            'crop' => 4,
+        ],
+        'pause_fields' => false,
+        'pause_buildings' => true,
+    ]);
+
+    $village->runtimeState()->create([
+        'tribe_id' => 2,
+        'troop_slots' => [],
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+
+    foreach ([
+        ['slot_id' => 4, 'building_gid' => 3, 'building_type' => 'منجم حديد', 'current_level' => 5],
+        ['slot_id' => 5, 'building_gid' => 2, 'building_type' => 'حفرة الطين', 'current_level' => 6],
+        ['slot_id' => 8, 'building_gid' => 4, 'building_type' => 'حقل القمح', 'current_level' => 5],
+    ] as $slot) {
+        $village->buildings()->create($slot);
+    }
+
+    $session = new class implements AccountSession
+    {
+        /** @var list<string> */
+        public array $requests = [];
+
+        public function get(string $uri, array $options = []): SessionResponse
+        {
+            $this->requests[] = $uri;
+
+            return match ($uri) {
+                '/dorf1.php?newdid=23387' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php?newdid=23387'),
+                '/build.php?id=5' => $this->response('<button onclick="this.disabled = true; window.location.href = \'/dorf1.php?id=5&amp;gid=2&amp;action=build&amp;checksum=clay607\'; return false;"></button>', 'https://example.com/build.php?id=5&gid=2'),
+                '/dorf1.php?id=5&gid=2&action=build&checksum=clay607' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php?id=5&gid=2&action=build&checksum=clay607'),
+                '/dorf1.php' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php'),
+                '/dorf2.php' => $this->response('<body class="village2"></body>', 'https://example.com/dorf2.php'),
+                default => $this->response('<body class="village1"></body>', 'https://example.com'.$uri),
+            };
+        }
+
+        public function postForm(string $uri, array $formParams, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('postForm was not expected during construction execution.');
+        }
+
+        public function postJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('postJson was not expected during construction execution.');
+        }
+
+        public function putJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('putJson was not expected during construction execution.');
+        }
+
+        public function persist(): void {}
+
+        protected function response(string $body, string $effectiveUri): SessionResponse
+        {
+            return new SessionResponse(
+                statusCode: 200,
+                body: $body,
+                effectiveUri: $effectiveUri,
+                headers: [],
+            );
+        }
+    };
+
+    app(ExecuteVillageConstruction::class)->handle($account->fresh(), $village->fresh(['settings', 'runtimeState', 'buildings', 'buildingTargets']), $session);
+
+    $buildLog = ActivityLog::query()->where('message', 'Field upgrade order issued successfully.')->latest('id')->first();
+
+    expect($session->requests)->toContain('/build.php?id=5');
+    expect($session->requests)->not->toContain('/build.php?id=4');
+    expect($session->requests)->not->toContain('/build.php?id=8');
+    expect($buildLog?->payload['field_key'] ?? null)->toBe('clay');
+    expect($buildLog?->payload['building_name'] ?? null)->toBe('حفرة الطين');
+});
+
+test('held schedule field is not skipped when resources are missing', function () {
+    $account = Account::factory()->create([
+        'server_url' => 'https://example.com/',
+    ]);
+
+    $village = $account->villages()->create([
+        'travian_village_id' => '23381',
+        'name' => 'قرية Held',
+        'is_active' => true,
+    ]);
+
+    $village->settings()->create([
+        'inherit_from_account' => false,
+        'field_priority' => [
+            'wood' => 1,
+            'clay' => 2,
+            'iron' => 3,
+            'crop' => 4,
+        ],
+        'pause_fields' => false,
+        'pause_buildings' => true,
+        'construction_schedule' => [
+            'pinned' => [],
+            'held' => ['field:1:4'],
+        ],
+    ]);
+
+    $village->runtimeState()->create([
+        'tribe_id' => 2,
+        'troop_slots' => [],
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+
+    $village->buildings()->create([
+        'slot_id' => 1,
+        'building_gid' => 1,
+        'building_type' => 'الحطاب',
+        'current_level' => 3,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 2,
+        'building_gid' => 2,
+        'building_type' => 'حفرة الطين',
+        'current_level' => 3,
+    ]);
+
+    $session = new class implements AccountSession
+    {
+        /** @var list<string> */
+        public array $requests = [];
+
+        public function get(string $uri, array $options = []): SessionResponse
+        {
+            $this->requests[] = $uri;
+
+            return match ($uri) {
+                '/dorf1.php?newdid=23381' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php?newdid=23381'),
+                '/build.php?id=1' => $this->response(fakeResourceShortageBuildHtml(), 'https://example.com/build.php?id=1&gid=1'),
+                '/build.php?id=2' => $this->response('<button onclick="this.disabled = true; window.location.href = \'/dorf1.php?id=2&amp;gid=2&amp;action=build&amp;checksum=clay204\'; return false;"></button>', 'https://example.com/build.php?id=2&gid=2'),
+                default => $this->response('<body class="village1"></body>', 'https://example.com'.$uri),
+            };
+        }
+
+        public function postForm(string $uri, array $formParams, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('postForm was not expected during construction execution.');
+        }
+
+        public function postJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('postJson was not expected during construction execution.');
+        }
+
+        public function putJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('putJson was not expected during construction execution.');
+        }
+
+        public function persist(): void {}
+
+        protected function response(string $body, string $effectiveUri): SessionResponse
+        {
+            return new SessionResponse(
+                statusCode: 200,
+                body: $body,
+                effectiveUri: $effectiveUri,
+                headers: [],
+            );
+        }
+    };
+
+    app(ExecuteVillageConstruction::class)->handle(
+        $account->fresh(),
+        $village->fresh(['settings', 'runtimeState', 'buildings', 'buildingTargets']),
+        $session,
+    );
+
+    $shortages = $village->fresh('runtimeState')->runtimeState?->construction_resource_shortages;
+
+    expect($session->requests)->toContain('/build.php?id=1');
+    expect($session->requests)->not->toContain('/build.php?id=2');
+    expect(ActivityLog::query()->where('message', 'Field upgrade order issued successfully.')->exists())->toBeFalse();
+    expect($shortages)->toHaveCount(1);
+    expect($shortages[0]['schedule_key'] ?? null)->toBe('field:1:4');
+});
+
+test('pinned building order takes precedence over fields for roman dual queues', function () {
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23382',
+        'name' => 'قرية Roman TOP',
+        'is_active' => true,
+    ]);
+
+    $settings = $village->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+        'construction_schedule' => [
+            'pinned' => ['building:26:6'],
+            'held' => [],
+        ],
+    ]);
+
+    $fieldSlot = $village->buildings()->create([
+        'slot_id' => 1,
+        'building_gid' => 1,
+        'building_type' => 'الحطاب',
+        'current_level' => 4,
+    ]);
+    $buildingSlot = $village->buildings()->create([
+        'slot_id' => 26,
+        'building_gid' => 15,
+        'building_type' => 'المبنى الرئيسي',
+        'current_level' => 5,
+    ]);
+    $target = $village->buildingTargets()->create([
+        'slot_id' => 26,
+        'building_gid' => 15,
+        'building_type' => 'المبنى الرئيسي',
+        'target_level' => 7,
+        'priority' => 1,
+        'is_enabled' => true,
+    ]);
+
+    $method = new ReflectionMethod(ExecuteVillageConstruction::class, 'resolveRomanQueueOrder');
+    $method->setAccessible(true);
+
+    $order = $method->invoke(app(ExecuteVillageConstruction::class), [
+        [
+            'slot' => $fieldSlot,
+            'field_key' => 'wood',
+        ],
+    ], [
+        [
+            'target' => $target,
+            'current_slot' => $buildingSlot,
+            'target_gid' => 15,
+            'mode' => 'upgrade',
+        ],
+    ], $settings);
+
+    expect($order)->toBe(['building', 'field']);
+});
+
+test('pinned building order takes precedence over fields for single queue tribes', function () {
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23383',
+        'name' => 'قرية Teuton TOP',
+        'is_active' => true,
+    ]);
+
+    $settings = $village->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+        'construction_schedule' => [
+            'pinned' => ['building:26:6'],
+            'held' => [],
+        ],
+    ]);
+
+    $fieldSlot = $village->buildings()->create([
+        'slot_id' => 8,
+        'building_gid' => 4,
+        'building_type' => 'حقل القمح',
+        'current_level' => 4,
+    ]);
+    $buildingSlot = $village->buildings()->create([
+        'slot_id' => 26,
+        'building_gid' => 15,
+        'building_type' => 'المبنى الرئيسي',
+        'current_level' => 5,
+    ]);
+    $target = $village->buildingTargets()->create([
+        'slot_id' => 26,
+        'building_gid' => 15,
+        'building_type' => 'المبنى الرئيسي',
+        'target_level' => 7,
+        'priority' => 1,
+        'is_enabled' => true,
+    ]);
+
+    $method = new ReflectionMethod(ExecuteVillageConstruction::class, 'resolveSingleQueueOrder');
+    $method->setAccessible(true);
+
+    $order = $method->invoke(app(ExecuteVillageConstruction::class), [
+        [
+            'slot' => $fieldSlot,
+            'field_key' => 'crop',
+        ],
+    ], [
+        [
+            'target' => $target,
+            'current_slot' => $buildingSlot,
+            'target_gid' => 15,
+            'mode' => 'upgrade',
+        ],
+    ], $settings);
+
+    expect($order)->toBe(['building', 'field']);
+});
+
+test('pinned construction candidates are priority only and not schedule holds', function () {
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23384',
+        'name' => 'قرية Strict TOP',
+        'is_active' => true,
+    ]);
+
+    $settings = $village->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+        'construction_schedule' => [
+            'pinned' => ['field:8:5'],
+            'held' => [],
+        ],
+    ]);
+
+    $fieldSlot = $village->buildings()->create([
+        'slot_id' => 8,
+        'building_gid' => 4,
+        'building_type' => 'حقل القمح',
+        'current_level' => 4,
+    ]);
+
+    $method = new ReflectionMethod(ExecuteVillageConstruction::class, 'candidateIsHeld');
+    $method->setAccessible(true);
+
+    $isHeld = $method->invoke(app(ExecuteVillageConstruction::class), [
+        'slot' => $fieldSlot,
+        'field_key' => 'crop',
+    ], $settings, 'field');
+
+    expect($isHeld)->toBeFalse();
+});
+
+test('single queue village does not fall through to fields when held building is blocked', function () {
+    bindConstructionRefreshSnapshots(
+        [
+            fakeDorf1Overview('23389', 'قرية Strict Building TOP', 2, [], [
+                ['slot_id' => 8, 'building_gid' => 4, 'building_name' => 'حقل القمح', 'current_level' => 4],
+            ]),
+        ],
+        [
+            fakeDorf2Overview([
+                ['slot_id' => 33, 'building_gid' => 22, 'building_name' => 'الأكاديمية', 'current_level' => 4],
+            ]),
+        ],
+    );
+
+    $account = Account::factory()->create(['server_url' => 'https://example.com/']);
+    $village = $account->villages()->create([
+        'travian_village_id' => '23389',
+        'name' => 'قرية Strict Building TOP',
+        'is_active' => true,
+    ]);
+
+    $village->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+        'pause_fields' => false,
+        'pause_buildings' => false,
+        'construction_schedule' => [
+            'pinned' => ['building:33:5'],
+            'held' => ['building:33:5'],
+        ],
+    ]);
+    $village->runtimeState()->create([
+        'tribe_id' => 2,
+        'troop_slots' => [],
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+
+    $village->buildings()->create([
+        'slot_id' => 8,
+        'building_gid' => 4,
+        'building_type' => 'حقل القمح',
+        'current_level' => 4,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 33,
+        'building_gid' => 22,
+        'building_type' => 'الأكاديمية',
+        'current_level' => 4,
+    ]);
+    $village->buildingTargets()->create([
+        'slot_id' => 33,
+        'building_gid' => 22,
+        'building_type' => 'الأكاديمية',
+        'target_level' => 5,
+        'priority' => 1,
+        'is_enabled' => true,
+    ]);
+
+    $session = new class implements AccountSession
+    {
+        /** @var list<string> */
+        public array $requests = [];
+
+        public function get(string $uri, array $options = []): SessionResponse
+        {
+            $this->requests[] = $uri;
+
+            return match ($uri) {
+                '/dorf1.php?newdid=23389' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php'),
+                '/dorf2.php' => $this->response('<body class="village2"></body>', 'https://example.com/dorf2.php'),
+                '/build.php?id=33&gid=22' => $this->response('<div class="errorMessage">لا يمكن تطوير هذا المبنى الآن</div>', 'https://example.com/build.php?id=33&gid=22'),
+                default => throw new RuntimeException('Unexpected request: '.$uri),
+            };
+        }
+
+        public function postForm(string $uri, array $formParams, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('postForm was not expected during construction execution.');
+        }
+
+        public function postJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('postJson was not expected during construction execution.');
+        }
+
+        public function putJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('putJson was not expected during construction execution.');
+        }
+
+        public function persist(): void {}
+
+        protected function response(string $body, string $effectiveUri): SessionResponse
+        {
+            return new SessionResponse(200, $body, $effectiveUri, []);
+        }
+    };
+
+    app(ExecuteVillageConstruction::class)->handle($account->fresh(), $village->fresh(['settings', 'runtimeState', 'buildings', 'buildingTargets']), $session);
+
+    expect($session->requests)->toContain('/build.php?id=33&gid=22');
+    expect($session->requests)->not->toContain('/build.php?id=8');
+    expect(ActivityLog::query()->where('message', 'Field upgrade order issued successfully.')->exists())->toBeFalse();
+});
+
+test('single queue village falls through when top building is blocked but not held', function () {
+    bindConstructionRefreshSnapshots(
+        [
+            fakeDorf1Overview('23390', 'قرية Priority TOP', 2, [
+                [
+                    'building_name' => 'حقل القمح',
+                    'target_level' => 5,
+                    'remaining_seconds' => 120,
+                    'remaining_label' => '0:02:00',
+                    'finish_label' => '13:02',
+                ],
+            ], [
+                ['slot_id' => 8, 'building_gid' => 4, 'building_name' => 'حقل القمح', 'current_level' => 4],
+            ]),
+        ],
+        [
+            fakeDorf2Overview([
+                ['slot_id' => 33, 'building_gid' => 22, 'building_name' => 'الأكاديمية', 'current_level' => 4],
+            ]),
+        ],
+    );
+
+    $account = Account::factory()->create(['server_url' => 'https://example.com/']);
+    $village = $account->villages()->create([
+        'travian_village_id' => '23390',
+        'name' => 'قرية Priority TOP',
+        'is_active' => true,
+    ]);
+
+    $village->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+        'pause_fields' => false,
+        'pause_buildings' => false,
+        'construction_schedule' => [
+            'pinned' => ['building:33:5'],
+            'held' => [],
+        ],
+    ]);
+    $village->runtimeState()->create([
+        'tribe_id' => 2,
+        'troop_slots' => [],
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+
+    $village->buildings()->create([
+        'slot_id' => 8,
+        'building_gid' => 4,
+        'building_type' => 'حقل القمح',
+        'current_level' => 4,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 33,
+        'building_gid' => 22,
+        'building_type' => 'الأكاديمية',
+        'current_level' => 4,
+    ]);
+    $village->buildingTargets()->create([
+        'slot_id' => 33,
+        'building_gid' => 22,
+        'building_type' => 'الأكاديمية',
+        'target_level' => 5,
+        'priority' => 1,
+        'is_enabled' => true,
+    ]);
+
+    $session = new class implements AccountSession
+    {
+        /** @var list<string> */
+        public array $requests = [];
+
+        public function get(string $uri, array $options = []): SessionResponse
+        {
+            $this->requests[] = $uri;
+
+            return match ($uri) {
+                '/dorf1.php?newdid=23390' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php'),
+                '/dorf2.php' => $this->response('<body class="village2"></body>', 'https://example.com/dorf2.php'),
+                '/build.php?id=33&gid=22' => $this->response('<div class="errorMessage">لا يمكن تطوير هذا المبنى الآن</div>', 'https://example.com/build.php?id=33&gid=22'),
+                '/build.php?id=8' => $this->response('<button onclick="this.disabled = true; window.location.href = \'/dorf1.php?id=8&amp;gid=4&amp;action=build&amp;checksum=crop500\'; return false;"></button>', 'https://example.com/build.php?id=8&gid=4'),
+                '/dorf1.php?id=8&gid=4&action=build&checksum=crop500' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php?id=8&gid=4&action=build&checksum=crop500'),
+                default => throw new RuntimeException('Unexpected request: '.$uri),
+            };
+        }
+
+        public function postForm(string $uri, array $formParams, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('postForm was not expected during construction execution.');
+        }
+
+        public function postJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('postJson was not expected during construction execution.');
+        }
+
+        public function putJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('putJson was not expected during construction execution.');
+        }
+
+        public function persist(): void {}
+
+        protected function response(string $body, string $effectiveUri): SessionResponse
+        {
+            return new SessionResponse(200, $body, $effectiveUri, []);
+        }
+    };
+
+    app(ExecuteVillageConstruction::class)->handle($account->fresh(), $village->fresh(['settings', 'runtimeState', 'buildings', 'buildingTargets']), $session);
+
+    expect($session->requests)->toContain('/build.php?id=33&gid=22');
+    expect($session->requests)->toContain('/build.php?id=8');
+    expect(ActivityLog::query()->where('message', 'Field upgrade order issued successfully.')->exists())->toBeTrue();
+});
+
 test('field automation upgrades crop when Travian requires crop before other fields', function () {
     bindConstructionRefreshSnapshots(
         [
@@ -1156,7 +1851,7 @@ test('field priority balancing prevents a preferred resource from running too fa
                     'finish_label' => '12:26',
                 ],
             ], [
-                ['slot_id' => 1, 'building_gid' => 1, 'building_name' => 'الحطاب', 'current_level' => 5],
+                ['slot_id' => 1, 'building_gid' => 1, 'building_name' => 'الحطاب', 'current_level' => 6],
                 ['slot_id' => 2, 'building_gid' => 2, 'building_name' => 'حفرة الطين', 'current_level' => 4],
                 ['slot_id' => 3, 'building_gid' => 3, 'building_name' => 'منجم الحديد', 'current_level' => 4],
                 ['slot_id' => 4, 'building_gid' => 4, 'building_name' => 'حقل القمح', 'current_level' => 4],
@@ -1198,7 +1893,7 @@ test('field priority balancing prevents a preferred resource from running too fa
     ]);
 
     foreach ([
-        ['slot_id' => 1, 'building_gid' => 1, 'building_type' => 'الحطاب', 'current_level' => 5],
+        ['slot_id' => 1, 'building_gid' => 1, 'building_type' => 'الحطاب', 'current_level' => 6],
         ['slot_id' => 2, 'building_gid' => 2, 'building_type' => 'حفرة الطين', 'current_level' => 4],
         ['slot_id' => 3, 'building_gid' => 3, 'building_type' => 'منجم الحديد', 'current_level' => 4],
         ['slot_id' => 4, 'building_gid' => 4, 'building_type' => 'حقل القمح', 'current_level' => 4],
@@ -2115,4 +2810,323 @@ test('building automation records resource shortage when every building target l
     expect($shortages[0]['queue_kind'] ?? null)->toBe('building');
     expect($shortages[0]['building_gid'] ?? null)->toBe(24);
     expect($shortages[0]['resource_ready_seconds'] ?? null)->toBe(1329);
+});
+
+test('construction uses hero resources before marketplace support and immediately retries the build', function () {
+    bindConstructionRefreshSnapshots(
+        [
+            fakeDorf1Overview('23389', 'قرية Hero Stock', 1, [
+                [
+                    'building_name' => 'البلدية',
+                    'target_level' => 1,
+                    'remaining_seconds' => 900,
+                    'remaining_label' => '0:15:00',
+                    'finish_label' => '13:00',
+                ],
+            ]),
+        ],
+        [
+            fakeDorf2Overview([
+                ['slot_id' => 26, 'building_gid' => 15, 'building_name' => 'المبنى الرئيسي', 'current_level' => 10],
+                ['slot_id' => 31, 'building_gid' => 22, 'building_name' => 'الأكاديمية', 'current_level' => 10],
+                ['slot_id' => 37, 'building_gid' => 0, 'building_name' => null, 'current_level' => 0, 'is_empty' => true],
+            ]),
+            fakeDorf2Overview([
+                ['slot_id' => 37, 'building_gid' => 24, 'building_name' => 'البلدية', 'current_level' => 0],
+            ]),
+        ],
+    );
+
+    $account = Account::factory()->create(['server_url' => 'https://example.com/']);
+    $village = $account->villages()->create([
+        'travian_village_id' => '23389',
+        'name' => 'قرية Hero Stock',
+        'is_active' => true,
+    ]);
+    $village->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+        'pause_fields' => true,
+        'pause_buildings' => false,
+        'hero_resources_enabled' => true,
+        'support_enabled' => true,
+    ]);
+    $village->resourceState()->create([
+        'wood' => 1300,
+        'clay' => 900,
+        'iron' => 1000,
+        'crop' => 400,
+        'wood_production' => 0,
+        'clay_production' => 0,
+        'iron_production' => 0,
+        'crop_production' => 0,
+        'warehouse_capacity' => 9600,
+        'granary_capacity' => 6300,
+        'server_reported_at' => now(),
+    ]);
+    $village->runtimeState()->create([
+        'tribe_id' => 1,
+        'troop_slots' => [],
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+
+    foreach ([
+        ['slot_id' => 26, 'building_gid' => 15, 'building_type' => 'المبنى الرئيسي', 'current_level' => 10],
+        ['slot_id' => 31, 'building_gid' => 22, 'building_type' => 'الأكاديمية', 'current_level' => 10],
+        ['slot_id' => 37, 'building_gid' => 0, 'building_type' => null, 'current_level' => 0],
+    ] as $slot) {
+        $village->buildings()->create($slot);
+    }
+
+    $village->buildingTargets()->create([
+        'slot_id' => 37,
+        'building_gid' => 24,
+        'building_type' => 'البلدية',
+        'target_level' => 1,
+        'priority' => 1,
+        'is_enabled' => true,
+    ]);
+
+    $session = new class implements AccountSession
+    {
+        /** @var list<string> */
+        public array $getRequests = [];
+
+        /** @var list<array{uri: string, payload: array<string, mixed>, options: array<string, mixed>}> */
+        public array $jsonRequests = [];
+
+        /** @var list<array{uri: string, payload: array<string, mixed>, options: array<string, mixed>}> */
+        public array $putRequests = [];
+
+        public function get(string $uri, array $options = []): SessionResponse
+        {
+            $this->getRequests[] = $uri;
+
+            return match ($uri) {
+                '/dorf1.php?newdid=23389' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php'),
+                '/dorf2.php' => $this->response('<body class="village2"></body>', 'https://example.com/dorf2.php'),
+                '/build.php?id=37&category=1' => $this->response(fakeResourceShortageBuildHtml(1329), 'https://example.com/build.php?id=37&category=1'),
+                '/build.php?id=37&category=1&reload=auto' => $this->response('<button onclick="this.disabled = true; window.location.href = \'/dorf2.php?id=37&amp;gid=24&amp;action=build&amp;checksum=hero\'; return false;"></button>', 'https://example.com/build.php?id=37&category=1&reload=auto'),
+                '/dorf2.php?id=37&gid=24&action=build&checksum=hero' => $this->response('<body class="village2"></body>', 'https://example.com/dorf2.php?id=37&gid=24&action=build&checksum=hero'),
+                '/dorf1.php' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php'),
+                default => $this->response('<body></body>', 'https://example.com'.$uri),
+            };
+        }
+
+        public function postForm(string $uri, array $formParams, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('postForm was not expected during construction execution.');
+        }
+
+        public function postJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            $this->jsonRequests[] = [
+                'uri' => $uri,
+                'payload' => $payload,
+                'options' => $options,
+            ];
+
+            if ($uri === '/api/v1/graphql') {
+                return $this->response(json_encode([
+                    'data' => [
+                        'ownPlayer' => [
+                            'hero' => [
+                                'inventory' => [
+                                    ['id' => 38293, 'amount' => 90000, 'placeId' => 1, 'name' => 'الخشب', 'typeId' => 145, 'slot' => 'inventory'],
+                                    ['id' => 38294, 'amount' => 90000, 'placeId' => 2, 'name' => 'طين', 'typeId' => 146, 'slot' => 'inventory'],
+                                    ['id' => 38295, 'amount' => 90000, 'placeId' => 3, 'name' => 'الحديد', 'typeId' => 147, 'slot' => 'inventory'],
+                                    ['id' => 38296, 'amount' => 90000, 'placeId' => 4, 'name' => 'القمح', 'typeId' => 148, 'slot' => 'inventory'],
+                                ],
+                            ],
+                            'village' => [
+                                'id' => 23389,
+                                'name' => 'قرية Hero Stock',
+                                'resources' => [
+                                    'lumberStock' => 1300,
+                                    'clayStock' => 900,
+                                    'ironStock' => 1000,
+                                    'cropStock' => 400,
+                                    'maxStorageCapacity' => 9600,
+                                    'maxCropStorageCapacity' => 6300,
+                                ],
+                            ],
+                        ],
+                    ],
+                ], JSON_THROW_ON_ERROR), 'https://example.com/api/v1/graphql');
+            }
+
+            return $this->response('{"success":true}', 'https://example.com'.$uri);
+        }
+
+        public function putJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            $this->putRequests[] = [
+                'uri' => $uri,
+                'payload' => $payload,
+                'options' => $options,
+            ];
+
+            return new SessionResponse(200, '', 'https://example.com'.$uri, [
+                'x-nonce' => ['nonce-'.$payload['itemId']],
+            ]);
+        }
+
+        public function persist(): void {}
+
+        protected function response(string $body, string $effectiveUri): SessionResponse
+        {
+            return new SessionResponse(200, $body, $effectiveUri, []);
+        }
+    };
+
+    app(ExecuteVillageConstruction::class)->handle($account->fresh(), $village->fresh(['settings', 'resourceState', 'runtimeState', 'buildings', 'buildingTargets']), $session);
+
+    expect($session->getRequests)->toContain('/build.php?id=37&category=1&reload=auto');
+    expect(array_map(static fn (array $request): int => (int) $request['payload']['amount'], $session->putRequests))->toBe([435, 90, 485, 95]);
+    expect(ActivityLog::query()->where('activity_type', ActivityType::Hero)->where('message', 'Hero resources moved to village for construction.')->exists())->toBeTrue();
+    expect(ActivityLog::query()->where('activity_type', ActivityType::Build)->where('message', 'Building construction order issued successfully.')->exists())->toBeTrue();
+    expect(ActivityLog::query()->where('activity_type', ActivityType::Transfer)->exists())->toBeFalse();
+});
+
+test('construction skips hero resources and falls back to trade when hero resources are disabled for the village', function () {
+    bindConstructionRefreshSnapshots(
+        [fakeDorf1Overview('23390', 'قرية Trade Fallback', 1)],
+        [
+            fakeDorf2Overview([
+                ['slot_id' => 26, 'building_gid' => 15, 'building_name' => 'المبنى الرئيسي', 'current_level' => 10],
+                ['slot_id' => 31, 'building_gid' => 22, 'building_name' => 'الأكاديمية', 'current_level' => 10],
+                ['slot_id' => 37, 'building_gid' => 0, 'building_name' => null, 'current_level' => 0, 'is_empty' => true],
+            ]),
+        ],
+    );
+
+    $account = Account::factory()->create(['server_url' => 'https://example.com/']);
+    $village = $account->villages()->create([
+        'travian_village_id' => '23390',
+        'name' => 'قرية Trade Fallback',
+        'is_active' => true,
+    ]);
+    $village->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+        'pause_fields' => true,
+        'pause_buildings' => false,
+        'hero_resources_enabled' => false,
+        'support_enabled' => true,
+    ]);
+    $village->resourceState()->create([
+        'wood' => 1300,
+        'clay' => 900,
+        'iron' => 1000,
+        'crop' => 400,
+        'wood_production' => 0,
+        'clay_production' => 0,
+        'iron_production' => 0,
+        'crop_production' => 0,
+        'warehouse_capacity' => 9600,
+        'granary_capacity' => 6300,
+        'server_reported_at' => now(),
+    ]);
+    $village->runtimeState()->create([
+        'tribe_id' => 1,
+        'troop_slots' => [],
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+
+    foreach ([
+        ['slot_id' => 26, 'building_gid' => 15, 'building_type' => 'المبنى الرئيسي', 'current_level' => 10],
+        ['slot_id' => 31, 'building_gid' => 22, 'building_type' => 'الأكاديمية', 'current_level' => 10],
+        ['slot_id' => 37, 'building_gid' => 0, 'building_type' => null, 'current_level' => 0],
+    ] as $slot) {
+        $village->buildings()->create($slot);
+    }
+
+    $village->buildingTargets()->create([
+        'slot_id' => 37,
+        'building_gid' => 24,
+        'building_type' => 'البلدية',
+        'target_level' => 1,
+        'priority' => 1,
+        'is_enabled' => true,
+    ]);
+
+    $session = new class implements AccountSession
+    {
+        public function get(string $uri, array $options = []): SessionResponse
+        {
+            return match ($uri) {
+                '/dorf1.php?newdid=23390' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php'),
+                '/dorf2.php' => $this->response('<body class="village2"></body>', 'https://example.com/dorf2.php'),
+                '/build.php?id=37&category=1' => $this->response(fakeResourceShortageBuildHtml(1329), 'https://example.com/build.php?id=37&category=1'),
+                default => $this->response('<body></body>', 'https://example.com'.$uri),
+            };
+        }
+
+        public function postForm(string $uri, array $formParams, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('postForm was not expected during construction execution.');
+        }
+
+        public function postJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('Hero resources should be skipped when disabled.');
+        }
+
+        public function putJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('Hero resources should be skipped when disabled.');
+        }
+
+        public function persist(): void {}
+
+        protected function response(string $body, string $effectiveUri): SessionResponse
+        {
+            return new SessionResponse(200, $body, $effectiveUri, []);
+        }
+    };
+
+    app(ExecuteVillageConstruction::class)->handle($account->fresh(), $village->fresh(['settings', 'resourceState', 'runtimeState', 'buildings', 'buildingTargets']), $session);
+
+    expect(ActivityLog::query()->where('activity_type', ActivityType::Hero)->exists())->toBeFalse();
+    expect(ActivityLog::query()->where('activity_type', ActivityType::Transfer)->latest('id')->value('message'))
+        ->toBe('No eligible supplier village could send resources for construction.');
+});
+
+test('village construction rethrows transient connection failures for account backoff', function () {
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23378',
+        'name' => 'Timeout Village',
+        'is_active' => true,
+    ]);
+
+    $session = new class implements AccountSession
+    {
+        public function get(string $uri, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('cURL error 28: Operation timed out after 20001 milliseconds with 80821 out of 176843 bytes received');
+        }
+
+        public function postForm(string $uri, array $formParams, array $options = []): SessionResponse
+        {
+            return $this->get($uri, $options);
+        }
+
+        public function postJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            return $this->get($uri, $options);
+        }
+
+        public function putJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            return $this->get($uri, $options);
+        }
+
+        public function persist(): void {}
+    };
+
+    expect(fn () => app(ExecuteVillageConstruction::class)->handle($account, $village, $session))
+        ->toThrow(RuntimeException::class, 'cURL error 28');
 });

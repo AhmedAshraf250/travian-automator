@@ -20,9 +20,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'trade_mode',
     'prioritize_crop_fields_when_negative',
     'support_enabled',
+    'hero_resources_enabled',
+    'supply_negative_crop_enabled',
     'send_enabled',
     'send_min_resource_percentage',
     'send_reserve_resource_percentage',
+    'construction_schedule',
     'troop_training_enabled',
     'celebration_enabled',
     'celebration_type',
@@ -30,6 +33,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class VillageSetting extends Model
 {
+    /**
+     * The model's default values for attributes.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'celebration_type' => 'small',
+        'hero_resources_enabled' => true,
+    ];
+
     /**
      * Return the default per-resource field upgrade order.
      *
@@ -45,7 +58,7 @@ class VillageSetting extends Model
      */
     public static function defaultCelebrationType(): VillageCelebrationType
     {
-        return VillageCelebrationType::Auto;
+        return VillageCelebrationType::Small;
     }
 
     /**
@@ -71,9 +84,12 @@ class VillageSetting extends Model
             'trade_mode' => VillageTradeMode::class,
             'prioritize_crop_fields_when_negative' => 'boolean',
             'support_enabled' => 'boolean',
+            'hero_resources_enabled' => 'boolean',
+            'supply_negative_crop_enabled' => 'boolean',
             'send_enabled' => 'boolean',
             'send_min_resource_percentage' => 'integer',
             'send_reserve_resource_percentage' => 'integer',
+            'construction_schedule' => 'array',
             'troop_training_enabled' => 'boolean',
             'celebration_enabled' => 'boolean',
             'celebration_type' => VillageCelebrationType::class,

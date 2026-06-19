@@ -2,12 +2,14 @@
 
 namespace App\Jobs;
 
+use App\Application\Accounts\Connection\AccountConnectionBackoffStarted;
 use App\Application\Accounts\Sync\SyncAccountOverview;
 use App\Enums\AccountStatus;
 use App\Enums\ActivityLogStatus;
 use App\Enums\ActivityType;
 use App\Models\Account;
 use App\Models\ActivityLog;
+use App\Models\SystemSetting;
 use App\Models\Village;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -51,6 +53,8 @@ class SyncTravianAccountJob implements ShouldBeUnique, ShouldQueue
     public function __construct(
         public int $accountId,
         public ?int $villageId = null,
+        public bool $ignoreConnectionBackoff = false,
+        public bool $useReloadAuto = false,
     ) {}
 
     /**
@@ -86,6 +90,15 @@ class SyncTravianAccountJob implements ShouldBeUnique, ShouldQueue
             ? Village::query()->where('account_id', $account->id)->findOrFail($this->villageId)
             : null;
 
+        if (
+            ! SystemSetting::automationEnabled()
+            || ! $account->is_active
+            || $account->is_archived
+            || (! $this->ignoreConnectionBackoff && $account->isWaitingForConnectionRetry())
+        ) {
+            return;
+        }
+
         ActivityLog::query()->create([
             'account_id' => $account->id,
             'village_id' => $village?->id,
@@ -97,7 +110,11 @@ class SyncTravianAccountJob implements ShouldBeUnique, ShouldQueue
             'executed_at' => now(),
         ]);
 
-        $syncAccountOverview->handle($account, $village);
+        try {
+            $syncAccountOverview->handle($account, $village, $this->useReloadAuto);
+        } catch (AccountConnectionBackoffStarted) {
+            return;
+        }
     }
 
     /**

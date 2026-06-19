@@ -67,6 +67,7 @@ class GuzzleAccountSessionFactory implements AccountSessionFactory
         }
 
         $headers['Accept-Language'] = (string) config('travian.client.accept_language', 'en-US,en;q=0.9');
+        $headers['Accept-Encoding'] = (string) config('travian.client.accept_encoding', 'gzip, deflate');
 
         return array_filter([
             'base_uri' => rtrim($account->server_url, '/').'/',
@@ -133,6 +134,10 @@ class GuzzleAccountSessionFactory implements AccountSessionFactory
             ? rawurlencode($account->proxy_username).':'.rawurlencode((string) $account->proxy_password).'@'
             : '';
 
-        return "http://{$credentials}{$account->proxy_ip}:{$account->proxy_port}";
+        $scheme = in_array($account->proxy_scheme, ['http', 'https', 'socks5', 'socks5h'], true)
+            ? $account->proxy_scheme
+            : 'http';
+
+        return "{$scheme}://{$credentials}{$account->proxy_ip}:{$account->proxy_port}";
     }
 }
