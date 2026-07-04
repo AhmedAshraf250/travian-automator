@@ -6,6 +6,8 @@ use App\Enums\AccountStatus;
 use App\Enums\ActivityLogStatus;
 use App\Enums\ActivityType;
 use App\Models\Account;
+use App\Models\AccountProxy;
+use App\Models\AccountSetting;
 use App\Models\ActivityLog;
 use Illuminate\Support\Facades\DB;
 
@@ -59,10 +61,38 @@ class ImportBulkAccounts
                 $account->save();
                 $accountIds[] = (int) $account->id;
 
+                if ($record->proxyIp !== null && $record->proxyPort !== null) {
+                    $proxy = $account->proxies()->updateOrCreate(
+                        ['position' => 1],
+                        [
+                            'scheme' => $record->proxyScheme,
+                            'host' => $record->proxyIp,
+                            'port' => $record->proxyPort,
+                            'username' => $record->proxyUsername,
+                            'password' => $record->proxyPassword,
+                            'status' => AccountProxy::StatusActive,
+                            'failure_count' => 0,
+                            'last_failed_at' => null,
+                            'cooldown_until' => null,
+                            'last_error_message' => null,
+                        ],
+                    );
+
+                    $account->forceFill([
+                        'active_account_proxy_id' => $proxy->id,
+                    ])->save();
+                } else {
+                    $account->forceFill([
+                        'active_account_proxy_id' => null,
+                        'session_cookies' => null,
+                        'session_transport_fingerprint' => null,
+                    ])->save();
+                }
+
                 $account->settings()->updateOrCreate(
                     [],
                     [
-                        'resource_priorities' => [15, 11, 1, 1],
+                        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
                     ],
                 );
 

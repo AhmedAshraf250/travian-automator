@@ -33,6 +33,11 @@ class SystemSetting extends Model
     public const HERO_DEFAULTS_KEY = 'hero_defaults';
 
     /**
+     * Shared key for default trade automation behavior.
+     */
+    public const TRADE_DEFAULTS_KEY = 'trade_defaults';
+
+    /**
      * Return the default per-resource field upgrade order.
      *
      * @return array{wood: int, clay: int, iron: int, crop: int}
@@ -45,6 +50,11 @@ class SystemSetting extends Model
             'iron' => 3,
             'crop' => 4,
         ];
+    }
+
+    public static function defaultFieldLevelCap(): int
+    {
+        return 10;
     }
 
     /**
@@ -129,7 +139,7 @@ class SystemSetting extends Model
     /**
      * Resolve the global construction defaults.
      *
-     * @return array{field_priority: array{wood: int, clay: int, iron: int, crop: int}, prioritize_crop_fields_when_negative: bool}
+     * @return array{field_priority: array{wood: int, clay: int, iron: int, crop: int}, prioritize_crop_fields_when_negative: bool, field_level_cap: int}
      */
     public static function constructionDefaults(): array
     {
@@ -137,6 +147,7 @@ class SystemSetting extends Model
             return [
                 'field_priority' => static::defaultFieldPriority(),
                 'prioritize_crop_fields_when_negative' => true,
+                'field_level_cap' => static::defaultFieldLevelCap(),
             ];
         }
 
@@ -146,7 +157,41 @@ class SystemSetting extends Model
         return [
             'field_priority' => static::normalizeFieldPriority($value['field_priority'] ?? null),
             'prioritize_crop_fields_when_negative' => (bool) ($value['prioritize_crop_fields_when_negative'] ?? true),
+            'field_level_cap' => static::normalizeFieldLevelCap($value['field_level_cap'] ?? null),
         ];
+    }
+
+    /**
+     * Resolve global trade automation defaults.
+     *
+     * @return array{max_duration_seconds: int}
+     */
+    public static function tradeDefaults(): array
+    {
+        if (! static::settingsTableExists()) {
+            return static::defaultTradeDefaults();
+        }
+
+        $setting = static::query()->firstWhere('key', static::TRADE_DEFAULTS_KEY);
+
+        return static::normalizeTradeDefaults(is_array($setting?->value) ? $setting->value : []);
+    }
+
+    /**
+     * Persist global trade automation defaults.
+     *
+     * @param  array<string, mixed>  $value
+     */
+    public static function setTradeDefaults(array $value): void
+    {
+        if (! static::settingsTableExists()) {
+            return;
+        }
+
+        static::query()->updateOrCreate(
+            ['key' => static::TRADE_DEFAULTS_KEY],
+            ['value' => static::normalizeTradeDefaults($value)],
+        );
     }
 
     /**
@@ -205,6 +250,7 @@ class SystemSetting extends Model
             ['value' => [
                 'field_priority' => static::normalizeFieldPriority($value['field_priority'] ?? $value),
                 'prioritize_crop_fields_when_negative' => (bool) ($value['prioritize_crop_fields_when_negative'] ?? true),
+                'field_level_cap' => static::normalizeFieldLevelCap($value['field_level_cap'] ?? null),
             ]],
         );
     }
@@ -215,7 +261,8 @@ class SystemSetting extends Model
      * @return array{
      *     automation_enabled: bool,
      *     default_user_agent: ?string,
-     *     construction_defaults: array{field_priority: array{wood: int, clay: int, iron: int, crop: int}, prioritize_crop_fields_when_negative: bool},
+     *     construction_defaults: array{field_priority: array{wood: int, clay: int, iron: int, crop: int}, prioritize_crop_fields_when_negative: bool, field_level_cap: int},
+     *     trade_defaults: array{max_duration_seconds: int},
      *     hero_defaults: array{
      *         adventures_enabled: bool,
      *         min_health: int,
@@ -231,6 +278,7 @@ class SystemSetting extends Model
             'automation_enabled' => static::automationEnabled(),
             'default_user_agent' => static::defaultUserAgent(),
             'construction_defaults' => static::constructionDefaults(),
+            'trade_defaults' => static::tradeDefaults(),
             'hero_defaults' => static::heroDefaults(),
         ];
     }
@@ -261,6 +309,34 @@ class SystemSetting extends Model
             'clay' => (int) ($fieldPriority['clay'] ?? $defaults['clay']),
             'iron' => (int) ($fieldPriority['iron'] ?? $defaults['iron']),
             'crop' => (int) ($fieldPriority['crop'] ?? $defaults['crop']),
+        ];
+    }
+
+    protected static function normalizeFieldLevelCap(mixed $fieldLevelCap): int
+    {
+        return max(1, min(20, (int) ($fieldLevelCap ?? static::defaultFieldLevelCap())));
+    }
+
+    /**
+     * @return array{max_duration_seconds: int}
+     */
+    protected static function defaultTradeDefaults(): array
+    {
+        return [
+            'max_duration_seconds' => 5 * 60 * 60,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $value
+     * @return array{max_duration_seconds: int}
+     */
+    protected static function normalizeTradeDefaults(?array $value): array
+    {
+        $defaults = static::defaultTradeDefaults();
+
+        return [
+            'max_duration_seconds' => max(60, min(7 * 24 * 60 * 60, (int) ($value['max_duration_seconds'] ?? $defaults['max_duration_seconds']))),
         ];
     }
 

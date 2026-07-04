@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'outgoing_movement_count',
     'movement_entries',
     'construction_entries',
+    'demolition_entries',
     'construction_resource_shortages',
     'hero_status',
     'hero_remaining_seconds',
@@ -38,6 +39,7 @@ class VillageRuntimeState extends Model
             'troop_slots' => 'array',
             'movement_entries' => 'array',
             'construction_entries' => 'array',
+            'demolition_entries' => 'array',
             'construction_resource_shortages' => 'array',
             'server_reported_at' => 'immutable_datetime',
         ];

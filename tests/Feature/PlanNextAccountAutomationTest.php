@@ -2,6 +2,7 @@
 
 use App\Application\Accounts\Automation\PlanNextAccountAutomation;
 use App\Models\Account;
+use App\Models\AccountSetting;
 use App\Models\VillageSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -184,7 +185,7 @@ test('planner schedules around active hero movement timers', function () {
         'is_archived' => false,
     ]);
     $account->settings()->create([
-        'resource_priorities' => [15, 11, 1, 1],
+        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
         'hero_use_global_settings' => false,
         'hero_adventures_enabled' => true,
         'hero_min_health' => 40,
@@ -214,7 +215,7 @@ test('planner does not loop immediately when hero adventure is blocked by health
         'is_archived' => false,
     ]);
     $account->settings()->create([
-        'resource_priorities' => [15, 11, 1, 1],
+        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
         'hero_use_global_settings' => false,
         'hero_adventures_enabled' => true,
         'hero_min_health' => 40,

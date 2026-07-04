@@ -1,5 +1,5 @@
 @php
-    $shouldPollDashboard = ! $showProgramSettingsModal && ! $showAccountSettingsModal && ! $showImportModal && ! $showVillageBuildPlanModal;
+    $shouldPollDashboard = ! $showProgramSettingsModal && ! $showAccountSettingsModal && ! $showImportModal && ! $showVillageBuildPlanModal && ! $showMarketplaceTransferModal && ! $showVillageDemolitionModal;
     $programIsRunning = (bool) ($automationEnabled ?? true);
 @endphp
 
@@ -7,18 +7,18 @@
     <div class="mx-auto flex min-h-screen w-full max-w-[118rem] flex-col gap-4 px-3 py-3 sm:px-4 lg:px-5"
         style="{{ $showActivityLog ? 'padding-bottom: calc('.$activityLogHeight.'vh + 1.25rem);' : 'padding-bottom: 4rem;' }}"
         @if ($shouldPollDashboard) wire:poll.10s.keep-alive="refreshDashboardIfChanged" @endif>
-        <header class="sticky top-0 z-40 -mx-3 border-b px-3 py-2 shadow-[0_10px_28px_rgba(15,23,42,0.08)] backdrop-blur sm:-mx-4 sm:px-4 lg:-mx-5 lg:px-5 {{ $programIsRunning ? 'border-emerald-500/20 bg-[var(--color-panel)]/95' : 'border-rose-500/20 bg-[var(--color-panel)]/97' }}">
+        <header class="sticky top-0 z-40 -mx-3 border-b px-3 py-2 shadow-[0_10px_28px_rgba(15,23,42,0.08)] backdrop-blur sm:-mx-4 sm:px-4 lg:-mx-5 lg:px-5 {{ $programIsRunning ? 'border-emerald-500/20 bg-[var(--color-panel)]/95' : 'border-amber-400 bg-amber-50/95' }}">
             <div class="mx-auto flex max-w-[118rem] flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
                 <div class="flex min-w-0 flex-wrap items-center gap-2">
-                    <h1 class="font-[var(--font-display)] text-lg font-semibold sm:text-xl {{ $programIsRunning ? 'text-emerald-800' : 'text-[var(--color-ink)]' }}">
+                    <h1 class="font-[var(--font-display)] text-lg font-semibold sm:text-xl {{ $programIsRunning ? 'text-emerald-800' : 'text-amber-950' }}">
                         Travian Multi-Account Automation
                     </h1>
 
                     <span
-                        class="inline-flex items-center gap-2 rounded-lg border px-2.5 py-1 text-[11px] font-semibold {{ $programIsRunning ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-900' : 'border-rose-500/30 bg-rose-500/10 text-rose-900' }}"
+                        class="inline-flex items-center gap-2 rounded-lg border px-2.5 py-1 text-[11px] font-semibold {{ $programIsRunning ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-900' : 'border-amber-500/35 bg-amber-300/35 text-amber-950' }}"
                         title="Global build and automation state">
-                        <span class="relative inline-flex h-5 w-9 items-center rounded-full {{ $programIsRunning ? 'bg-emerald-500' : 'bg-rose-500' }}">
-                            <span class="absolute inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-[9px] font-black shadow-sm transition {{ $programIsRunning ? 'right-0.5 text-emerald-700' : 'left-0.5 text-rose-700' }}">
+                        <span class="relative inline-flex h-5 w-9 items-center rounded-full {{ $programIsRunning ? 'bg-emerald-500' : 'bg-amber-400' }}">
+                            <span class="absolute inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-[9px] font-black shadow-sm transition {{ $programIsRunning ? 'right-0.5 text-emerald-700' : 'left-0.5 text-amber-800' }}">
                                 {{ $programIsRunning ? '✓' : '×' }}
                             </span>
                         </span>
@@ -122,4 +122,6 @@
     @include('livewire.dashboard.partials.account-settings-modal')
     @include('livewire.dashboard.partials.import-modal')
     @include('livewire.dashboard.partials.village-build-plan-modal')
+    @include('livewire.dashboard.partials.marketplace-transfer-modal')
+    @include('livewire.dashboard.partials.village-demolition-modal')
 </div>

@@ -6,6 +6,7 @@ use App\Application\Accounts\Session\Data\SessionResponse;
 use App\Enums\ActivityLogStatus;
 use App\Enums\ActivityType;
 use App\Models\Account;
+use App\Models\AccountSetting;
 use App\Models\ActivityLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -37,7 +38,7 @@ function makeHeroAutomationAccount(array $settings = [], array $state = []): Acc
     ]);
 
     $account->settings()->create([
-        'resource_priorities' => [15, 11, 1, 1],
+        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
         'hero_use_global_settings' => false,
         'hero_adventures_enabled' => false,
         'hero_min_health' => 40,

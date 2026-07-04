@@ -37,6 +37,11 @@ class RunTravianAutomationJob implements ShouldBeUnique, ShouldQueue
     public int $tries = 12;
 
     /**
+     * Let slow proxy-backed sync/build requests finish before timeout handling.
+     */
+    public int $timeout = 90;
+
+    /**
      * Back off when a manual sync or another automation job owns the account lock.
      *
      * @var list<int>
@@ -59,7 +64,9 @@ class RunTravianAutomationJob implements ShouldBeUnique, ShouldQueue
         public ?int $villageId = null,
         public bool $syncWhenStale = true,
         public bool $ignoreConnectionBackoff = false,
-    ) {}
+    ) {
+        $this->timeout = max(30, (int) config('travian.automation.job_timeout_seconds', 90));
+    }
 
     /**
      * Identify duplicate automation jobs by account.

@@ -6,6 +6,7 @@ use App\Application\Accounts\Session\Data\SessionResponse;
 use App\Enums\ActivityLogStatus;
 use App\Enums\ActivityType;
 use App\Models\Account;
+use App\Models\AccountSetting;
 use App\Models\ActivityLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -18,7 +19,7 @@ function makeDailyQuestRewardAccount(bool $acceptQuests = true): Account
     ]);
 
     $account->settings()->create([
-        'resource_priorities' => [15, 11, 1, 1],
+        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
         'accept_quests' => $acceptQuests,
     ]);
 

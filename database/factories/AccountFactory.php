@@ -27,6 +27,7 @@ class AccountFactory extends Factory
             'proxy_port' => null,
             'proxy_username' => null,
             'proxy_password' => null,
+            'active_account_proxy_id' => null,
             'user_agent' => fake()->userAgent(),
             'session_cookies' => null,
             'session_transport_fingerprint' => null,

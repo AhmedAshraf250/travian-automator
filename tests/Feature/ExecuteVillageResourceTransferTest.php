@@ -247,6 +247,143 @@ test('resource transfer skips low stock villages and confirms a rounded marketpl
     ]);
 });
 
+test('resource transfer stops before confirmation when merchant travel time exceeds the limit', function () {
+    $account = Account::factory()->create([
+        'server_url' => 'https://example.com/',
+    ]);
+
+    $recipient = $account->villages()->create([
+        'travian_village_id' => '26000',
+        'name' => 'CR7',
+        'x' => 9,
+        'y' => 59,
+        'population' => 90,
+        'is_active' => true,
+    ]);
+    $recipient->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+    ]);
+    $recipient->resourceState()->create([
+        'wood' => 0,
+        'clay' => 0,
+        'iron' => 0,
+        'crop' => 0,
+        'warehouse_capacity' => 10000,
+        'granary_capacity' => 10000,
+        'server_reported_at' => now(),
+    ]);
+
+    $supplier = $account->villages()->create([
+        'travian_village_id' => '23379',
+        'name' => 'Supplier',
+        'x' => 2,
+        'y' => 2,
+        'population' => 300,
+        'is_active' => true,
+    ]);
+    $supplier->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+        'send_enabled' => true,
+        'send_min_resource_percentage' => 0,
+        'send_reserve_resource_percentage' => 0,
+        'trade_max_duration_seconds' => 300,
+    ]);
+    $supplier->resourceState()->create([
+        'wood' => 1000,
+        'clay' => 1000,
+        'iron' => 1000,
+        'crop' => 1000,
+        'warehouse_capacity' => 10000,
+        'granary_capacity' => 10000,
+        'server_reported_at' => now(),
+    ]);
+    $supplier->buildings()->create([
+        'slot_id' => 32,
+        'building_gid' => 17,
+        'building_type' => 'السوق',
+        'current_level' => 10,
+    ]);
+
+    $session = new class implements AccountSession
+    {
+        /** @var list<string> */
+        public array $getRequests = [];
+
+        /** @var list<array{uri: string, payload: array<string, mixed>, options: array<string, mixed>}> */
+        public array $jsonRequests = [];
+
+        /** @var list<array{uri: string, payload: array<string, mixed>, options: array<string, mixed>}> */
+        public array $putRequests = [];
+
+        public function get(string $uri, array $options = []): SessionResponse
+        {
+            $this->getRequests[] = $uri;
+
+            return new SessionResponse(200, '<body></body>', 'https://example.com'.(str_starts_with($uri, '/') ? $uri : '/'.$uri), []);
+        }
+
+        public function postForm(string $uri, array $formParams, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('postForm was not expected during resource transfer.');
+        }
+
+        public function postJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            $this->jsonRequests[] = [
+                'uri' => $uri,
+                'payload' => $payload,
+                'options' => $options,
+            ];
+
+            if ($uri === '/api/v1/graphql') {
+                return new SessionResponse(200, '{"data":{"ownPlayer":{"village":{"marketplace":{"merchantsInfo":{"capacity":500,"available":2}}}}}}', 'https://example.com/api/v1/graphql', []);
+            }
+
+            throw new RuntimeException('Confirmation request was not expected after duration limit.');
+        }
+
+        public function putJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            $this->putRequests[] = [
+                'uri' => $uri,
+                'payload' => $payload,
+                'options' => $options,
+            ];
+
+            return new SessionResponse(200, '{"duration":301,"merchantsAmount":1,"runs":1}', 'https://example.com'.$uri, [
+                'x-nonce' => ['nonce-123'],
+            ]);
+        }
+
+        public function persist(): void {}
+    };
+
+    app(ExecuteVillageResourceTransfer::class)->handle(
+        $account->fresh(),
+        $recipient->fresh(),
+        $session,
+        ['queue_kind' => 'building'],
+        new BuildPageAnalysis(
+            actionUri: null,
+            requiredResources: ['wood' => 500, 'clay' => 0, 'iron' => 0, 'crop' => 0],
+            blockedReason: 'resource_shortage',
+            blockedMessage: 'wood missing',
+            resourceReadySeconds: null,
+            resourceReadyLabel: null,
+        ),
+    );
+
+    expect($session->putRequests)->toHaveCount(1);
+    expect($session->jsonRequests)->toHaveCount(1);
+    expect($supplier->fresh()->resourceState?->wood)->toBe(1000);
+    expect(ActivityLog::query()
+        ->where('activity_type', ActivityType::Transfer)
+        ->where('message', 'Resource transfer stopped: merchant travel time is above the configured limit.')
+        ->exists())->toBeTrue();
+    expect(ActivityLog::query()->where('activity_type', ActivityType::Transfer)->latest('id')->value('message'))
+        ->toBe('No supplier village could send resources within the configured travel time for construction.');
+});
+
 test('resource transfer does not send resources to villages without supply enabled', function () {
     $account = Account::factory()->create([
         'server_url' => 'https://example.com/',

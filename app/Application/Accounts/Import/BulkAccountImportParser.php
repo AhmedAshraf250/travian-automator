@@ -216,7 +216,7 @@ class BulkAccountImportParser
         }
 
         $scheme = Str::lower((string) ($parts['scheme'] ?? ''));
-        $allowedSchemes = ['http', 'https', 'socks5', 'socks5h'];
+        $allowedSchemes = ['http', 'https', 'socks4', 'socks4a', 'socks5', 'socks5h'];
 
         if (! in_array($scheme, $allowedSchemes, true)) {
             throw new InvalidArgumentException("Line {$lineNumber} contains an unsupported proxy protocol.");

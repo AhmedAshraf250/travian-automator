@@ -17,16 +17,29 @@ use Throwable;
  */
 class RecordsAccountConnectionFailure
 {
+    public function __construct(protected RotatesAccountProxy $rotatesAccountProxy) {}
+
     public function handle(Account $account, ActivityType $activityType, ?Village $village, Throwable $throwable): AccountConnectionBackoffStarted
     {
         $message = $this->normalizedMessage($throwable);
         $failureCount = max(0, (int) $account->connection_failure_count) + 1;
-        $retryDelayMinutes = min(10, $failureCount);
-        $retryAfter = now()->addMinutes($retryDelayMinutes);
+        $switchedProxy = $this->rotatesAccountProxy->recordFailure($account, $message);
+        $nextProxyRetryAt = $this->rotatesAccountProxy->nextProxyRetryAt($account);
+        $hasAvailableProxy = $this->rotatesAccountProxy->hasAvailableProxy($account);
+
+        if ($switchedProxy) {
+            $retryAfter = now()->addMinutes(max(1, (int) config('travian.proxy_pool.switch_retry_minutes', 1)));
+        } elseif (! $hasAvailableProxy && $nextProxyRetryAt !== null) {
+            $retryAfter = $nextProxyRetryAt->addSeconds(max(0, (int) config('travian.proxy_pool.all_cooling_retry_grace_seconds', 10)));
+        } else {
+            $retryAfter = now()->addMinutes(min(10, $failureCount));
+        }
+
+        $retryDelaySeconds = max(1, (int) now()->diffInSeconds($retryAfter, false));
 
         $account->forceFill([
             'status' => AccountStatus::ConnectionIssue,
-            'connection_failure_count' => $failureCount,
+            'connection_failure_count' => $switchedProxy ? 0 : $failureCount,
             'connection_retry_after' => $retryAfter,
             'last_connection_error_at' => now(),
             'last_connection_error_message' => $message,
@@ -40,8 +53,11 @@ class RecordsAccountConnectionFailure
             'village_id' => $village?->id,
             'activity_type' => $activityType,
             'status' => ActivityLogStatus::Failed,
-            'message' => "Connection failed. Retry scheduled for {$retryDelayMinutes} "
-                .str('minute')->plural($retryDelayMinutes)
+            'message' => 'Connection failed. '
+                .($switchedProxy ? 'Switched to the next proxy. ' : '')
+                .(! $hasAvailableProxy && $nextProxyRetryAt !== null ? 'All proxies are cooling. ' : '')
+                .'Retry scheduled for '
+                .$this->formatRetryDelay($retryDelaySeconds)
                 ." from now: {$message}",
             'executed_at' => now(),
         ]);
@@ -51,6 +67,8 @@ class RecordsAccountConnectionFailure
 
     public function clear(Account $account): void
     {
+        $this->rotatesAccountProxy->clear($account);
+
         $account->forceFill([
             'connection_failure_count' => 0,
             'connection_retry_after' => null,
@@ -87,5 +105,16 @@ class RecordsAccountConnectionFailure
         }
 
         return mb_strimwidth($message, 0, 500, '...');
+    }
+
+    protected function formatRetryDelay(int $seconds): string
+    {
+        if ($seconds < 60) {
+            return $seconds.' '.str('second')->plural($seconds);
+        }
+
+        $minutes = (int) ceil($seconds / 60);
+
+        return $minutes.' '.str('minute')->plural($minutes);
     }
 }

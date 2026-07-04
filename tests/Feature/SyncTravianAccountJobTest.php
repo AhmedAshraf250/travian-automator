@@ -10,6 +10,14 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+test('sync job timeout is configurable and outlives slow proxy requests', function () {
+    config()->set('travian.automation.job_timeout_seconds', 120);
+
+    $job = new SyncTravianAccountJob(123);
+
+    expect($job->timeout)->toBe(120);
+});
+
 test('sync job does not send requests for a paused account', function () {
     $account = Account::factory()->create([
         'is_active' => false,
@@ -72,4 +80,6 @@ test('sync job passes reload auto preference to sync service', function () {
         ->with(Mockery::on(fn (Account $passedAccount): bool => $passedAccount->is($account)), null, true);
 
     (new SyncTravianAccountJob($account->id, null, false, true))->handle($syncAccountOverview);
+
+    expect($account->fresh()->status)->toBe(AccountStatus::Syncing);
 });

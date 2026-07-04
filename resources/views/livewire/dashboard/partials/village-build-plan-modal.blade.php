@@ -58,9 +58,26 @@
 
             <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4">
                 @if ($villageSettingsTab === 'generals')
+                    @php
+                        $priorityLabels = ['wood' => 'Wood', 'clay' => 'Clay', 'iron' => 'Iron', 'crop' => 'Crop'];
+                        $effectivePriorityDraft = $villageInheritProgramPriorityDraft
+                            ? ($globalFieldPriority ?? \App\Models\VillageSetting::defaultFieldPriority())
+                            : $villageFieldPriorityDraft;
+                        $effectiveFieldLevelCapDraft = $villageFieldLevelCapModeDraft === 'custom'
+                            ? (int) $villageFieldLevelCapDraft
+                            : (int) ($globalFieldLevelCap ?? \App\Models\VillageSetting::defaultFieldLevelCap());
+                        $effectiveFieldLevelCapDraft = max(1, min($editingVillageIsCapital ? 20 : 10, $effectiveFieldLevelCapDraft));
+                    @endphp
                     <div class="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.4fr)]">
                         <section class="rounded-lg border border-[var(--color-line)] bg-[var(--color-panel-alt)] p-4">
-                            <h3 class="text-sm font-semibold text-[var(--color-ink)]">Automation</h3>
+                            <div class="flex flex-wrap items-start justify-between gap-2">
+                                <div>
+                                    <h3 class="text-sm font-semibold text-[var(--color-ink)]">Automation switches</h3>
+                                    <p class="mt-1 text-xs leading-5 text-[var(--color-muted)]">
+                                        These switches match the F and B controls on the village row.
+                                    </p>
+                                </div>
+                            </div>
 
                             <div class="mt-3 flex flex-wrap gap-2">
                                 <button type="button" wire:click="$toggle('villageFieldsAutomationDraft')"
@@ -88,14 +105,28 @@
                         </section>
 
                         <section class="rounded-lg border border-[var(--color-line)] bg-[var(--color-panel-alt)] p-4">
-                            <h3 class="text-sm font-semibold text-[var(--color-ink)]">Field priority</h3>
+                            <div class="flex flex-wrap items-start justify-between gap-2">
+                                <div>
+                                    <h3 class="text-sm font-semibold text-[var(--color-ink)]">Field priority mode</h3>
+                                    <p class="mt-1 text-xs leading-5 text-[var(--color-muted)]">
+                                        Inherited priority follows Program settings; custom priority applies only to this village.
+                                    </p>
+                                </div>
+                                <span class="rounded-full px-2.5 py-1 text-[11px] font-semibold {{ $villageInheritProgramPriorityDraft ? 'bg-sky-500/10 text-sky-800' : 'bg-emerald-500/10 text-emerald-800' }}">
+                                    {{ $villageInheritProgramPriorityDraft ? 'Inherited' : 'Custom' }}
+                                </span>
+                            </div>
 
                             <div class="mt-3 flex flex-wrap gap-2">
-                                <label class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-panel)] px-3 py-2 text-xs font-semibold text-[var(--color-muted)]">
-                                    <input type="checkbox" wire:model.live="villageInheritProgramPriorityDraft"
-                                        class="h-3.5 w-3.5 rounded border-[var(--color-line-strong)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]" />
-                                    Use program priority
-                                </label>
+                                <button type="button" wire:click="$set('villageInheritProgramPriorityDraft', true)"
+                                    class="rounded-lg border px-3 py-2 text-xs font-semibold transition {{ $villageInheritProgramPriorityDraft ? 'border-[var(--color-accent)] bg-[var(--color-panel)] text-[var(--color-accent)]' : 'border-[var(--color-line)] bg-[var(--color-panel)] text-[var(--color-muted)] hover:border-[var(--color-accent)]' }}">
+                                    Use Program priority
+                                </button>
+
+                                <button type="button" wire:click="$set('villageInheritProgramPriorityDraft', false)"
+                                    class="rounded-lg border px-3 py-2 text-xs font-semibold transition {{ ! $villageInheritProgramPriorityDraft ? 'border-[var(--color-accent)] bg-[var(--color-panel)] text-[var(--color-accent)]' : 'border-[var(--color-line)] bg-[var(--color-panel)] text-[var(--color-muted)] hover:border-[var(--color-accent)]' }}">
+                                    Custom village priority
+                                </button>
 
                                 <label class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-panel)] px-3 py-2 text-xs font-semibold text-[var(--color-muted)]">
                                     <input type="checkbox" wire:model.live="villagePrioritizeCropFieldsWhenNegativeDraft"
@@ -105,24 +136,65 @@
                                 </label>
                             </div>
 
-                            <div class="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                                @foreach (['wood' => 'Wood', 'clay' => 'Clay', 'iron' => 'Iron', 'crop' => 'Crop'] as $fieldKey => $fieldLabel)
-                                    <label wire:key="field-priority-{{ $fieldKey }}" class="grid gap-1 text-sm">
-                                        <span class="font-medium text-[var(--color-ink)]">{{ $fieldLabel }}</span>
-                                        <select wire:model.live="villageFieldPriorityDraft.{{ $fieldKey }}"
-                                            @disabled($villageInheritProgramPriorityDraft)
-                                            class="rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition disabled:opacity-50 focus:border-[var(--color-accent)]">
-                                            @foreach ([1, 2, 3, 4] as $priorityValue)
-                                                <option value="{{ $priorityValue }}">{{ $priorityValue }}</option>
-                                            @endforeach
-                                        </select>
-                                    </label>
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                @foreach ($priorityLabels as $fieldKey => $fieldLabel)
+                                    <span wire:key="effective-field-priority-{{ $fieldKey }}"
+                                        class="rounded-md bg-[var(--color-panel)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-muted)]">
+                                        {{ $fieldLabel }} priority {{ (int) ($effectivePriorityDraft[$fieldKey] ?? 0) }}
+                                    </span>
                                 @endforeach
                             </div>
+
+                            @unless ($villageInheritProgramPriorityDraft)
+                                <div class="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                                    @foreach ($priorityLabels as $fieldKey => $fieldLabel)
+                                        <label wire:key="field-priority-{{ $fieldKey }}" class="grid gap-1 text-sm">
+                                            <span class="font-medium text-[var(--color-ink)]">{{ $fieldLabel }}</span>
+                                            <select wire:model.live="villageFieldPriorityDraft.{{ $fieldKey }}"
+                                                class="rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-accent)]">
+                                                @foreach ([1, 2, 3, 4] as $priorityValue)
+                                                    <option value="{{ $priorityValue }}">{{ $priorityValue }}</option>
+                                                @endforeach
+                                            </select>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            @endunless
 
                             @error('villageFieldPriorityDraft')
                                 <p class="mt-3 text-xs font-medium text-red-700">{{ $message }}</p>
                             @enderror
+                        </section>
+
+                        <section class="rounded-lg border border-[var(--color-line)] bg-[var(--color-panel-alt)] p-4 lg:col-span-2">
+                            <div class="flex flex-col gap-3 lg:flex-row lg:items-end">
+                                <div class="min-w-0 flex-1">
+                                    <h3 class="text-sm font-semibold text-[var(--color-ink)]">Field level limit</h3>
+                                    <p class="mt-1 text-xs leading-5 text-[var(--color-muted)]">
+                                        Controls the highest resource field level automation may target. Non-capital villages are always capped at level 10.
+                                    </p>
+                                    <span class="mt-2 inline-flex rounded-md bg-[var(--color-panel)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-muted)]">
+                                        Effective limit: level {{ $effectiveFieldLevelCapDraft }}
+                                    </span>
+                                </div>
+
+                                <label class="grid min-w-44 gap-1 text-sm">
+                                    <span class="font-medium text-[var(--color-ink)]">Mode</span>
+                                    <select wire:model.live="villageFieldLevelCapModeDraft"
+                                        class="rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-accent)]">
+                                        <option value="inherit">Use program default</option>
+                                        <option value="custom">Custom limit</option>
+                                    </select>
+                                </label>
+
+                                <label class="grid w-36 gap-1 text-sm">
+                                    <span class="font-medium text-[var(--color-ink)]">Max level</span>
+                                    <input type="number" min="1" max="{{ $editingVillageIsCapital ? 20 : 10 }}"
+                                        wire:model.live="villageFieldLevelCapDraft"
+                                        @disabled($villageFieldLevelCapModeDraft !== 'custom')
+                                        class="rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition disabled:opacity-50 focus:border-[var(--color-accent)]">
+                                </label>
+                            </div>
                         </section>
 
                         <section class="rounded-lg border border-[var(--color-line)] bg-[var(--color-panel-alt)] p-4 lg:col-span-2">
@@ -152,16 +224,16 @@
                             </span>
                         </div>
 
-                        <div class="overflow-x-auto rounded-lg border border-[var(--color-line)] bg-[var(--color-panel-alt)]">
-                            <table class="min-w-[58rem] w-full border-separate border-spacing-0 text-left text-sm">
-                                <thead class="bg-[var(--color-panel)] text-[11px] uppercase text-[var(--color-muted)]">
+                        <div class="overflow-x-auto rounded-lg border border-[var(--color-line)] bg-[var(--color-panel-alt)] p-2">
+                            <table class="min-w-[62rem] w-full border-separate border-spacing-y-2 text-left text-sm">
+                                <thead class="sticky top-0 z-20 bg-[var(--color-panel)] text-[11px] uppercase text-[var(--color-muted)] shadow-sm">
                                     <tr>
-                                        <th class="border-b border-[var(--color-line)] px-3 py-2 font-semibold">Place ID</th>
-                                        <th class="border-b border-[var(--color-line)] px-3 py-2 font-semibold">Current</th>
-                                        <th class="border-b border-[var(--color-line)] px-3 py-2 font-semibold">Building</th>
-                                        <th class="border-b border-[var(--color-line)] px-3 py-2 font-semibold">Max level</th>
-                                        <th class="border-b border-[var(--color-line)] px-3 py-2 font-semibold">Priority</th>
-                                        <th class="border-b border-[var(--color-line)] px-3 py-2 font-semibold">Active</th>
+                                        <th class="px-3 py-2 font-semibold">Place ID</th>
+                                        <th class="px-3 py-2 font-semibold">Current</th>
+                                        <th class="px-3 py-2 font-semibold">Building</th>
+                                        <th class="px-3 py-2 font-semibold">Max level</th>
+                                        <th class="px-3 py-2 font-semibold">Priority</th>
+                                        <th class="px-3 py-2 font-semibold">Active</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -169,14 +241,20 @@
                                         @php
                                             $buildingOptions = $slotBuildingOptions[$slotId] ?? [];
                                             $slotIsFlexible = count($buildingOptions) > 1;
+                                            $slotIsFixed = in_array((int) $slotId, [26, 39, 40], true);
+                                            $slotHasBuilding = (int) ($draft['current_gid'] ?? 0) > 0;
+                                            $buildingIsReadonly = $slotHasBuilding || $slotIsFixed || ! $slotIsFlexible;
+                                            $displayBuildingOption = collect($buildingOptions)->firstWhere('gid', (int) ($draft['building_gid'] ?? 0));
+                                            $displayBuildingName = $displayBuildingOption['label'] ?? ($draft['current_name'] ?? 'Empty');
                                             $currentBuildingIcon = $buildingIconForGid((int) ($draft['current_gid'] ?? 0));
                                             $targetBuildingIcon = $buildingIconForGid((int) ($draft['building_gid'] ?? 0));
                                         @endphp
-                                        <tr wire:key="village-build-slot-{{ $slotId }}" class="odd:bg-[var(--color-panel)]/60">
-                                            <td class="border-b border-[var(--color-line)] px-3 py-2 font-mono text-xs font-semibold text-[var(--color-ink)]">
+                                        <tr wire:key="village-build-slot-{{ $slotId }}"
+                                            class="relative shadow-sm ring-1 transition focus-within:z-20 focus-within:ring-[var(--color-accent)] {{ $slotIsFixed ? 'bg-slate-200/90 ring-slate-400/70' : 'bg-[var(--color-panel)] ring-[var(--color-line)]' }}">
+                                            <td class="rounded-l-lg px-3 py-2 font-mono text-xs font-semibold text-[var(--color-ink)] {{ $slotIsFixed ? 'border-l-4 border-slate-500' : '' }}">
                                                 {{ $slotId }}
                                             </td>
-                                            <td class="border-b border-[var(--color-line)] px-3 py-2">
+                                            <td class="px-3 py-2">
                                                 <div class="flex max-w-[13rem] items-center gap-2">
                                                     <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-[var(--color-line)] bg-[var(--color-panel)]">
                                                         @if ($currentBuildingIcon !== null)
@@ -189,16 +267,19 @@
                                                     </span>
                                                     <div class="min-w-0">
                                                         <p class="truncate text-xs font-semibold text-[var(--color-ink)]">{{ $draft['current_name'] }}</p>
-                                                        <p class="text-[11px] text-[var(--color-muted)]">
-                                                            Lv {{ (int) ($draft['current_level'] ?? 0) > 0 ? $draft['current_level'] : '--' }}
-                                                            @if (!empty($draft['is_locked']))
-                                                                · locked
-                                                            @endif
-                                                        </p>
+                                                        @if ((int) ($draft['current_level'] ?? 0) > 0)
+                                                            <span class="mt-1 inline-flex rounded-md border border-emerald-600/25 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-bold text-emerald-800">
+                                                                Lv {{ $draft['current_level'] }}
+                                                            </span>
+                                                        @else
+                                                            <span class="mt-1 inline-flex rounded-md border border-[var(--color-line)] bg-[var(--color-panel-alt)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-muted)]">
+                                                                Lv --
+                                                            </span>
+                                                        @endif
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td class="border-b border-[var(--color-line)] px-3 py-2">
+                                            <td class="px-3 py-2">
                                                 <div class="flex items-center gap-2">
                                                     <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)]">
                                                         @if ($targetBuildingIcon !== null)
@@ -209,21 +290,26 @@
                                                             <span class="text-[10px] font-semibold text-[var(--color-muted)]">--</span>
                                                         @endif
                                                     </span>
-                                                    <select wire:model.live="villageBuildingPlanDraft.{{ $slotId }}.building_gid"
-                                                        class="min-w-0 flex-1 rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-accent)]">
-                                                        @if ($slotIsFlexible)
+                                                    @if ($buildingIsReadonly)
+                                                        <div
+                                                            class="min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm font-semibold text-[var(--color-ink)] {{ $slotIsFixed ? 'border-slate-300 bg-slate-100' : 'border-[var(--color-line)] bg-white/70' }}">
+                                                            {{ (int) ($draft['building_gid'] ?? 0) > 0 ? $displayBuildingName : 'Empty' }}
+                                                        </div>
+                                                    @else
+                                                        <select wire:model.live="villageBuildingPlanDraft.{{ $slotId }}.building_gid"
+                                                            class="min-w-0 flex-1 rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-accent)]">
                                                             <option value="0">Empty</option>
-                                                        @endif
-                                                        @foreach ($buildingOptions as $option)
-                                                            <option value="{{ $option['gid'] }}">{{ $option['label'] }}</option>
-                                                        @endforeach
-                                                    </select>
+                                                            @foreach ($buildingOptions as $option)
+                                                                <option value="{{ $option['gid'] }}">{{ $option['label'] }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    @endif
                                                 </div>
                                                 @error("villageBuildingPlanDraft.$slotId.building_gid")
                                                     <span class="mt-1 block text-[11px] font-medium text-red-700">{{ $message }}</span>
                                                 @enderror
                                             </td>
-                                            <td class="w-28 border-b border-[var(--color-line)] px-3 py-2">
+                                            <td class="w-28 px-3 py-2">
                                                 <input type="number" min="0" max="20"
                                                     wire:model.live="villageBuildingPlanDraft.{{ $slotId }}.target_level"
                                                     class="w-full rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-accent)]" />
@@ -231,15 +317,15 @@
                                                     <span class="mt-1 block text-[11px] font-medium text-red-700">{{ $message }}</span>
                                                 @enderror
                                             </td>
-                                            <td class="w-28 border-b border-[var(--color-line)] px-3 py-2">
-                                                <input type="number" min="1" max="999"
+                                            <td class="w-28 px-3 py-2">
+                                                <input type="number" min="1" max="4"
                                                     wire:model.live="villageBuildingPlanDraft.{{ $slotId }}.priority"
                                                     class="w-full rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-accent)]" />
                                                 @error("villageBuildingPlanDraft.$slotId.priority")
                                                     <span class="mt-1 block text-[11px] font-medium text-red-700">{{ $message }}</span>
                                                 @enderror
                                             </td>
-                                            <td class="w-20 border-b border-[var(--color-line)] px-3 py-2">
+                                            <td class="w-20 rounded-r-lg px-3 py-2">
                                                 <label class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)]">
                                                     <input type="checkbox"
                                                         wire:model.live="villageBuildingPlanDraft.{{ $slotId }}.is_enabled"
@@ -310,31 +396,36 @@
                     </section>
                 @else
                     <section class="rounded-lg border border-[var(--color-line)] bg-[var(--color-panel-alt)] p-4">
-                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <h3 class="text-sm font-semibold text-[var(--color-ink)]">Trading</h3>
-
-                            <label class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-panel)] px-3 py-2 text-xs font-semibold text-[var(--color-muted)]"
-                                title="Send Resources From this Village">
-                                <input type="checkbox" wire:model.live="villageSendResourcesDraft"
-                                    class="h-3.5 w-3.5 rounded border-[var(--color-line-strong)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]" />
-                                Allow sending resources
-                            </label>
+                        <div class="flex flex-col gap-1">
+                            <div class="min-w-0">
+                                <h3 class="text-sm font-semibold text-[var(--color-ink)]">Trading policy</h3>
+                                <p class="mt-1 max-w-2xl text-xs leading-5 text-[var(--color-muted)]">
+                                    Saved limits used by automatic village support and by the TR panel. Use TR for one-off sends and merchant refreshes.
+                                </p>
+                            </div>
                         </div>
 
-                        <div class="mt-3 flex flex-wrap gap-2">
+                        <div class="mt-4 grid gap-2 sm:grid-cols-3">
                             <label class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-panel)] px-3 py-2 text-xs font-semibold text-[var(--color-muted)]"
-                                title="Send Resources From Other Villages when needed">
-                                <input type="checkbox" wire:model.live="villageSupplyResourcesDraft"
+                                title="Allow this village to send surplus resources to other villages.">
+                                <input type="checkbox" wire:model.live="villageSendResourcesDraft"
                                     class="h-3.5 w-3.5 rounded border-[var(--color-line-strong)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]" />
-                                Supply this Village
+                                Send resources
                             </label>
 
                             <label class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-panel)] px-3 py-2 text-xs font-semibold text-[var(--color-muted)]"
-                                title="feed Troops with Crop">
+                                title="Allow other villages to supply this village when it needs resources.">
+                                <input type="checkbox" wire:model.live="villageSupplyResourcesDraft"
+                                    class="h-3.5 w-3.5 rounded border-[var(--color-line-strong)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]" />
+                                Receive support
+                            </label>
+
+                            <label class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-panel)] px-3 py-2 text-xs font-semibold text-[var(--color-muted)]"
+                                title="Allow crop support when this village has negative crop production.">
                                 <input type="checkbox" wire:model.live="villageSupplyNegativeCropDraft"
                                     @disabled(! $villageSupplyResourcesDraft)
                                     class="h-3.5 w-3.5 rounded border-[var(--color-line-strong)] text-[var(--color-accent)] disabled:opacity-50 focus:ring-[var(--color-accent)]" />
-                                Supply Negative Crop
+                                Negative crop support
                             </label>
                         </div>
 
@@ -363,6 +454,22 @@
                                     <span class="shrink-0 px-3 text-xs font-semibold text-[var(--color-muted)]">%</span>
                                 </div>
                                 @error('villageSendReserveResourcePercentageDraft')
+                                    <span class="text-[11px] font-medium text-red-700">{{ $message }}</span>
+                                @enderror
+                            </label>
+
+                            <label class="grid gap-1 text-sm md:col-span-2">
+                                <span class="font-medium text-[var(--color-ink)]">Max one-way merchant travel time</span>
+                                <div class="flex items-center overflow-hidden rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] focus-within:border-[var(--color-accent)]">
+                                    <input type="number" min="1" max="10080"
+                                        wire:model.live="villageTradeMaxDurationMinutesDraft"
+                                        class="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-sm text-[var(--color-ink)] outline-none focus:ring-0" />
+                                    <span class="shrink-0 px-3 text-xs font-semibold text-[var(--color-muted)]">minutes</span>
+                                </div>
+                                <span class="text-[11px] leading-4 text-[var(--color-muted)]">
+                                    {{ (int) $villageTradeMaxDurationMinutesDraft }} minutes = {{ $this->formatTradeDurationMinutes((int) $villageTradeMaxDurationMinutesDraft) }}. Transfers with a longer preview duration are stopped before confirmation.
+                                </span>
+                                @error('villageTradeMaxDurationMinutesDraft')
                                     <span class="text-[11px] font-medium text-red-700">{{ $message }}</span>
                                 @enderror
                             </label>

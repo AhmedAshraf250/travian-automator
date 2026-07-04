@@ -26,6 +26,7 @@ use JsonException;
     'proxy_port',
     'proxy_username',
     'proxy_password',
+    'active_account_proxy_id',
     'user_agent',
     'session_cookies',
     'session_transport_fingerprint',
@@ -60,6 +61,7 @@ class Account extends Model
         return [
             'password' => 'encrypted',
             'proxy_password' => 'encrypted',
+            'active_account_proxy_id' => 'integer',
             'session_cookies' => 'encrypted:array',
             'managed_by_import' => 'boolean',
             'is_archived' => 'boolean',
@@ -83,6 +85,22 @@ class Account extends Model
     public function settings(): HasOne
     {
         return $this->hasOne(AccountSetting::class);
+    }
+
+    /**
+     * Get the configured proxy pool for the account.
+     */
+    public function proxies(): HasMany
+    {
+        return $this->hasMany(AccountProxy::class)->orderBy('position')->orderBy('id');
+    }
+
+    /**
+     * Get the currently selected proxy from the proxy pool.
+     */
+    public function activeProxy(): HasOne
+    {
+        return $this->hasOne(AccountProxy::class, 'id', 'active_account_proxy_id');
     }
 
     /**
@@ -154,6 +172,7 @@ class Account extends Model
                 'proxy_port' => $this->proxy_port,
                 'proxy_username' => $this->proxy_username,
                 'proxy_password' => $this->proxy_password,
+                'active_account_proxy_id' => $this->active_account_proxy_id,
                 'user_agent' => $this->user_agent,
             ], JSON_THROW_ON_ERROR);
         } catch (JsonException) {
@@ -164,6 +183,7 @@ class Account extends Model
                 (string) $this->proxy_port,
                 (string) $this->proxy_username,
                 (string) $this->proxy_password,
+                (string) $this->active_account_proxy_id,
                 (string) $this->user_agent,
             ]);
         }

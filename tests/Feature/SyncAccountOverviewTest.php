@@ -1,6 +1,7 @@
 <?php
 
 use App\Application\Accounts\Connection\AccountConnectionBackoffStarted;
+use App\Application\Accounts\Connection\RecordsAccountConnectionFailure;
 use App\Application\Accounts\Session\Contracts\AccountSession;
 use App\Application\Accounts\Session\Contracts\AccountSessionFactory;
 use App\Application\Accounts\Session\Data\SessionResponse;
@@ -13,7 +14,9 @@ use App\Application\Accounts\Sync\Data\ParsedVillageSummary;
 use App\Application\Accounts\Sync\PersistVillageOverview;
 use App\Application\Accounts\Sync\SyncAccountOverview;
 use App\Enums\AccountStatus;
+use App\Enums\ActivityType;
 use App\Models\Account;
+use App\Models\AccountProxy;
 use App\Models\ActivityLog;
 use App\Models\Village;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -510,6 +513,116 @@ test('sync account overview schedules a connection retry after a curl timeout', 
     expect($account->connection_retry_after?->equalTo(now()->addMinute()))->toBeTrue();
     expect($account->last_connection_error_message)->toContain('cURL error 28');
     expect(ActivityLog::query()->where('status', 'failed')->where('message', 'like', 'Connection failed.%')->exists())->toBeTrue();
+
+    Carbon::setTestNow();
+});
+
+test('connection failures cool down a failing proxy and switch to the next active proxy', function () {
+    $now = now()->startOfSecond();
+    Carbon::setTestNow($now);
+    config()->set('travian.proxy_pool.failure_threshold', 3);
+    config()->set('travian.proxy_pool.cooldown_minutes', 30);
+
+    $account = Account::factory()->create([
+        'proxy_scheme' => 'socks5',
+        'proxy_ip' => '10.0.0.1',
+        'proxy_port' => 1080,
+        'session_cookies' => [
+            ['Name' => 'sid', 'Value' => 'old-cookie'],
+        ],
+        'session_transport_fingerprint' => 'old-fingerprint',
+    ]);
+    $firstProxy = $account->proxies()->create([
+        'scheme' => 'socks5',
+        'host' => '10.0.0.1',
+        'port' => 1080,
+        'status' => AccountProxy::StatusActive,
+        'position' => 1,
+        'failure_count' => 2,
+    ]);
+    $secondProxy = $account->proxies()->create([
+        'scheme' => 'http',
+        'host' => '10.0.0.2',
+        'port' => 8080,
+        'status' => AccountProxy::StatusActive,
+        'position' => 2,
+    ]);
+
+    $account->forceFill([
+        'active_account_proxy_id' => $firstProxy->id,
+    ])->save();
+
+    $exception = app(RecordsAccountConnectionFailure::class)->handle(
+        $account->fresh(['activeProxy']),
+        ActivityType::Sync,
+        null,
+        new RuntimeException('cURL error 28: Connection timed out after 10010 milliseconds'),
+    );
+
+    $account->refresh();
+    $firstProxy->refresh();
+
+    expect($exception)->toBeInstanceOf(AccountConnectionBackoffStarted::class);
+    expect($firstProxy->status)->toBe(AccountProxy::StatusCooldown);
+    expect($firstProxy->failure_count)->toBe(3);
+    expect($firstProxy->lifetime_failure_count)->toBe(1);
+    expect($firstProxy->cooldown_until?->equalTo($now->copy()->addMinutes(30)))->toBeTrue();
+    expect($account->active_account_proxy_id)->toBe($secondProxy->id);
+    expect($account->proxy_ip)->toBe('10.0.0.2');
+    expect($account->proxy_port)->toBe(8080);
+    expect($account->session_cookies)->toBeNull();
+    expect($account->session_transport_fingerprint)->toBeNull();
+    expect(ActivityLog::query()->where('message', 'like', '%Switched to the next proxy.%')->exists())->toBeTrue();
+
+    Carbon::setTestNow();
+});
+
+test('connection failures wait for the next proxy cooldown when every proxy is cooling', function () {
+    $now = now()->startOfSecond();
+    Carbon::setTestNow($now);
+    config()->set('travian.proxy_pool.failure_threshold', 1);
+    config()->set('travian.proxy_pool.cooldown_minutes', 5);
+    config()->set('travian.proxy_pool.all_cooling_retry_grace_seconds', 10);
+
+    $account = Account::factory()->create([
+        'proxy_scheme' => 'socks5',
+        'proxy_ip' => '10.0.0.1',
+        'proxy_port' => 1080,
+    ]);
+    $firstProxy = $account->proxies()->create([
+        'scheme' => 'socks5',
+        'host' => '10.0.0.1',
+        'port' => 1080,
+        'status' => AccountProxy::StatusActive,
+        'position' => 1,
+    ]);
+    $account->proxies()->create([
+        'scheme' => 'http',
+        'host' => '10.0.0.2',
+        'port' => 8080,
+        'status' => AccountProxy::StatusCooldown,
+        'position' => 2,
+        'cooldown_until' => $now->copy()->addMinutes(3),
+    ]);
+
+    $account->forceFill([
+        'active_account_proxy_id' => $firstProxy->id,
+    ])->save();
+
+    app(RecordsAccountConnectionFailure::class)->handle(
+        $account->fresh(['activeProxy']),
+        ActivityType::Sync,
+        null,
+        new RuntimeException('cURL error 28: Connection timed out after 10010 milliseconds'),
+    );
+
+    $account->refresh();
+    $firstProxy->refresh();
+
+    expect($firstProxy->status)->toBe(AccountProxy::StatusCooldown);
+    expect($account->active_account_proxy_id)->toBe($firstProxy->id);
+    expect($account->connection_retry_after?->equalTo($now->copy()->addMinutes(5)->addSeconds(10)))->toBeTrue();
+    expect(ActivityLog::query()->where('message', 'like', '%All proxies are cooling.%')->exists())->toBeTrue();
 
     Carbon::setTestNow();
 });

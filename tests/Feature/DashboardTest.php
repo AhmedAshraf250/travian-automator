@@ -1,10 +1,17 @@
 <?php
 
 use App\Enums\AccountStatus;
+use App\Enums\ActivityLogStatus;
+use App\Jobs\CancelVillageDemolitionJob;
+use App\Jobs\DemolishVillageBuildingJob;
+use App\Jobs\RefreshVillageDemolitionSnapshotJob;
+use App\Jobs\RefreshVillageMarketplaceSnapshotJob;
 use App\Jobs\RunTravianAutomationJob;
+use App\Jobs\SendManualMarketplaceTransferJob;
 use App\Jobs\SyncTravianAccountJob;
 use App\Livewire\Dashboard\Index;
 use App\Models\Account;
+use App\Models\AccountProxy;
 use App\Models\AccountSetting;
 use App\Models\ActivityLog;
 use App\Models\ImportDraft;
@@ -72,6 +79,193 @@ test('bulk import stores proxy protocol and credentials from proxy url', functio
     expect($account?->proxy_port)->toBe(1080);
     expect($account?->proxy_username)->toBe('proxy-user');
     expect($account?->proxy_password)->toBe('proxy-pass');
+    expect($account?->active_account_proxy_id)->not->toBeNull();
+    expect($account?->proxies()->count())->toBe(1);
+});
+
+test('account settings can manage a proxy pool and choose the active proxy', function () {
+    $account = Account::factory()->create([
+        'username' => 'marshal',
+    ]);
+    $account->settings()->create([
+        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('openAccountSettingsModal', $account->id)
+        ->call('setAccountSettingsTab', 'proxies')
+        ->call('addAccountProxyDraft')
+        ->set('accountProxyDrafts.0.scheme', 'socks5')
+        ->set('accountProxyDrafts.0.host', '10.0.0.1')
+        ->set('accountProxyDrafts.0.port', '1080')
+        ->set('accountProxyDrafts.0.username', 'proxy-user')
+        ->set('accountProxyDrafts.0.password', 'proxy-pass')
+        ->set('accountActiveProxyDraft', 'new:0')
+        ->call('addAccountProxyDraft')
+        ->set('accountProxyDrafts.1.scheme', 'http')
+        ->set('accountProxyDrafts.1.host', '10.0.0.2')
+        ->set('accountProxyDrafts.1.port', '8080')
+        ->set('accountActiveProxyDraft', 'new:0')
+        ->call('saveAccountSettings');
+
+    $account->refresh();
+    $proxies = $account->proxies()->orderBy('position')->get();
+
+    expect($proxies)->toHaveCount(2);
+    expect($account->active_account_proxy_id)->toBe($proxies[0]->id);
+    expect($account->proxy_scheme)->toBe('socks5');
+    expect($account->proxy_ip)->toBe('10.0.0.1');
+    expect($account->proxy_port)->toBe(1080);
+    expect($account->proxy_username)->toBe('proxy-user');
+    expect($account->proxy_password)->toBe('proxy-pass');
+});
+
+test('account settings upgrades a legacy proxy into the pool and selects it', function () {
+    $account = Account::factory()->create([
+        'username' => 'legacy',
+        'proxy_scheme' => 'http',
+        'proxy_ip' => '47.82.77.82',
+        'proxy_port' => 80,
+        'proxy_username' => 'root',
+        'proxy_password' => 'secret',
+        'active_account_proxy_id' => null,
+    ]);
+    $account->settings()->create([
+        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('openAccountSettingsModal', $account->id)
+        ->assertSet('accountActiveProxyDraft', 'proxy:'.$account->fresh()->active_account_proxy_id)
+        ->assertSet('accountProxyDrafts.0.host', '47.82.77.82');
+});
+
+test('account settings can remove every proxy without recreating the legacy proxy', function () {
+    $account = Account::factory()->create([
+        'username' => 'clear-proxy',
+        'proxy_scheme' => 'http',
+        'proxy_ip' => '47.82.77.82',
+        'proxy_port' => 80,
+        'proxy_username' => 'root',
+        'proxy_password' => 'secret',
+    ]);
+    $proxy = $account->proxies()->create([
+        'scheme' => 'http',
+        'host' => '47.82.77.82',
+        'port' => 80,
+        'username' => 'root',
+        'password' => 'secret',
+        'status' => 'active',
+        'position' => 1,
+    ]);
+    $account->forceFill([
+        'active_account_proxy_id' => $proxy->id,
+    ])->save();
+    $account->settings()->create([
+        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('openAccountSettingsModal', $account->id)
+        ->call('removeAccountProxyDraft', 0)
+        ->assertSet('accountActiveProxyDraft', 'direct')
+        ->call('saveAccountSettings')
+        ->call('openAccountSettingsModal', $account->id)
+        ->assertSet('accountActiveProxyDraft', 'direct')
+        ->assertSet('accountProxyDrafts', []);
+
+    $account->refresh();
+
+    expect($account->proxies()->count())->toBe(0);
+    expect($account->proxy_ip)->toBeNull();
+    expect($account->active_account_proxy_id)->toBeNull();
+});
+
+test('marking a cooled proxy as ready clears only its current failure window', function () {
+    $account = Account::factory()->create([
+        'username' => 'cooling-proxy',
+    ]);
+    $proxy = $account->proxies()->create([
+        'scheme' => 'http',
+        'host' => '47.82.77.82',
+        'port' => 80,
+        'status' => AccountProxy::StatusCooldown,
+        'position' => 1,
+        'failure_count' => 5,
+        'lifetime_failure_count' => 12,
+        'cooldown_until' => now()->addMinutes(5),
+        'last_error_message' => 'timeout',
+    ]);
+    $account->settings()->create([
+        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('openAccountSettingsModal', $account->id)
+        ->set('accountProxyDrafts.0.status', AccountProxy::StatusActive)
+        ->set('accountActiveProxyDraft', 'proxy:'.$proxy->id)
+        ->call('saveAccountSettings');
+
+    $proxy->refresh();
+
+    expect($proxy->status)->toBe(AccountProxy::StatusActive);
+    expect($proxy->failure_count)->toBe(0);
+    expect($proxy->lifetime_failure_count)->toBe(12);
+    expect($proxy->cooldown_until)->toBeNull();
+    expect($proxy->last_error_message)->toBeNull();
+});
+
+test('dashboard poll revives proxies whose cooldown elapsed', function () {
+    Queue::fake();
+
+    $account = Account::factory()->create();
+    $proxy = $account->proxies()->create([
+        'scheme' => 'http',
+        'host' => '47.82.77.82',
+        'port' => 80,
+        'status' => AccountProxy::StatusCooldown,
+        'position' => 1,
+        'failure_count' => 5,
+        'lifetime_failure_count' => 12,
+        'cooldown_until' => now()->subSecond(),
+        'last_error_message' => 'timeout',
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('refreshDashboardIfChanged');
+
+    $proxy->refresh();
+
+    expect($proxy->status)->toBe(AccountProxy::StatusActive);
+    expect($proxy->failure_count)->toBe(0);
+    expect($proxy->lifetime_failure_count)->toBe(12);
+    expect($proxy->cooldown_until)->toBeNull();
+    expect($proxy->last_error_message)->toBeNull();
+});
+
+test('dashboard poll recovers accounts stuck in syncing after a timed out job', function () {
+    Queue::fake();
+    config()->set('travian.automation.stale_syncing_minutes', 5);
+
+    $account = Account::factory()->create([
+        'is_active' => true,
+        'is_archived' => false,
+        'status' => AccountStatus::Syncing,
+        'updated_at' => now()->subMinutes(10),
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('refreshDashboardIfChanged');
+
+    $account->refresh();
+
+    expect($account->status)->toBe(AccountStatus::Error);
+    expect($account->last_error_message)->toBe('Background job timed out or stopped before it could finish.');
+    expect(ActivityLog::query()
+        ->where('account_id', $account->id)
+        ->where('status', ActivityLogStatus::Failed)
+        ->where('message', 'Background job appears stalled; account status recovered from syncing.')
+        ->exists())->toBeTrue();
 });
 
 test('dashboard shows imported account username', function () {
@@ -80,7 +274,7 @@ test('dashboard shows imported account username', function () {
     ]);
 
     $account->settings()->create([
-        'resource_priorities' => [15, 11, 1, 1],
+        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
     ]);
 
     $this->get(route('home'))
@@ -111,6 +305,294 @@ test('village update queues village sync followed by village automation', functi
     Queue::assertPushedWithChain(SyncTravianAccountJob::class, [
         new RunTravianAutomationJob($account->id, $village->id, false, true),
     ]);
+});
+
+test('village timer sync is ignored while global automation is paused', function () {
+    Queue::fake();
+    SystemSetting::setAutomationEnabled(false);
+
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23378',
+        'name' => 'CR7',
+        'is_active' => true,
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('queueVillageTimerSync', $village->id);
+
+    Queue::assertNotPushed(SyncTravianAccountJob::class);
+
+    expect(ActivityLog::query()
+        ->where('village_id', $village->id)
+        ->where('message', 'Village timer elapsed; sync queued automatically.')
+        ->exists())->toBeFalse();
+});
+
+test('village transfer modal queues a manual marketplace transfer job', function () {
+    Queue::fake();
+
+    $account = Account::factory()->create();
+    $sourceVillage = $account->villages()->create([
+        'travian_village_id' => '23378',
+        'name' => 'AMH7',
+        'x' => 60,
+        'y' => 19,
+        'is_active' => true,
+    ]);
+    $destinationVillage = $account->villages()->create([
+        'travian_village_id' => '26000',
+        'name' => 'CR7',
+        'x' => 9,
+        'y' => 59,
+        'is_active' => true,
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('openMarketplaceTransferModal', $sourceVillage->id)
+        ->assertSee('Quick Send uses saved Trade Settings')
+        ->assertSee('Sending from AMH7 [60|19]')
+        ->assertSet('marketplaceDestinationVillageId', $destinationVillage->id)
+        ->set('marketplaceWoodDraft', 500)
+        ->set('marketplaceCropDraft', 200)
+        ->call('queueManualMarketplaceTransfer');
+
+    Queue::assertPushed(SendManualMarketplaceTransferJob::class, function (SendManualMarketplaceTransferJob $job) use ($account, $sourceVillage) {
+        return $job->accountId === $account->id
+            && $job->sourceVillageId === $sourceVillage->id
+            && $job->x === 9
+            && $job->y === 59
+            && $job->resources === [
+                'wood' => 500,
+                'clay' => 0,
+                'iron' => 0,
+                'crop' => 200,
+            ];
+    });
+
+    expect(ActivityLog::query()
+        ->where('village_id', $sourceVillage->id)
+        ->where('message', 'Manual marketplace transfer queued from dashboard.')
+        ->exists())->toBeTrue();
+});
+
+test('village transfer modal queues a merchant snapshot refresh manually', function () {
+    Queue::fake();
+
+    $account = Account::factory()->create();
+    $sourceVillage = $account->villages()->create([
+        'travian_village_id' => '23378',
+        'name' => 'AMH7',
+        'x' => 60,
+        'y' => 19,
+        'is_active' => true,
+    ]);
+    $sourceVillage->buildings()->create([
+        'slot_id' => 32,
+        'building_gid' => 17,
+        'building_type' => 'السوق',
+        'current_level' => 1,
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('openMarketplaceTransferModal', $sourceVillage->id)
+        ->assertDontSeeHtml('wire:poll.3s="refreshMarketplaceTransferCapacityView"')
+        ->assertSee('No merchant snapshot')
+        ->assertSee('Use Refresh to check available merchants in the background.')
+        ->call('refreshMarketplaceSnapshot')
+        ->assertSeeHtml('wire:poll.3s="refreshMarketplaceTransferCapacityView"');
+
+    Queue::assertPushed(RefreshVillageMarketplaceSnapshotJob::class, function (RefreshVillageMarketplaceSnapshotJob $job) use ($account, $sourceVillage) {
+        return $job->accountId === $account->id
+            && $job->villageId === $sourceVillage->id;
+    });
+});
+
+test('village transfer modal keeps old merchant capacity when opened', function () {
+    Queue::fake();
+
+    $account = Account::factory()->create();
+    $sourceVillage = $account->villages()->create([
+        'travian_village_id' => '23378',
+        'name' => 'AMH7',
+        'x' => 60,
+        'y' => 19,
+        'is_active' => true,
+    ]);
+    $sourceVillage->buildings()->create([
+        'slot_id' => 32,
+        'building_gid' => 17,
+        'building_type' => 'السوق',
+        'current_level' => 10,
+    ]);
+    $sourceVillage->resourceState()->create([
+        'available_merchants' => 2,
+        'merchant_capacity' => 500,
+        'server_reported_at' => now(),
+    ]);
+    $sourceVillage->runtimeState()->create([
+        'tribe_id' => 1,
+        'troop_slots' => [],
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+    $account->villages()->create([
+        'travian_village_id' => '26000',
+        'name' => 'CR7',
+        'x' => 9,
+        'y' => 59,
+        'is_active' => true,
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('openMarketplaceTransferModal', $sourceVillage->id)
+        ->assertSee('2 merchant(s)')
+        ->assertSee('500 each');
+
+    Queue::assertNotPushed(RefreshVillageMarketplaceSnapshotJob::class);
+
+    expect($sourceVillage->resourceState()->first()?->available_merchants)->toBe(2);
+});
+
+test('village demolition modal requires main building level ten', function () {
+    Queue::fake();
+
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23378',
+        'name' => 'AMH7',
+        'x' => 60,
+        'y' => 19,
+        'is_active' => true,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 26,
+        'building_gid' => 15,
+        'building_type' => 'المبنى الرئيسي',
+        'current_level' => 9,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 21,
+        'building_gid' => 23,
+        'building_type' => 'المخبأ',
+        'current_level' => 7,
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('openVillageDemolitionModal', $village->id)
+        ->assertSee('Level 9')
+        ->assertSee('level 10 is required')
+        ->call('queueVillageBuildingDemolition');
+
+    Queue::assertNotPushed(DemolishVillageBuildingJob::class);
+});
+
+test('village demolition modal queues refresh demolish and cancel jobs', function () {
+    Queue::fake();
+
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23378',
+        'name' => 'AMH7',
+        'x' => 60,
+        'y' => 19,
+        'is_active' => true,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 26,
+        'building_gid' => 15,
+        'building_type' => 'المبنى الرئيسي',
+        'current_level' => 10,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 21,
+        'building_gid' => 23,
+        'building_type' => 'المخبأ',
+        'current_level' => 7,
+    ]);
+    $village->runtimeState()->create([
+        'tribe_id' => 1,
+        'troop_slots' => [],
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'demolition_entries' => [
+            'main_building_level' => 10,
+            'available_buildings' => [
+                ['slot_id' => 21, 'name' => 'المخبأ', 'level' => 7],
+            ],
+            'active' => [
+                'name' => 'المخبأ',
+                'target_level' => 6,
+                'remaining_seconds' => 512,
+                'remaining_label' => '0:08:32',
+                'finish_label' => '20:30',
+                'cancel_uri' => '/build.php?gid=15&del=932338',
+                'recorded_at' => now()->toIso8601String(),
+            ],
+            'recorded_at' => now()->toIso8601String(),
+        ],
+        'server_reported_at' => now(),
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('openVillageDemolitionModal', $village->id)
+        ->assertSee('المخبأ')
+        ->assertSee('Active demolition')
+        ->set('demolitionSelectedSlotId', 21)
+        ->call('refreshVillageDemolitionSnapshot')
+        ->call('queueVillageBuildingDemolition')
+        ->assertSet('showVillageDemolitionModal', false)
+        ->call('openVillageDemolitionModal', $village->id)
+        ->call('queueCancelVillageDemolition')
+        ->assertSet('showVillageDemolitionModal', false);
+
+    Queue::assertPushed(RefreshVillageDemolitionSnapshotJob::class, fn (RefreshVillageDemolitionSnapshotJob $job): bool => $job->villageId === $village->id);
+    Queue::assertPushed(DemolishVillageBuildingJob::class, fn (DemolishVillageBuildingJob $job): bool => $job->villageId === $village->id && $job->slotId === 21);
+    Queue::assertPushed(CancelVillageDemolitionJob::class, fn (CancelVillageDemolitionJob $job): bool => $job->villageId === $village->id && $job->cancelUri === '/build.php?gid=15&del=932338');
+});
+
+test('village transfer modal saves trade settings', function () {
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23378',
+        'name' => 'AMH7',
+        'x' => 60,
+        'y' => 19,
+        'is_active' => true,
+    ]);
+
+    $village->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+        'send_enabled' => true,
+        'support_enabled' => true,
+        'supply_negative_crop_enabled' => true,
+        'send_min_resource_percentage' => 30,
+        'send_reserve_resource_percentage' => 10,
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('openMarketplaceTransferModal', $village->id)
+        ->call('setMarketplaceTransferTab', 'settings')
+        ->set('villageSendResourcesDraft', false)
+        ->set('villageSupplyResourcesDraft', true)
+        ->set('villageSupplyNegativeCropDraft', false)
+        ->set('villageSendMinResourcePercentageDraft', 45)
+        ->set('villageSendReserveResourcePercentageDraft', 25)
+        ->call('saveMarketplaceTradeSettings')
+        ->assertSet('marketplaceTransferTab', 'settings');
+
+    $settings = $village->fresh()->settings;
+
+    expect($settings?->send_enabled)->toBeFalse()
+        ->and($settings?->support_enabled)->toBeTrue()
+        ->and($settings?->supply_negative_crop_enabled)->toBeFalse()
+        ->and($settings?->send_min_resource_percentage)->toBe(45)
+        ->and($settings?->send_reserve_resource_percentage)->toBe(25)
+        ->and(ActivityLog::query()
+            ->where('village_id', $village->id)
+            ->where('message', 'Village trade settings updated from TR panel.')
+            ->exists())->toBeTrue();
 });
 
 test('elapsed village timer queues one quiet village sync', function () {
@@ -195,6 +677,8 @@ test('account update queues a manual sync even during connection cooldown', func
 
     Livewire::test(Index::class)
         ->call('requestAccountSync', $account->id);
+
+    expect($account->fresh()->status)->toBe(AccountStatus::ConnectionIssue);
 
     Queue::assertPushed(SyncTravianAccountJob::class, function (SyncTravianAccountJob $job) use ($account) {
         return $job->accountId === $account->id
@@ -283,12 +767,17 @@ test('dashboard toggles the global automation switch', function () {
     expect(SystemSetting::automationEnabled())->toBeTrue();
 
     Livewire::test(Index::class)
-        ->call('toggleAutomation');
+        ->call('toggleAutomation')
+        ->assertSee('Paused')
+        ->assertSee('Resume')
+        ->assertSee('bg-amber-50/95');
 
     expect(SystemSetting::automationEnabled())->toBeFalse();
 
     Livewire::test(Index::class)
-        ->call('toggleAutomation');
+        ->call('toggleAutomation')
+        ->assertSee('Running')
+        ->assertSee('Pause');
 
     expect(SystemSetting::automationEnabled())->toBeTrue();
 });
@@ -303,6 +792,8 @@ test('dashboard saves the global fallback user agent setting', function () {
             'crop' => 4,
         ])
         ->set('globalPrioritizeCropFieldsWhenNegativeDraft', false)
+        ->set('globalFieldLevelCapDraft', 12)
+        ->set('globalTradeMaxDurationMinutesDraft', 120)
         ->call('saveProgramSettings')
         ->assertHasNoErrors();
 
@@ -314,6 +805,10 @@ test('dashboard saves the global fallback user agent setting', function () {
         'crop' => 4,
     ]);
     expect(SystemSetting::constructionDefaults()['prioritize_crop_fields_when_negative'])->toBeFalse();
+    expect(SystemSetting::constructionDefaults()['field_level_cap'])->toBe(12);
+    expect(SystemSetting::tradeDefaults())->toBe([
+        'max_duration_seconds' => 7200,
+    ]);
 });
 
 test('dashboard shows the inherited global fallback user agent for accounts without one', function () {
@@ -325,7 +820,7 @@ test('dashboard shows the inherited global fallback user agent for accounts with
     ]);
 
     $account->settings()->create([
-        'resource_priorities' => [15, 11, 1, 1],
+        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
     ]);
 
     $this->get(route('home'))
@@ -339,16 +834,21 @@ test('dashboard saves per account user agent and hero settings', function () {
         'user_agent' => null,
     ]);
     $account->settings()->create([
-        'resource_priorities' => [15, 11, 1, 1],
+        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
     ]);
 
     Livewire::test(Index::class)
         ->call('openAccountSettingsModal', $account->id)
         ->assertSet('showAccountSettingsModal', true)
+        ->call('setAccountSettingsTab', 'hero')
+        ->assertSee('Hero automation mode')
+        ->assertSee('Effective Program Hero settings')
+        ->assertDontSee('Account Hero overrides')
         ->set('accountInheritUserAgentDraft', false)
         ->set('accountUserAgentDraft', 'Mozilla/5.0 Account Hero Agent')
         ->set('accountAcceptQuestsDraft', false)
         ->set('accountHeroUseGlobalSettingsDraft', false)
+        ->assertSee('Account Hero overrides')
         ->set('accountHeroAdventuresEnabledDraft', true)
         ->set('accountHeroMinHealthDraft', 55)
         ->set('accountHeroReviveEnabledDraft', true)
@@ -534,6 +1034,8 @@ test('dashboard opens the village settings modal with existing slot data', funct
         ->assertSet('showVillageBuildPlanModal', true)
         ->assertSet('editingVillageId', $village->id)
         ->assertSet('editingVillageTribeLabel', 'Roman')
+        ->assertSee('Automation switches')
+        ->assertSee('Field priority mode')
         ->assertSee('Hero resources')
         ->assertSee('Use Hero Resources')
         ->assertSet('villageFieldsAutomationDraft', false)
@@ -550,7 +1052,19 @@ test('dashboard opens the village settings modal with existing slot data', funct
         ->assertSet('villageFieldPriorityDraft.wood', 4)
         ->assertSet('villageBuildingPlanDraft.26.current_gid', 15)
         ->assertSet('villageBuildingPlanDraft.26.target_level', 12)
+        ->call('setVillageSettingsTab', 'layouts')
+        ->assertSee('Lv 8')
+        ->assertSeeHtml('bg-emerald-500/10')
+        ->assertSeeHtml('sticky top-0')
+        ->assertSeeHtml('bg-slate-200/90')
+        ->assertDontSee('locked')
+        ->assertDontSeeHtml('wire:model.live="villageBuildingPlanDraft.26.building_gid"')
+        ->assertSeeHtml('max="4"')
         ->call('setVillageSettingsTab', 'trading')
+        ->assertSee('Trading policy')
+        ->assertSee('Send resources')
+        ->assertSee('Receive support')
+        ->assertSee('Negative crop support')
         ->assertDontSee('Use Hero Resources');
 });
 
@@ -596,11 +1110,14 @@ test('dashboard saves village field priorities, automation toggles, and building
         ->set('villageSupplyResourcesDraft', false)
         ->set('villageHeroResourcesDraft', false)
         ->set('villageSupplyNegativeCropDraft', false)
+        ->set('villageTradeMaxDurationMinutesDraft', 180)
         ->set('villageCelebrationEnabledDraft', true)
         ->set('villageCelebrationTypeDraft', 'great')
         ->set('villageCelebrationMinimumCulturePointsDraft', 300)
         ->set('villageTroopTrainingEnabledDraft', true)
         ->set('villagePrioritizeCropFieldsWhenNegativeDraft', false)
+        ->set('villageFieldLevelCapModeDraft', 'custom')
+        ->set('villageFieldLevelCapDraft', 15)
         ->set('villageFieldPriorityDraft', [
             'wood' => 4,
             'clay' => 1,
@@ -634,11 +1151,14 @@ test('dashboard saves village field priorities, automation toggles, and building
     expect($savedSettings?->support_enabled)->toBeFalse();
     expect($savedSettings?->hero_resources_enabled)->toBeFalse();
     expect($savedSettings?->supply_negative_crop_enabled)->toBeFalse();
+    expect($savedSettings?->trade_max_duration_seconds)->toBe(3 * 60 * 60);
     expect($savedSettings?->troop_training_enabled)->toBeTrue();
     expect($savedSettings?->celebration_enabled)->toBeTrue();
     expect($savedSettings?->celebration_type?->value)->toBe('great');
     expect($savedSettings?->celebration_min_culture_points)->toBe(300);
     expect($savedSettings?->prioritize_crop_fields_when_negative)->toBeFalse();
+    expect($savedSettings?->field_level_cap_mode)->toBe('custom');
+    expect($savedSettings?->field_level_cap)->toBe(10);
 
     expect(
         VillageBuildingTarget::query()
@@ -665,6 +1185,67 @@ test('dashboard saves village field priorities, automation toggles, and building
         'priority' => 2,
         'is_enabled' => true,
     ]);
+});
+
+test('village transfer modal clamps resources above known merchant capacity', function () {
+    Queue::fake();
+
+    $account = Account::factory()->create();
+    $sourceVillage = $account->villages()->create([
+        'travian_village_id' => '23378',
+        'name' => 'AMH7',
+        'x' => 60,
+        'y' => 19,
+        'is_active' => true,
+    ]);
+    $sourceVillage->resourceState()->create([
+        'wood' => 1200,
+        'clay' => 800,
+        'iron' => 800,
+        'crop' => 800,
+        'available_merchants' => 2,
+        'merchant_capacity' => 500,
+    ]);
+    $sourceVillage->runtimeState()->create([
+        'tribe_id' => 1,
+        'troop_slots' => [],
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+    $account->villages()->create([
+        'travian_village_id' => '26000',
+        'name' => 'CR7',
+        'x' => 9,
+        'y' => 59,
+        'is_active' => true,
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('openMarketplaceTransferModal', $sourceVillage->id)
+        ->assertSee('2 merchant(s)')
+        ->assertSee('500 each')
+        ->assertSee('Can send 1000')
+        ->set('marketplaceWoodDraft', 1000)
+        ->set('marketplaceClayDraft', 500)
+        ->assertSet('marketplaceWoodDraft', 1000)
+        ->assertSet('marketplaceClayDraft', 0)
+        ->call('queueManualMarketplaceTransfer')
+        ->assertSet('showMarketplaceTransferModal', false);
+
+    Queue::assertPushed(SendManualMarketplaceTransferJob::class, function (SendManualMarketplaceTransferJob $job): bool {
+        return $job->resources === [
+            'wood' => 1000,
+            'clay' => 0,
+            'iron' => 0,
+            'crop' => 0,
+        ];
+    });
+
+    expect(ActivityLog::query()
+        ->where('village_id', $sourceVillage->id)
+        ->where('message', 'Manual marketplace transfer queued from dashboard.')
+        ->exists())->toBeTrue();
 });
 
 test('dashboard blocks village celebrations until a town hall exists', function () {
@@ -888,6 +1469,49 @@ test('dashboard allows keeping the current building level as the final target', 
     )->toBe(5);
 });
 
+test('dashboard clamps resource bonus building target levels to five', function () {
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23378',
+        'name' => 'قرية Marshal25',
+        'is_active' => true,
+    ]);
+
+    $village->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+    ]);
+    $village->runtimeState()->create([
+        'tribe_id' => 1,
+        'troop_slots' => [],
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 21,
+        'building_gid' => 0,
+        'building_type' => null,
+        'current_level' => 0,
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('openVillageSettingsModal', $village->id)
+        ->set('villageBuildingPlanDraft.21.building_gid', 8)
+        ->set('villageBuildingPlanDraft.21.target_level', 12)
+        ->set('villageBuildingPlanDraft.21.priority', 1)
+        ->set('villageBuildingPlanDraft.21.is_enabled', true)
+        ->call('saveVillageSettings')
+        ->assertHasNoErrors();
+
+    expect(
+        VillageBuildingTarget::query()
+            ->where('village_id', $village->id)
+            ->where('slot_id', 21)
+            ->first()
+            ?->target_level
+    )->toBe(5);
+});
+
 test('dashboard ignores stale completed building targets while saving another slot', function () {
     $account = Account::factory()->create();
     $village = $account->villages()->create([
@@ -969,7 +1593,7 @@ test('dashboard shows construction countdown and finish time in the village row 
     ]);
 
     $account->settings()->create([
-        'resource_priorities' => [15, 11, 1, 1],
+        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
     ]);
 
     $village = $account->villages()->create([
@@ -1065,7 +1689,8 @@ test('dashboard shows construction countdown and finish time in the village row 
         ->assertSee('+140/h')
         ->assertSee('#f88c1f')
         ->assertSee('T - Troops: train enabled troop queues for this village')
-        ->assertSee('C - Celebrations: start town hall celebrations when ready')
+        ->assertSee('C - Celebrations: inspect and toggle town hall celebrations')
+        ->assertSee('CP >= 200', false)
         ->assertDontSee('WH 4000')
         ->assertSee('0:10:00')
         ->assertSee('Ends 22:25')
@@ -1255,6 +1880,109 @@ test('dashboard field schedule allows candidates within the two level resource f
         ->assertSeeHtml("schedule-entry-{$village->id}-field:8:6");
 });
 
+test('dashboard field schedule respects field level cap on non capital villages', function () {
+    SystemSetting::setConstructionDefaults([
+        'field_priority' => [
+            'wood' => 1,
+            'clay' => 2,
+            'iron' => 3,
+            'crop' => 4,
+        ],
+        'prioritize_crop_fields_when_negative' => true,
+        'field_level_cap' => 20,
+    ]);
+
+    $account = Account::factory()->create([
+        'username' => 'marshal',
+    ]);
+
+    $village = $account->villages()->create([
+        'travian_village_id' => '23396',
+        'name' => 'قرية غير عاصمة',
+        'is_active' => true,
+        'is_capital' => false,
+    ]);
+
+    $village->settings()->create([
+        'inherit_from_account' => true,
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+        'field_level_cap_mode' => 'custom',
+        'field_level_cap' => 20,
+        'pause_fields' => false,
+        'pause_buildings' => true,
+    ]);
+
+    $village->runtimeState()->create([
+        'tribe_id' => 2,
+        'troop_slots' => array_fill(0, 11, 0),
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+
+    $village->buildings()->create([
+        'slot_id' => 1,
+        'building_gid' => 1,
+        'building_type' => 'الحطاب',
+        'current_level' => 10,
+    ]);
+
+    Livewire::test(Index::class)
+        ->set("expandedAccounts.{$account->id}", true)
+        ->assertDontSeeHtml("schedule-entry-{$village->id}-field:1:11");
+});
+
+test('dashboard field schedule allows capital villages above level ten when capped higher', function () {
+    SystemSetting::setConstructionDefaults([
+        'field_priority' => [
+            'wood' => 1,
+            'clay' => 2,
+            'iron' => 3,
+            'crop' => 4,
+        ],
+        'prioritize_crop_fields_when_negative' => true,
+        'field_level_cap' => 12,
+    ]);
+
+    $account = Account::factory()->create([
+        'username' => 'marshal',
+    ]);
+
+    $village = $account->villages()->create([
+        'travian_village_id' => '23396',
+        'name' => 'العاصمة',
+        'is_active' => true,
+        'is_capital' => true,
+    ]);
+
+    $village->settings()->create([
+        'inherit_from_account' => true,
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+        'field_level_cap_mode' => 'inherit',
+        'pause_fields' => false,
+        'pause_buildings' => true,
+    ]);
+
+    $village->runtimeState()->create([
+        'tribe_id' => 2,
+        'troop_slots' => array_fill(0, 11, 0),
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+
+    $village->buildings()->create([
+        'slot_id' => 1,
+        'building_gid' => 1,
+        'building_type' => 'الحطاب',
+        'current_level' => 10,
+    ]);
+
+    Livewire::test(Index::class)
+        ->set("expandedAccounts.{$account->id}", true)
+        ->assertSeeHtml("schedule-entry-{$village->id}-field:1:11");
+});
+
 test('dashboard account row ignores internal activity logs when showing the last account contact', function () {
     $now = now()->startOfSecond();
     Carbon::setTestNow($now);
@@ -1347,7 +2075,7 @@ test('dashboard separates successful sync age from connection retry status', fun
     ]);
 
     $account->settings()->create([
-        'resource_priorities' => [15, 11, 1, 1],
+        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
     ]);
 
     Livewire::test(Index::class)

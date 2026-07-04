@@ -72,6 +72,7 @@ class ExecuteVillageResourceTransfer
             ? 'negative crop support'
             : 'construction';
         $sentShipments = [];
+        $lastBlockedReason = null;
 
         foreach ($this->supplierVillages($account, $recipientVillage) as $supplierVillage) {
             $marketSlot = $this->marketSlot($supplierVillage);
@@ -88,16 +89,21 @@ class ExecuteVillageResourceTransfer
 
             try {
                 $marketReferer = $this->openSupplierMarket($account, $supplierVillage, $session, $marketSlot);
-                $shipmentResources = $this->capShipmentToAvailableMerchants($session, $marketReferer, $shipmentResources);
+                $shipmentResources = $this->capShipmentToAvailableMerchants($supplierVillage, $session, $marketReferer, $shipmentResources);
 
                 if ($this->shipmentIsEmpty($shipmentResources)) {
                     continue;
                 }
 
-                $result = $this->sendMarketplaceResources($recipientVillage, $session, $marketReferer, $shipmentResources);
+                $result = $this->sendMarketplaceResources($supplierVillage, $recipientVillage, $session, $marketReferer, $shipmentResources);
 
                 if (! $result['accepted']) {
-                    $this->logTransferActivity($account, $recipientVillage, $supplierVillage, ActivityLogStatus::Failed, 'Resource transfer was rejected by Travian.', [
+                    $lastBlockedReason = $result['blocked_reason'] ?? null;
+                    $message = ($result['blocked_reason'] ?? null) === 'duration_limit'
+                        ? 'Resource transfer stopped: merchant travel time is above the configured limit.'
+                        : 'Resource transfer was rejected by Travian.';
+
+                    $this->logTransferActivity($account, $recipientVillage, $supplierVillage, ActivityLogStatus::Failed, $message, [
                         'construction' => $constructionPayload,
                         'resources' => $shipmentResources,
                         'result' => $result,
@@ -134,6 +140,15 @@ class ExecuteVillageResourceTransfer
         }
 
         if ($sentShipments === []) {
+            if ($lastBlockedReason === 'duration_limit') {
+                $this->logTransferActivity($account, $recipientVillage, null, ActivityLogStatus::Pending, "No supplier village could send resources within the configured travel time for {$transferPurpose}.", [
+                    'construction' => $constructionPayload,
+                    'needed_resources' => $remainingResources,
+                ]);
+
+                return;
+            }
+
             $this->logTransferActivity($account, $recipientVillage, null, ActivityLogStatus::Pending, "No eligible supplier village could send resources for {$transferPurpose}.", [
                 'construction' => $constructionPayload,
                 'needed_resources' => $remainingResources,
@@ -369,7 +384,7 @@ class ExecuteVillageResourceTransfer
      * @param  array{wood: int, clay: int, iron: int, crop: int}  $resources
      * @return array{wood: int, clay: int, iron: int, crop: int}
      */
-    protected function capShipmentToAvailableMerchants(AccountSession $session, string $referer, array $resources): array
+    protected function capShipmentToAvailableMerchants(Village $supplierVillage, AccountSession $session, string $referer, array $resources): array
     {
         $response = $session->postJson(self::GRAPHQL_ENDPOINT, [
             'query' => self::MERCHANTS_QUERY,
@@ -391,7 +406,18 @@ class ExecuteVillageResourceTransfer
             return $resources;
         }
 
-        $availableCapacity = max(0, (int) ($merchantsInfo['capacity'] ?? 0)) * max(0, (int) ($merchantsInfo['available'] ?? 0));
+        $merchantCapacity = max(0, (int) ($merchantsInfo['capacity'] ?? 0));
+        $availableMerchants = max(0, (int) ($merchantsInfo['available'] ?? 0));
+
+        $supplierVillage->resourceState()->updateOrCreate(
+            ['village_id' => $supplierVillage->id],
+            [
+                'available_merchants' => $availableMerchants,
+                'merchant_capacity' => $merchantCapacity > 0 ? $merchantCapacity : null,
+            ],
+        );
+
+        $availableCapacity = $merchantCapacity * $availableMerchants;
 
         if ($availableCapacity <= 0) {
             return $this->emptyShipment();
@@ -402,9 +428,9 @@ class ExecuteVillageResourceTransfer
 
     /**
      * @param  array{wood: int, clay: int, iron: int, crop: int}  $resources
-     * @return array{accepted: bool, preview_status_code: int, confirm_status_code: int|null, nonce_present: bool, preview_body: string|null, confirm_body: string|null}
+     * @return array{accepted: bool, preview_status_code: int, confirm_status_code: int|null, nonce_present: bool, duration_seconds: int|null, max_duration_seconds: int, blocked_reason: string|null, preview_body: string|null, confirm_body: string|null}
      */
-    protected function sendMarketplaceResources(Village $recipientVillage, AccountSession $session, string $referer, array $resources): array
+    protected function sendMarketplaceResources(Village $supplierVillage, Village $recipientVillage, AccountSession $session, string $referer, array $resources): array
     {
         $payload = [
             'action' => 'marketPlace',
@@ -424,6 +450,11 @@ class ExecuteVillageResourceTransfer
 
         $previewResponse = $session->putJson(self::MARKETPLACE_SEND_ENDPOINT, $payload, $this->xhrRequestOptions($referer));
         $nonce = $this->headerValue($previewResponse, 'x-nonce');
+        $previewPayload = json_decode($previewResponse->body, true);
+        $durationSeconds = is_array($previewPayload) && isset($previewPayload['duration'])
+            ? max(0, (int) $previewPayload['duration'])
+            : null;
+        $maxDurationSeconds = $this->maxTradeDurationSeconds($supplierVillage);
 
         if (! $previewResponse->successful() || $nonce === null) {
             return [
@@ -431,6 +462,23 @@ class ExecuteVillageResourceTransfer
                 'preview_status_code' => $previewResponse->statusCode,
                 'confirm_status_code' => null,
                 'nonce_present' => $nonce !== null,
+                'duration_seconds' => $durationSeconds,
+                'max_duration_seconds' => $maxDurationSeconds,
+                'blocked_reason' => null,
+                'preview_body' => mb_substr($previewResponse->body, 0, 500),
+                'confirm_body' => null,
+            ];
+        }
+
+        if ($durationSeconds !== null && $durationSeconds > $maxDurationSeconds) {
+            return [
+                'accepted' => false,
+                'preview_status_code' => $previewResponse->statusCode,
+                'confirm_status_code' => null,
+                'nonce_present' => true,
+                'duration_seconds' => $durationSeconds,
+                'max_duration_seconds' => $maxDurationSeconds,
+                'blocked_reason' => 'duration_limit',
                 'preview_body' => mb_substr($previewResponse->body, 0, 500),
                 'confirm_body' => null,
             ];
@@ -445,9 +493,23 @@ class ExecuteVillageResourceTransfer
             'preview_status_code' => $previewResponse->statusCode,
             'confirm_status_code' => $confirmResponse->statusCode,
             'nonce_present' => true,
+            'duration_seconds' => $durationSeconds,
+            'max_duration_seconds' => $maxDurationSeconds,
+            'blocked_reason' => null,
             'preview_body' => mb_substr($previewResponse->body, 0, 500),
             'confirm_body' => mb_substr($confirmResponse->body, 0, 500),
         ];
+    }
+
+    protected function maxTradeDurationSeconds(Village $supplierVillage): int
+    {
+        $settings = $supplierVillage->settings;
+
+        if ($settings instanceof VillageSetting && $settings->trade_max_duration_seconds !== null) {
+            return max(60, (int) $settings->trade_max_duration_seconds);
+        }
+
+        return VillageSetting::defaultTradeMaxDurationSeconds();
     }
 
     /**

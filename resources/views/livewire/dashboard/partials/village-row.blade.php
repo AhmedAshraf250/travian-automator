@@ -2,6 +2,15 @@
     $resourceState = $village->resourceState;
     $runtimeState = $village->runtimeState;
     $settings = $village->settings;
+    $fieldLevelCapMode = in_array((string) ($settings?->field_level_cap_mode ?? 'inherit'), ['inherit', 'custom', 'disabled'], true)
+        ? (string) ($settings?->field_level_cap_mode ?? 'inherit')
+        : 'inherit';
+    $effectiveFieldLevelCap = match ($fieldLevelCapMode) {
+        'custom' => (int) ($settings?->field_level_cap ?? ($globalFieldLevelCap ?? 10)),
+        'disabled' => 20,
+        default => (int) ($globalFieldLevelCap ?? 10),
+    };
+    $effectiveFieldLevelCap = max(1, min($village->is_capital ? 20 : 10, $effectiveFieldLevelCap));
     $coordinateText = $village->x !== null && $village->y !== null ? "[{$village->x}|{$village->y}]" : '[--|--]';
     $populationText = $village->population > 0 ? (string) $village->population : '--';
     $troopSlots = $runtimeState?->normalizedTroopSlots() ?? array_fill(0, 11, 0);
@@ -155,6 +164,12 @@
     $heroResourcesEnabled = (bool) ($settings?->hero_resources_enabled ?? true);
     $troopTrainingEnabled = (bool) ($settings?->troop_training_enabled ?? false);
     $celebrationEnabled = (bool) ($settings?->celebration_enabled ?? false);
+    $celebrationTypeValue = (string) ($settings?->celebration_type?->value ?? \App\Models\VillageSetting::defaultCelebrationType()->value);
+    $celebrationTypeLabel = match ($celebrationTypeValue) {
+        'great' => 'Great first',
+        default => 'Small first',
+    };
+    $celebrationMinimumCulturePoints = (int) ($settings?->celebration_min_culture_points ?? \App\Models\VillageSetting::defaultCelebrationMinCulturePoints());
     $isVillagePaused = ! $village->is_active;
     $villageNameClasses = $isVillagePaused ? 'text-amber-700' : 'text-[var(--color-ink)]';
     $enabledSignalClasses = 'border-emerald-700 bg-emerald-500 text-white shadow-inner ring-1 ring-emerald-700/30';
@@ -273,7 +288,7 @@
     if ($fieldsAutomationEnabled) {
         $fieldControls
             ->filter(static fn (array $field): bool => $field['enabled']
-                && $field['level'] < 10
+                && $field['level'] < $effectiveFieldLevelCap
                 && $fieldPassesPriorityLeadGuard($field, $fieldControls, $effectiveFieldPriority))
             ->sortBy(function (array $field) use ($effectiveFieldPriority): string {
                 $fieldKey = $field['field_key'] ?? 'wood';
@@ -292,6 +307,7 @@
                     'kind' => 'F',
                     'name' => $field['name'],
                     'slot_id' => $field['slot_id'],
+                    'priority' => (int) ($effectiveFieldPriority[$field['field_key'] ?? 'wood'] ?? 999),
                     'icon' => $field['icon'],
                     'level_label' => "{$field['level']}->{$nextLevel}",
                 ]);
@@ -331,6 +347,7 @@
                     'kind' => 'B',
                     'name' => $buildingName,
                     'slot_id' => (int) $target->slot_id,
+                    'priority' => (int) $target->priority,
                     'icon' => $buildingIconForGid($gid),
                     'level_label' => "{$currentLevel}->{$nextLevel}",
                 ]);
@@ -348,10 +365,14 @@
                     'reserve' => false,
                 ],
                 'index' => $index,
+                'priority' => (int) ($entry['priority'] ?? 999),
+                'kind_order' => ($entry['kind'] ?? null) === 'B' ? 0 : 1,
                 'pinned_position' => $pinnedSchedulePositions[$entry['key']] ?? PHP_INT_MAX,
             ])
             ->sortBy([
                 ['pinned_position', 'asc'],
+                ['priority', 'asc'],
+                ['kind_order', 'asc'],
                 ['index', 'asc'],
             ])
             ->pluck('entry')
@@ -472,13 +493,13 @@
 
                 <button type="button" wire:click="toggleVillageHeroResources({{ $village->id }})"
                     class="inline-flex h-7 w-7 items-center justify-center rounded-md border text-[11px] font-extrabold transition {{ $controlButtonClasses($heroResourcesEnabled) }}"
-                    title="H - Hero resources: use stored hero resources before marketplace support">
-                    H
+                    title="R - Resources: use stored hero resources before marketplace support">
+                    R
                 </button>
 
-                <button type="button" wire:click="toggleVillageCelebrationAutomation({{ $village->id }})"
+                <button type="button" @click="openControl = openControl === 'celebrations' ? null : 'celebrations'"
                     class="inline-flex h-7 w-7 items-center justify-center rounded-md border text-[11px] font-extrabold transition {{ $controlButtonClasses($celebrationEnabled) }}"
-                    title="C - Celebrations: start town hall celebrations when ready">
+                    title="C - Celebrations: inspect and toggle town hall celebrations">
                     C
                 </button>
 
@@ -487,6 +508,50 @@
                     title="T - Troops: train enabled troop queues for this village">
                     T
                 </button>
+
+                <button type="button" wire:click="openMarketplaceTransferModal({{ $village->id }})"
+                    class="inline-flex h-7 w-8 items-center justify-center rounded-md border border-[#7b5a2e]/45 bg-[#d3b581]/35 text-[10px] font-black tracking-tight text-[#4a2d0c] transition hover:border-[#7b5a2e] hover:bg-[#d3b581]/60"
+                    title="TR - Transfer resources: send marketplace resources from this village"
+                    aria-label="Send marketplace resources from this village">
+                    TR
+                </button>
+
+                <button type="button" wire:click="openVillageDemolitionModal({{ $village->id }})"
+                    class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-rose-700/35 bg-rose-500/10 text-[11px] font-black text-rose-800 transition hover:border-rose-700 hover:bg-rose-500/20"
+                    title="D - Demolish: lower one building level from the Main Building"
+                    aria-label="Open building demolition panel">
+                    D
+                </button>
+
+                <div x-cloak x-show="openControl === 'celebrations'" @click.outside="openControl = null" @keydown.escape.window="openControl = null"
+                    class="absolute left-0 top-8 z-50 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] p-3 text-xs shadow-[0_18px_55px_rgba(15,23,42,0.18)]">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="font-semibold text-[var(--color-ink)]">Celebrations</span>
+                        <button type="button" wire:click="toggleVillageCelebrationAutomation({{ $village->id }})"
+                            class="inline-flex items-center gap-2 rounded-full border px-1.5 py-1 text-[11px] font-semibold transition {{ $celebrationEnabled ? 'border-emerald-600/35 bg-emerald-500/10 text-emerald-800' : 'border-rose-600/30 bg-rose-500/10 text-rose-800' }}"
+                            title="Enable or pause Town Hall celebrations for this village">
+                            <span class="relative inline-flex h-6 w-11 items-center rounded-full {{ $celebrationEnabled ? 'bg-emerald-500' : 'bg-rose-500' }}">
+                                <span class="absolute inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-black shadow-sm transition {{ $celebrationEnabled ? 'right-0.5 text-emerald-700' : 'left-0.5 text-rose-700' }}">
+                                    {{ $celebrationEnabled ? '✓' : '×' }}
+                                </span>
+                            </span>
+                            {{ $celebrationEnabled ? 'On' : 'Off' }}
+                        </button>
+                    </div>
+
+                    <div class="mt-3 flex flex-wrap gap-1.5">
+                        <span class="rounded-md bg-[var(--color-panel-alt)] px-2 py-1 font-semibold text-[var(--color-muted)]">
+                            {{ $celebrationTypeLabel }}
+                        </span>
+                        <span class="rounded-md bg-[var(--color-panel-alt)] px-2 py-1 font-semibold text-[var(--color-muted)]">
+                            CP >= {{ $celebrationMinimumCulturePoints }}
+                        </span>
+                    </div>
+
+                    <p class="mt-3 text-[11px] leading-4 text-[var(--color-muted)]">
+                        Details are edited in Village Settings, Celebrations.
+                    </p>
+                </div>
 
                 <div x-cloak x-show="openControl === 'fields'" @click.outside="openControl = null" @keydown.escape.window="openControl = null"
                     class="absolute left-0 top-8 z-50 w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] p-2 text-xs shadow-[0_18px_55px_rgba(15,23,42,0.18)]">

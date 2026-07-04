@@ -36,6 +36,11 @@ class SyncTravianAccountJob implements ShouldBeUnique, ShouldQueue
     public int $tries = 12;
 
     /**
+     * Let slow proxies finish before the worker treats the job as timed out.
+     */
+    public int $timeout = 90;
+
+    /**
      * Back off when another account job is holding the shared Travian session lock.
      *
      * @var list<int>
@@ -55,7 +60,9 @@ class SyncTravianAccountJob implements ShouldBeUnique, ShouldQueue
         public ?int $villageId = null,
         public bool $ignoreConnectionBackoff = false,
         public bool $useReloadAuto = false,
-    ) {}
+    ) {
+        $this->timeout = max(30, (int) config('travian.automation.job_timeout_seconds', 90));
+    }
 
     /**
      * Identify duplicate jobs by account, not by village, to keep one session per account.
@@ -98,6 +105,11 @@ class SyncTravianAccountJob implements ShouldBeUnique, ShouldQueue
         ) {
             return;
         }
+
+        $account->forceFill([
+            'status' => AccountStatus::Syncing,
+            'connection_retry_after' => null,
+        ])->save();
 
         ActivityLog::query()->create([
             'account_id' => $account->id,

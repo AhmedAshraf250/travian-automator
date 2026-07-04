@@ -48,6 +48,27 @@ class AccountSetting extends Model
     ];
 
     /**
+     * Return the default resource priority payload.
+     *
+     * @return list<int>
+     */
+    public static function defaultResourcePriorities(): array
+    {
+        $priorities = config('travian.defaults.account_resource_priorities', '15,11,1,1');
+
+        if (is_string($priorities)) {
+            $priorities = explode(',', $priorities);
+        }
+
+        $priorities = array_map(
+            static fn (mixed $priority): int => max(1, (int) $priority),
+            array_slice((array) $priorities, 0, 4),
+        );
+
+        return array_pad($priorities, 4, 1);
+    }
+
+    /**
      * Return the default attribute weight payload.
      *
      * @return array{power: int, offBonus: int, defBonus: int, productionPoints: int}

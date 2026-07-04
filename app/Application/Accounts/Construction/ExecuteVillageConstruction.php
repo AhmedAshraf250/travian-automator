@@ -257,6 +257,7 @@ class ExecuteVillageConstruction
     {
         $priorityMap = $this->resolveEffectiveFieldPriority($settings);
         $prioritizeCropRecovery = $this->shouldPrioritizeCropFieldsForNegativeProduction($village, $settings);
+        $fieldLevelCap = $this->effectiveFieldLevelCap($village, $settings);
         $fieldSlots = $village->buildings
             ->filter(static fn (VillageBuilding $slot): bool => $slot->slot_id >= 1
                 && $slot->slot_id <= 18
@@ -279,7 +280,7 @@ class ExecuteVillageConstruction
                 continue;
             }
 
-            if ((int) $fieldSlot->current_level >= 10) {
+            if ((int) $fieldSlot->current_level >= $fieldLevelCap) {
                 continue;
             }
 
@@ -287,10 +288,16 @@ class ExecuteVillageConstruction
                 continue;
             }
 
-            $candidates[] = [
+            $candidate = [
                 'slot' => $fieldSlot,
                 'field_key' => $fieldKey,
             ];
+
+            if ($this->candidateRecentlyBlockedByBuildPage($village, $candidate, 'field')) {
+                continue;
+            }
+
+            $candidates[] = $candidate;
         }
 
         usort($candidates, function (array $left, array $right) use ($priorityMap): int {
@@ -309,7 +316,7 @@ class ExecuteVillageConstruction
         });
 
         if ($prioritizeCropRecovery) {
-            $candidates = $this->prependCropRecoveryCandidates($village, $candidates);
+            $candidates = $this->prependCropRecoveryCandidates($village, $settings, $candidates);
         }
 
         return array_values($candidates);
@@ -321,9 +328,9 @@ class ExecuteVillageConstruction
      * @param  list<array{slot: VillageBuilding, field_key: string}>  $candidates
      * @return list<array{slot: VillageBuilding, field_key: string}>
      */
-    protected function prependCropRecoveryCandidates(Village $village, array $candidates): array
+    protected function prependCropRecoveryCandidates(Village $village, VillageSetting $settings, array $candidates): array
     {
-        $cropCandidates = $this->selectCropRecoveryCandidates($village);
+        $cropCandidates = $this->selectCropRecoveryCandidates($village, $settings);
 
         if ($cropCandidates === []) {
             return $candidates;
@@ -350,13 +357,15 @@ class ExecuteVillageConstruction
      *
      * @return list<array{slot: VillageBuilding, field_key: string}>
      */
-    protected function selectCropRecoveryCandidates(Village $village): array
+    protected function selectCropRecoveryCandidates(Village $village, ?VillageSetting $settings = null): array
     {
+        $fieldLevelCap = $this->effectiveFieldLevelCap($village, $settings ?? $village->settings ?? new VillageSetting);
+
         $candidates = $village->buildings
             ->filter(static fn (VillageBuilding $slot): bool => $slot->slot_id >= 1
                 && $slot->slot_id <= 18
                 && (int) $slot->building_gid === 4
-                && (int) $slot->current_level < 10
+                && (int) $slot->current_level < $fieldLevelCap
                 && (bool) $slot->automation_enabled)
             ->sortBy([
                 ['current_level', 'asc'],
@@ -370,6 +379,25 @@ class ExecuteVillageConstruction
             ->all();
 
         return $candidates;
+    }
+
+    protected function effectiveFieldLevelCap(Village $village, VillageSetting $settings): int
+    {
+        $mode = in_array((string) $settings->field_level_cap_mode, VillageSetting::fieldLevelCapModes(), true)
+            ? (string) $settings->field_level_cap_mode
+            : VillageSetting::FieldCapInherit;
+
+        $cap = match ($mode) {
+            VillageSetting::FieldCapCustom => (int) ($settings->field_level_cap ?? SystemSetting::defaultFieldLevelCap()),
+            VillageSetting::FieldCapDisabled => 20,
+            default => (int) (SystemSetting::constructionDefaults()['field_level_cap'] ?? SystemSetting::defaultFieldLevelCap()),
+        };
+
+        if (! $village->is_capital) {
+            $cap = min($cap, 10);
+        }
+
+        return max(1, min(20, $cap));
     }
 
     /**
@@ -471,7 +499,7 @@ class ExecuteVillageConstruction
             ];
         }
 
-        foreach ($this->selectCropRecoveryCandidates($village) as $candidate) {
+        foreach ($this->selectCropRecoveryCandidates($village, $settings) as $candidate) {
             $result = $this->executeFieldCandidate($account, $village, $session, $candidate);
             $firstResourceShortage ??= $result['resource_shortage'];
 
@@ -667,6 +695,8 @@ class ExecuteVillageConstruction
                 continue;
             }
 
+            $targetLevel = $this->clampTargetLevel($target, $targetGid, $targetLevel);
+
             $targetSlotId = TravianBuildingCatalog::fixedSlotForGid(
                 $targetGid,
                 $village->runtimeState?->tribe_id !== null ? (int) $village->runtimeState->tribe_id : null,
@@ -814,6 +844,21 @@ class ExecuteVillageConstruction
         return null;
     }
 
+    protected function clampTargetLevel(VillageBuildingTarget $target, int $targetGid, int $targetLevel): int
+    {
+        $maxLevel = TravianBuildingCatalog::maxLevelForGid($targetGid);
+
+        if ($maxLevel === null || $targetLevel <= (int) $maxLevel) {
+            return $targetLevel;
+        }
+
+        $target->forceFill([
+            'target_level' => (int) $maxLevel,
+        ])->save();
+
+        return (int) $maxLevel;
+    }
+
     /**
      * @param  list<array{target: VillageBuildingTarget, current_slot: VillageBuilding, target_gid: int, mode: 'upgrade'|'construct'}>  $candidates
      * @param  array<string, true>  $candidateKeys
@@ -821,6 +866,11 @@ class ExecuteVillageConstruction
      */
     protected function appendBuildingCandidate(array &$candidates, array &$candidateKeys, array $candidate): void
     {
+        $village = $candidate['current_slot']->village ?? null;
+        if ($village instanceof Village && $this->candidateRecentlyBlockedByBuildPage($village, $candidate, 'building')) {
+            return;
+        }
+
         $key = (int) $candidate['current_slot']->slot_id.':'.(int) $candidate['target_gid'].':'.$candidate['mode'];
 
         if (isset($candidateKeys[$key])) {
@@ -1578,6 +1628,10 @@ class ExecuteVillageConstruction
             return;
         }
 
+        if ($this->buildPageBlockAlreadyLogged($village, $payload)) {
+            return;
+        }
+
         ActivityLog::query()->create([
             'account_id' => $account->id,
             'village_id' => $village->id,
@@ -1593,6 +1647,47 @@ class ExecuteVillageConstruction
             'message' => 'Construction candidate blocked by build page.',
             'executed_at' => now(),
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $candidate
+     */
+    protected function candidateRecentlyBlockedByBuildPage(Village $village, array $candidate, string $queueKind): bool
+    {
+        return ActivityLog::query()
+            ->where('village_id', $village->id)
+            ->where('activity_type', ActivityType::Build)
+            ->where('status', ActivityLogStatus::Pending)
+            ->where('message', 'Construction candidate blocked by build page.')
+            ->where('executed_at', '>=', now()->subMinutes($this->buildPageBlockCooldownMinutes()))
+            ->where('payload->schedule_key', $this->candidateScheduleKey($candidate, $queueKind))
+            ->exists();
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    protected function buildPageBlockAlreadyLogged(Village $village, array $payload): bool
+    {
+        $scheduleKey = (string) ($payload['schedule_key'] ?? '');
+
+        if ($scheduleKey === '') {
+            return false;
+        }
+
+        return ActivityLog::query()
+            ->where('village_id', $village->id)
+            ->where('activity_type', ActivityType::Build)
+            ->where('status', ActivityLogStatus::Pending)
+            ->where('message', 'Construction candidate blocked by build page.')
+            ->where('executed_at', '>=', now()->subMinutes($this->buildPageBlockCooldownMinutes()))
+            ->where('payload->schedule_key', $scheduleKey)
+            ->exists();
+    }
+
+    protected function buildPageBlockCooldownMinutes(): int
+    {
+        return max(1, (int) config('travian.automation.build_page_block_cooldown_minutes', 10));
     }
 
     /**
@@ -1681,7 +1776,7 @@ class ExecuteVillageConstruction
             ->values();
 
         $primaryRows = $orderedRows->take(8)->values();
-        $visibleRows = $primaryRows;
+        $visibleRows = $orderedRows->take(10)->values();
 
         if ($orderedRows->contains(static fn (array $row): bool => $row['kind'] === 'building')
             && $primaryRows->where('kind', 'building')->isEmpty()) {

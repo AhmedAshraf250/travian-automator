@@ -69,6 +69,37 @@ test('observer persists dorf2 building slots when that page was already fetched'
         ->and($village?->buildings()->where('slot_id', 26)->first()?->building_gid)->toBe(15);
 });
 
+test('observer stores marketplace merchant availability from a fetched market page', function () {
+    $account = Account::factory()->create([
+        'server_url' => 'https://ts7.x1.arabics.travian.com/',
+    ]);
+
+    $village = $account->villages()->create([
+        'travian_village_id' => '23378',
+        'name' => 'AMH7',
+        'is_active' => true,
+    ]);
+    $village->runtimeState()->create([
+        'tribe_id' => 1,
+        'troop_slots' => [],
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+
+    app(TravianSessionResponseObserver::class)->observe($account, new SessionResponse(
+        statusCode: 200,
+        body: '<html><div id="villageName"><input class="villageInput" data-did=23378 value="AMH7"></div><div class="whereAreMyMerchants">التجار المتفرّغون: 10\10<br>تجار يعرضون الموارد للبيع في السوق: 0\10<br>تجّار على الطريق: 0\10</div></html>',
+        effectiveUri: 'https://ts7.x1.arabics.travian.com/build.php?id=32&gid=17',
+        headers: [],
+    ));
+
+    $resourceState = $village->fresh('resourceState')->resourceState;
+
+    expect($resourceState?->available_merchants)->toBe(10)
+        ->and($resourceState?->merchant_capacity)->toBe(500);
+});
+
 test('observer refreshes hero state from hud json while preserving known adventure count', function () {
     $account = Account::factory()->create([
         'server_url' => 'https://ts7.x1.arabics.travian.com/',

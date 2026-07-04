@@ -72,6 +72,10 @@ class TravianSessionResponseObserver
                 $this->observeDorf2Document($account, $response);
             }
 
+            if (str_contains($path, '/build.php')) {
+                $this->observeMarketplaceDocument($account, $response);
+            }
+
             return;
         }
 
@@ -110,6 +114,48 @@ class TravianSessionResponseObserver
         ]);
 
         $this->persistVillageOverview->handleDorf2Only($village, $dorf2Overview);
+    }
+
+    /**
+     * Observe marketplace pages for the live merchant availability snapshot.
+     */
+    protected function observeMarketplaceDocument(Account $account, SessionResponse $response): void
+    {
+        $merchantStatus = $this->extractMerchantStatus($response->body);
+
+        if ($merchantStatus === null) {
+            return;
+        }
+
+        $travianVillageId = $this->extractActiveVillageId($response->body);
+
+        if ($travianVillageId === null) {
+            return;
+        }
+
+        $village = $account->villages()->firstOrNew([
+            'travian_village_id' => $travianVillageId,
+        ]);
+
+        if (! $village->exists) {
+            $village->fill([
+                'name' => $travianVillageId,
+                'population' => 0,
+                'is_active' => true,
+                'last_sync_at' => now(),
+            ])->save();
+        }
+
+        $merchantCapacity = $this->merchantCapacityForTribe((int) ($village->runtimeState?->tribe_id ?? 0));
+
+        $village->resourceState()->updateOrCreate(
+            [],
+            [
+                'available_merchants' => $merchantStatus['available'],
+                'merchant_capacity' => $merchantCapacity,
+                'server_reported_at' => now(),
+            ],
+        );
     }
 
     /**
@@ -176,7 +222,8 @@ class TravianSessionResponseObserver
         return str_contains($body, '<html')
             || str_contains($body, '<!DOCTYPE html')
             || str_contains($body, 'id="topBarHero"')
-            || str_contains($body, "id='topBarHero'");
+            || str_contains($body, "id='topBarHero'")
+            || str_contains($body, 'whereAreMyMerchants');
     }
 
     /**
@@ -184,10 +231,77 @@ class TravianSessionResponseObserver
      */
     protected function extractActiveVillageId(string $html): ?string
     {
-        if (preg_match('/id=["\']villageName["\'][\s\S]*?data-did=["\']([^"\']+)["\']/u', $html, $matches) !== 1) {
+        if (preg_match('/id=["\']villageName["\'][\s\S]*?data-did=(["\']?)([^"\'\s>]+)\1/u', $html, $matches) !== 1) {
             return null;
         }
 
-        return html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        return html_entity_decode($matches[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    }
+
+    /**
+     * @return array{available: int, total: int}|null
+     */
+    protected function extractMerchantStatus(string $html): ?array
+    {
+        if (preg_match('/<div[^>]*class=["\'][^"\']*whereAreMyMerchants[^"\']*["\'][^>]*>(.*?)<\/div>/isu', $html, $matches) !== 1) {
+            return null;
+        }
+
+        $text = html_entity_decode(strip_tags($matches[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $numbers = [];
+
+        if (preg_match_all('/\d+/u', $this->normalizeUnicodeDigits($text), $numberMatches) === false) {
+            return null;
+        }
+
+        foreach ($numberMatches[0] as $number) {
+            $numbers[] = (int) $number;
+        }
+
+        if (count($numbers) < 2) {
+            return null;
+        }
+
+        return [
+            'available' => max(0, $numbers[0]),
+            'total' => max(0, $numbers[1]),
+        ];
+    }
+
+    protected function normalizeUnicodeDigits(string $value): string
+    {
+        return strtr($value, [
+            '٠' => '0',
+            '١' => '1',
+            '٢' => '2',
+            '٣' => '3',
+            '٤' => '4',
+            '٥' => '5',
+            '٦' => '6',
+            '٧' => '7',
+            '٨' => '8',
+            '٩' => '9',
+            '۰' => '0',
+            '۱' => '1',
+            '۲' => '2',
+            '۳' => '3',
+            '۴' => '4',
+            '۵' => '5',
+            '۶' => '6',
+            '۷' => '7',
+            '۸' => '8',
+            '۹' => '9',
+        ]);
+    }
+
+    protected function merchantCapacityForTribe(int $tribeId): int
+    {
+        $capacity = (array) config('travian.game.merchant_capacity', []);
+
+        return match ($tribeId) {
+            2 => (int) ($capacity['teuton'] ?? 1000),
+            3 => (int) ($capacity['gaul'] ?? 750),
+            default => (int) ($capacity['roman'] ?? 500),
+        };
     }
 }

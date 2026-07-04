@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'village_id',
     'inherit_from_account',
     'field_priority',
+    'field_level_cap_mode',
+    'field_level_cap',
     'pause_buildings',
     'pause_fields',
     'trade_mode',
@@ -25,6 +27,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'send_enabled',
     'send_min_resource_percentage',
     'send_reserve_resource_percentage',
+    'trade_max_duration_seconds',
     'construction_schedule',
     'troop_training_enabled',
     'celebration_enabled',
@@ -33,6 +36,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class VillageSetting extends Model
 {
+    public const string FieldCapInherit = 'inherit';
+
+    public const string FieldCapCustom = 'custom';
+
+    public const string FieldCapDisabled = 'disabled';
+
     /**
      * The model's default values for attributes.
      *
@@ -51,6 +60,32 @@ class VillageSetting extends Model
     public static function defaultFieldPriority(): array
     {
         return SystemSetting::defaultFieldPriority();
+    }
+
+    public static function defaultFieldLevelCap(): int
+    {
+        return SystemSetting::defaultFieldLevelCap();
+    }
+
+    public static function defaultTradeMaxDurationSeconds(): int
+    {
+        if (method_exists(SystemSetting::class, 'tradeDefaults')) {
+            return (int) (SystemSetting::tradeDefaults()['max_duration_seconds'] ?? 5 * 60 * 60);
+        }
+
+        return 5 * 60 * 60;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function fieldLevelCapModes(): array
+    {
+        return [
+            self::FieldCapInherit,
+            self::FieldCapCustom,
+            self::FieldCapDisabled,
+        ];
     }
 
     /**
@@ -79,6 +114,7 @@ class VillageSetting extends Model
         return [
             'inherit_from_account' => 'boolean',
             'field_priority' => 'array',
+            'field_level_cap' => 'integer',
             'pause_buildings' => 'boolean',
             'pause_fields' => 'boolean',
             'trade_mode' => VillageTradeMode::class,
@@ -89,6 +125,7 @@ class VillageSetting extends Model
             'send_enabled' => 'boolean',
             'send_min_resource_percentage' => 'integer',
             'send_reserve_resource_percentage' => 'integer',
+            'trade_max_duration_seconds' => 'integer',
             'construction_schedule' => 'array',
             'troop_training_enabled' => 'boolean',
             'celebration_enabled' => 'boolean',

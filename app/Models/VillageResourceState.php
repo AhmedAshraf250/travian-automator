@@ -21,6 +21,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'crop_production',
     'warehouse_capacity',
     'granary_capacity',
+    'available_merchants',
+    'merchant_capacity',
     'simulated_at',
     'server_reported_at',
 ])]

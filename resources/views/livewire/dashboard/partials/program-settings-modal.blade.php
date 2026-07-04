@@ -19,8 +19,7 @@
                         'generals' => 'Generals',
                         'hero' => 'Hero',
                         'troops' => 'Troops Training',
-                        'celebrations' => 'Celebrations',
-                        'merchants' => 'Merchants',
+                        'merchants' => 'Trading',
                     ] as $tabKey => $tabLabel)
                         <button type="button" wire:key="program-tab-{{ $tabKey }}"
                             wire:click="setProgramSettingsTab('{{ $tabKey }}')"
@@ -64,6 +63,23 @@
                                 <span>Prefer crop fields while crop production is negative</span>
                             </label>
                         </div>
+
+                        <section class="rounded-lg border border-[var(--color-line)] bg-[var(--color-panel-alt)] p-4">
+                            <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_12rem] md:items-end">
+                                <div>
+                                    <h3 class="text-sm font-semibold text-[var(--color-ink)]">Field max level</h3>
+                                    <p class="mt-1 text-xs leading-5 text-[var(--color-muted)]">
+                                        Global ceiling for resource field upgrades. Non-capital villages are always capped at level 10 by Travian rules.
+                                    </p>
+                                </div>
+
+                                <label class="grid gap-1 text-sm">
+                                    <span class="font-medium text-[var(--color-ink)]">Max level</span>
+                                    <input type="number" min="1" max="20" wire:model.live="globalFieldLevelCapDraft"
+                                        class="rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-accent)]">
+                                </label>
+                            </div>
+                        </section>
 
                         @error('defaultUserAgent')
                             <p class="rounded-lg border border-rose-700/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-900">{{ $message }}</p>
@@ -115,6 +131,28 @@
                                 @endforeach
                             </div>
                         </div>
+                    </div>
+                @elseif ($programSettingsTab === 'merchants')
+                    <div class="space-y-4">
+                        <section class="rounded-lg border border-[var(--color-line)] bg-[var(--color-panel-alt)] p-4">
+                            <h3 class="text-sm font-semibold text-[var(--color-ink)]">Trading defaults</h3>
+                            <p class="mt-1 text-xs leading-5 text-[var(--color-muted)]">Shared one-way travel-time limit used by automatic trade support and the TR quick-send panel.</p>
+
+                            <div class="mt-4 grid max-w-sm gap-1 text-sm">
+                                <span class="font-medium text-[var(--color-ink)]">Max one-way travel time</span>
+                                <div class="flex items-center overflow-hidden rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] focus-within:border-[var(--color-accent)]">
+                                    <input type="number" min="1" max="10080" step="1" wire:model.live="globalTradeMaxDurationMinutesDraft"
+                                        class="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-sm text-[var(--color-ink)] outline-none focus:ring-0">
+                                    <span class="shrink-0 px-3 text-xs font-semibold text-[var(--color-muted)]">minutes</span>
+                                </div>
+                                <span class="text-[11px] leading-4 text-[var(--color-muted)]">
+                                    {{ intdiv(max(0, (int) $globalTradeMaxDurationMinutesDraft), 60) }}h {{ max(0, (int) $globalTradeMaxDurationMinutesDraft) % 60 }}m one-way.
+                                </span>
+                                @error('globalTradeMaxDurationMinutesDraft')
+                                    <span class="text-[11px] font-medium text-red-700">{{ $message }}</span>
+                                @enderror
+                            </div>
+                        </section>
                     </div>
                 @else
                     <div class="rounded-lg border border-dashed border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] px-4 py-8 text-center text-sm font-semibold text-[var(--color-muted)]">

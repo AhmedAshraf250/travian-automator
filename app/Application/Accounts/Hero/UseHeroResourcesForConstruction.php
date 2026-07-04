@@ -19,6 +19,8 @@ use Throwable;
  */
 class UseHeroResourcesForConstruction
 {
+    private const int NEGATIVE_CROP_SAFETY_MINUTES = 15;
+
     private const string GRAPHQL_ENDPOINT = '/api/v1/graphql';
 
     private const string USE_ITEM_ENDPOINT = '/api/v1/hero/v2/inventory/use-item';
@@ -195,6 +197,7 @@ class UseHeroResourcesForConstruction
     {
         $resourceState = $village->resourceState;
         $shortages = $this->emptyResources();
+        $currentAmounts = $this->emptyResources();
 
         foreach ($this->resourceKeys() as $resourceKey) {
             $currentAmount = $this->liveResourceAmount($liveResources, $resourceKey);
@@ -203,7 +206,13 @@ class UseHeroResourcesForConstruction
                 $currentAmount = (int) $resourceState->{$resourceKey};
             }
 
+            $currentAmounts[$resourceKey] = max(0, (int) $currentAmount);
             $shortages[$resourceKey] = max(0, (int) ($requiredResources[$resourceKey] ?? 0) - (int) $currentAmount);
+        }
+
+        if ($resourceState instanceof VillageResourceState && (int) $resourceState->crop_production < 0) {
+            $safetyCrop = (int) ceil(abs((int) $resourceState->crop_production) * self::NEGATIVE_CROP_SAFETY_MINUTES / 60);
+            $shortages['crop'] = max($shortages['crop'], max(0, $safetyCrop - $currentAmounts['crop']));
         }
 
         return $shortages;

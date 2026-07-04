@@ -9,6 +9,7 @@ use App\Application\Accounts\Session\Contracts\AccountSessionFactory;
 use App\Application\Accounts\Session\ObservedAccountSession;
 use App\Application\Accounts\Session\TravianSessionResponseObserver;
 use App\Models\Account;
+use App\Models\AccountProxy;
 use GuzzleHttp\Client;
 use GuzzleHttp\Cookie\CookieJar;
 use RuntimeException;
@@ -32,6 +33,8 @@ class GuzzleAccountSessionFactory implements AccountSessionFactory
      */
     public function for(Account $account): AccountSession
     {
+        $account->loadMissing('activeProxy');
+
         $currentTransportFingerprint = $account->currentTransportFingerprint();
         $canReusePersistedCookies = ! config('travian.transport.force_relogin_on_change', true)
             || $account->session_transport_fingerprint === null
@@ -126,18 +129,51 @@ class GuzzleAccountSessionFactory implements AccountSessionFactory
      */
     protected function buildProxyUri(Account $account): ?string
     {
+        $activeProxy = $account->activeProxy;
+
+        if ($activeProxy instanceof AccountProxy && $activeProxy->isAvailable()) {
+            return $this->buildProxyUriFromParts(
+                scheme: $activeProxy->curlScheme(),
+                host: $activeProxy->host,
+                port: (int) $activeProxy->port,
+                username: $activeProxy->username,
+                password: $activeProxy->password,
+            );
+        }
+
         if ($account->proxy_ip === null || $account->proxy_port === null) {
             return null;
         }
 
-        $credentials = $account->proxy_username !== null
-            ? rawurlencode($account->proxy_username).':'.rawurlencode((string) $account->proxy_password).'@'
+        $scheme = $this->normalizeCurlProxyScheme((string) $account->proxy_scheme);
+
+        return $this->buildProxyUriFromParts(
+            scheme: $scheme,
+            host: $account->proxy_ip,
+            port: (int) $account->proxy_port,
+            username: $account->proxy_username,
+            password: $account->proxy_password,
+        );
+    }
+
+    protected function normalizeCurlProxyScheme(string $scheme): string
+    {
+        return match ($scheme) {
+            'https' => 'https',
+            'socks4' => 'socks4a',
+            'socks4a' => 'socks4a',
+            'socks5' => 'socks5h',
+            'socks5h' => 'socks5h',
+            default => 'http',
+        };
+    }
+
+    protected function buildProxyUriFromParts(string $scheme, string $host, int $port, ?string $username, ?string $password): string
+    {
+        $credentials = $username !== null && trim($username) !== ''
+            ? rawurlencode($username).':'.rawurlencode((string) $password).'@'
             : '';
 
-        $scheme = in_array($account->proxy_scheme, ['http', 'https', 'socks5', 'socks5h'], true)
-            ? $account->proxy_scheme
-            : 'http';
-
-        return "{$scheme}://{$credentials}{$account->proxy_ip}:{$account->proxy_port}";
+        return "{$scheme}://{$credentials}{$host}:{$port}";
     }
 }
