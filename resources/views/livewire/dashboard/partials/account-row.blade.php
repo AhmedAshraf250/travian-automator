@@ -1,4 +1,6 @@
 @php
+    $accountIsExpanded = (bool) ($expandedAccounts[$account->id] ?? false);
+    $loadedVillages = $account->relationLoaded('villages') ? $account->villages : collect();
     $resolvedUserAgent = $account->user_agent ?: ($globalDefaultUserAgent ?? null);
     $programPaused = ! (bool) ($automationEnabled ?? true);
     $accountStatusValue = $programPaused && $account->is_active ? 'program_paused' : ($account->is_active ? $account->status->value : 'paused');
@@ -22,7 +24,7 @@
             ? 'border-[var(--color-accent)]/20 bg-[var(--color-accent-soft)] text-[var(--color-ink)]'
             : 'border-amber-500/25 bg-amber-500/10 text-amber-950',
     };
-    $accountTribeId = $account->villages
+    $accountTribeId = $loadedVillages
         ->map(fn ($village) => $village->runtimeState?->tribe_id)
         ->filter()
         ->first();
@@ -154,6 +156,13 @@
                     onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden');" />
                 <span class="hidden text-[10px] font-black uppercase text-[var(--color-muted)]">A</span>
             </span>
+            <button type="button" wire:click="toggleAccountExpansion({{ $account->id }})"
+                class="inline-flex h-8 min-w-8 items-center justify-center gap-1 rounded-md border border-[var(--color-line-strong)] px-2 text-xs font-semibold transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+                title="{{ $accountIsExpanded ? 'Hide village rows' : 'Show village rows' }}"
+                aria-label="{{ $accountIsExpanded ? 'Hide village rows' : 'Show village rows' }}">
+                <span class="text-sm leading-none">{{ $accountIsExpanded ? '▾' : '▸' }}</span>
+                <span>{{ $account->villages_count }}</span>
+            </button>
             <button type="button" wire:click="openAccountSettingsModal({{ $account->id }})"
                 class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[var(--color-line-strong)] text-sm font-semibold transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
                 title="Account settings"
@@ -186,10 +195,11 @@
         </div>
     </div>
 
-    <div class="bg-[var(--color-panel-alt)]/45 px-4 py-3">
-        @if ($account->villages->isNotEmpty())
+    @if ($accountIsExpanded)
+        <div class="bg-[var(--color-panel-alt)]/45 px-4 py-3">
+        @if ($loadedVillages->isNotEmpty())
             <div class="relative space-y-2 border-l border-[var(--color-line-strong)] pl-4">
-                @foreach ($account->villages as $village)
+                @foreach ($loadedVillages as $village)
                     @include('livewire.dashboard.partials.village-row', ['account' => $account, 'village' => $village])
                 @endforeach
             </div>
@@ -198,5 +208,6 @@
                 No villages stored yet.
             </div>
         @endif
-    </div>
+        </div>
+    @endif
 </article>

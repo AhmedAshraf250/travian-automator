@@ -4,7 +4,7 @@
             <div class="flex items-center gap-2">
                 <h2 class="font-[var(--font-display)] text-sm font-semibold">Activity log</h2>
                 <span class="rounded-md bg-[var(--color-panel-alt)] px-2 py-1 text-[11px] font-semibold text-[var(--color-muted)]">
-                    {{ $activityLogs->count() }}
+                    {{ $activityLogCount }}
                 </span>
             </div>
 
@@ -176,7 +176,7 @@
             title="Show activity log">
             <span class="h-2 w-2 rounded-full bg-white/90 animate-pulse"></span>
             Show activity log
-            <span class="rounded bg-white/20 px-1.5 py-0.5 text-[10px]">{{ $activityLogs->count() }}</span>
+            <span class="rounded bg-white/20 px-1.5 py-0.5 text-[10px]">{{ $activityLogCount }}</span>
         </button>
     </section>
 @endif

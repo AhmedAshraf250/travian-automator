@@ -54,7 +54,7 @@
                         @enderror
 
                         <label class="flex items-center gap-3 rounded-lg bg-[var(--color-panel-alt)] px-4 py-3 text-sm font-semibold">
-                            <input type="checkbox" wire:model.live="accountAcceptQuestsDraft"
+                            <input type="checkbox" wire:model.change="accountAcceptQuestsDraft"
                                 class="rounded border-[var(--color-line-strong)] text-[var(--color-accent)]">
                             <span>Collect task rewards</span>
                         </label>
@@ -75,7 +75,7 @@
                             </div>
 
                             <label class="mt-4 flex items-center gap-2 rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] px-3 py-2 text-sm font-semibold">
-                                <input type="radio" value="direct" wire:model.live="accountActiveProxyDraft"
+                                <input type="radio" value="direct" wire:model.change="accountActiveProxyDraft"
                                     class="border-[var(--color-line-strong)] text-[var(--color-accent)]">
                                 <span>Direct connection</span>
                             </label>
@@ -94,12 +94,12 @@
                                             <label class="flex h-9 items-center gap-2 rounded-lg border border-[var(--color-line)] bg-[var(--color-panel-alt)] px-2 text-xs font-semibold text-[var(--color-muted)]">
                                                 <input type="radio"
                                                     value="{{ isset($proxyDraft['id']) && $proxyDraft['id'] ? 'proxy:' . $proxyDraft['id'] : 'new:' . $proxyIndex }}"
-                                                    wire:model.live="accountActiveProxyDraft"
+                                                    wire:model.change="accountActiveProxyDraft"
                                                     class="border-[var(--color-line-strong)] text-[var(--color-accent)]">
                                                 Use
                                             </label>
 
-                                            <select wire:model.live="accountProxyDrafts.{{ $proxyIndex }}.scheme"
+                                            <select wire:model.change="accountProxyDrafts.{{ $proxyIndex }}.scheme"
                                                 title="Proxy protocol"
                                                 class="rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] px-2 py-2 text-xs font-semibold text-[var(--color-ink)] outline-none focus:border-[var(--color-accent)]">
                                                 <option value="http">http</option>
@@ -115,7 +115,7 @@
                                                 class="rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] px-3 py-2 text-xs text-[var(--color-ink)] outline-none focus:border-[var(--color-accent)]"
                                                 placeholder="1.2.3.4">
 
-                                            <input type="number" min="1" max="65535" wire:model.live="accountProxyDrafts.{{ $proxyIndex }}.port"
+                                            <input type="number" min="1" max="65535" wire:model.blur="accountProxyDrafts.{{ $proxyIndex }}.port"
                                                 title="Proxy port"
                                                 class="rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] px-3 py-2 text-xs text-[var(--color-ink)] outline-none focus:border-[var(--color-accent)]"
                                                 placeholder="1080">
@@ -130,7 +130,7 @@
                                                 class="rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] px-3 py-2 text-xs text-[var(--color-ink)] outline-none focus:border-[var(--color-accent)]"
                                                 placeholder="{{ isset($proxyDraft['id']) && $proxyDraft['id'] ? 'keep saved' : 'proxy password' }}">
 
-                                            <select wire:model.live="accountProxyDrafts.{{ $proxyIndex }}.status"
+                                            <select wire:model.change="accountProxyDrafts.{{ $proxyIndex }}.status"
                                                 class="rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] px-2 py-2 text-xs font-semibold text-[var(--color-ink)] outline-none focus:border-[var(--color-accent)]">
                                                 <option value="active">Ready</option>
                                                 <option value="disabled">Paused</option>
@@ -298,19 +298,19 @@
 
                                 <div class="mt-3 grid gap-3 lg:grid-cols-3">
                                     <label class="flex items-center gap-2 rounded-lg bg-[var(--color-panel-alt)] px-3 py-3 text-sm">
-                                        <input type="checkbox" wire:model.live="accountHeroAdventuresEnabledDraft"
+                                        <input type="checkbox" wire:model.change="accountHeroAdventuresEnabledDraft"
                                             class="rounded border-[var(--color-line-strong)] text-[var(--color-accent)]">
                                         <span>Enable hero adventures</span>
                                     </label>
 
                                     <label class="flex items-center gap-2 rounded-lg bg-[var(--color-panel-alt)] px-3 py-3 text-sm">
-                                        <input type="checkbox" wire:model.live="accountHeroReviveEnabledDraft"
+                                        <input type="checkbox" wire:model.change="accountHeroReviveEnabledDraft"
                                             class="rounded border-[var(--color-line-strong)] text-[var(--color-accent)]">
                                         <span>Revive dead hero</span>
                                     </label>
 
                                     <label class="flex items-center gap-2 rounded-lg bg-[var(--color-panel-alt)] px-3 py-3 text-sm">
-                                        <input type="checkbox" wire:model.live="accountHeroAttributeUpgradeEnabledDraft"
+                                        <input type="checkbox" wire:model.change="accountHeroAttributeUpgradeEnabledDraft"
                                             class="rounded border-[var(--color-line-strong)] text-[var(--color-accent)]">
                                         <span>Upgrade hero attributes</span>
                                     </label>
@@ -318,7 +318,7 @@
 
                                 <label class="mt-3 grid max-w-56 gap-1 text-sm">
                                     <span class="font-semibold text-[var(--color-ink)]">Hero health limit</span>
-                                    <input type="number" min="0" max="100" wire:model.live="accountHeroMinHealthDraft"
+                                    <input type="number" min="0" max="100" wire:model.blur="accountHeroMinHealthDraft"
                                         class="rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-accent)]">
                                 </label>
 
@@ -330,7 +330,7 @@
                                             <label wire:key="account-hero-weight-{{ $attributeKey }}" class="grid gap-1 text-sm">
                                                 <span class="font-medium text-[var(--color-ink)]">{{ $attributeLabel }}</span>
                                                 <input type="number" min="0" max="100"
-                                                    wire:model.live="accountHeroAttributeWeightsDraft.{{ $attributeKey }}"
+                                                    wire:model.blur="accountHeroAttributeWeightsDraft.{{ $attributeKey }}"
                                                     class="rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-accent)]">
                                             </label>
                                         @endforeach

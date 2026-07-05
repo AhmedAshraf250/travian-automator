@@ -118,7 +118,7 @@
 
                 <label class="grid gap-1 text-sm">
                     <span class="font-semibold text-[var(--color-ink)]">Building</span>
-                    <select wire:model.live="demolitionSelectedSlotId"
+                    <select wire:model.change="demolitionSelectedSlotId"
                         class="h-10 min-w-0 rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] px-3 text-sm outline-none focus:border-[var(--color-accent)]">
                         <option value="">Choose building</option>
                         @foreach ($demolitionBuildings as $building)

@@ -118,10 +118,27 @@
         </div>
     </aside>
 
-    @include('livewire.dashboard.partials.program-settings-modal')
-    @include('livewire.dashboard.partials.account-settings-modal')
-    @include('livewire.dashboard.partials.import-modal')
-    @include('livewire.dashboard.partials.village-build-plan-modal')
-    @include('livewire.dashboard.partials.marketplace-transfer-modal')
-    @include('livewire.dashboard.partials.village-demolition-modal')
+    @if ($showProgramSettingsModal)
+        @include('livewire.dashboard.partials.program-settings-modal')
+    @endif
+
+    @if ($showAccountSettingsModal)
+        @include('livewire.dashboard.partials.account-settings-modal')
+    @endif
+
+    @if ($showImportModal)
+        @include('livewire.dashboard.partials.import-modal')
+    @endif
+
+    @if ($showVillageBuildPlanModal)
+        @include('livewire.dashboard.partials.village-build-plan-modal')
+    @endif
+
+    @if ($showMarketplaceTransferModal)
+        @include('livewire.dashboard.partials.marketplace-transfer-modal')
+    @endif
+
+    @if ($showVillageDemolitionModal)
+        @include('livewire.dashboard.partials.village-demolition-modal')
+    @endif
 </div>

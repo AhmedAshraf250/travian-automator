@@ -160,7 +160,7 @@
                         @if ($marketplaceDestinationMode === 'owned')
                             <label class="grid gap-1 text-sm">
                                 <span class="font-semibold text-[var(--color-ink)]">Village</span>
-                                <select wire:model.live="marketplaceDestinationVillageId"
+                                <select wire:model.change="marketplaceDestinationVillageId"
                                     class="h-10 min-w-0 rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] px-3 text-sm outline-none focus:border-[var(--color-accent)]">
                                     <option value="">Choose village</option>
                                     @foreach ($marketplaceTransferVillages as $destinationVillage)
@@ -174,12 +174,12 @@
                             <div class="grid grid-cols-2 gap-2">
                                 <label class="grid gap-1 text-sm">
                                     <span class="font-semibold text-[var(--color-ink)]">X</span>
-                                    <input type="number" wire:model.live="marketplaceDestinationX"
+                                    <input type="number" wire:model.blur="marketplaceDestinationX"
                                         class="h-10 min-w-0 rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] px-3 text-sm outline-none focus:border-[var(--color-accent)]">
                                 </label>
                                 <label class="grid gap-1 text-sm">
                                     <span class="font-semibold text-[var(--color-ink)]">Y</span>
-                                    <input type="number" wire:model.live="marketplaceDestinationY"
+                                    <input type="number" wire:model.blur="marketplaceDestinationY"
                                         class="h-10 min-w-0 rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] px-3 text-sm outline-none focus:border-[var(--color-accent)]">
                                 </label>
                             </div>
@@ -206,7 +206,7 @@
                                     </button>
                                     <input type="number" min="0" step="{{ $resourceStep }}"
                                         @if (($resourceMaxByModel[$resourceModel] ?? null) !== null) max="{{ $resourceMaxByModel[$resourceModel] }}" @endif
-                                        wire:model.live="{{ $resourceModel }}"
+                                        wire:model.live.debounce.350ms="{{ $resourceModel }}"
                                         class="min-w-0 border-0 bg-transparent px-3 text-center font-mono text-sm outline-none focus:ring-0">
                                     <button type="button" wire:click="adjustMarketplaceResourceDraft('{{ match ($resourceModel) { 'marketplaceWoodDraft' => 'wood', 'marketplaceClayDraft' => 'clay', 'marketplaceIronDraft' => 'iron', default => 'crop' } }}', 1)"
                                         class="inline-flex items-center justify-center border-l border-[var(--color-line)] text-base font-black text-[var(--color-muted)] transition hover:bg-[var(--color-panel)] hover:text-[var(--color-accent)]"
@@ -243,7 +243,7 @@
 
                             <label class="flex items-center gap-2 rounded-lg bg-[var(--color-panel)] px-3 py-2 text-xs font-semibold text-[var(--color-muted)]"
                                 title="Allow crop support when this village has negative crop production.">
-                                <input type="checkbox" wire:model.live="villageSupplyNegativeCropDraft"
+                                <input type="checkbox" wire:model.change="villageSupplyNegativeCropDraft"
                                     @disabled(! $villageSupplyResourcesDraft)
                                     class="h-3.5 w-3.5 rounded border-[var(--color-line-strong)] text-[var(--color-accent)] disabled:opacity-50 focus:ring-[var(--color-accent)]" />
                                 Negative crop support
@@ -255,7 +255,7 @@
                                 <span class="font-medium text-[var(--color-ink)]">Minimum stock before sending</span>
                                 <div class="flex h-10 items-center overflow-hidden rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] focus-within:border-[var(--color-accent)]">
                                     <input type="number" min="0" max="100"
-                                        wire:model.live="villageSendMinResourcePercentageDraft"
+                                        wire:model.blur="villageSendMinResourcePercentageDraft"
                                         @disabled(! $villageSendResourcesDraft)
                                         class="min-w-0 flex-1 border-0 bg-transparent px-3 text-sm text-[var(--color-ink)] outline-none disabled:opacity-50 focus:ring-0" />
                                     <span class="shrink-0 px-3 text-xs font-semibold text-[var(--color-muted)]">%</span>
@@ -269,7 +269,7 @@
                                 <span class="font-medium text-[var(--color-ink)]">Reserve after sending</span>
                                 <div class="flex h-10 items-center overflow-hidden rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] focus-within:border-[var(--color-accent)]">
                                     <input type="number" min="0" max="100"
-                                        wire:model.live="villageSendReserveResourcePercentageDraft"
+                                        wire:model.blur="villageSendReserveResourcePercentageDraft"
                                         @disabled(! $villageSendResourcesDraft)
                                         class="min-w-0 flex-1 border-0 bg-transparent px-3 text-sm text-[var(--color-ink)] outline-none disabled:opacity-50 focus:ring-0" />
                                     <span class="shrink-0 px-3 text-xs font-semibold text-[var(--color-muted)]">%</span>
@@ -283,7 +283,7 @@
                                 <span class="font-medium text-[var(--color-ink)]">Max one-way merchant travel time</span>
                                 <div class="flex h-10 items-center overflow-hidden rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] focus-within:border-[var(--color-accent)]">
                                     <input type="number" min="1" max="10080"
-                                        wire:model.live="villageTradeMaxDurationMinutesDraft"
+                                        wire:model.live.debounce.500ms="villageTradeMaxDurationMinutesDraft"
                                         class="min-w-0 flex-1 border-0 bg-transparent px-3 text-sm text-[var(--color-ink)] outline-none focus:ring-0" />
                                     <span class="shrink-0 px-3 text-xs font-semibold text-[var(--color-muted)]">minutes</span>
                                 </div>

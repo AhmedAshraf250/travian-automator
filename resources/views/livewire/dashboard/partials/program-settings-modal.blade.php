@@ -47,7 +47,7 @@
                                 @foreach (['wood' => 'Wood', 'clay' => 'Clay', 'iron' => 'Iron', 'crop' => 'Crop'] as $fieldKey => $fieldLabel)
                                     <label wire:key="global-field-priority-{{ $fieldKey }}" class="grid gap-1 text-sm">
                                         <span class="font-medium text-[var(--color-ink)]">{{ $fieldLabel }}</span>
-                                        <select wire:model.live="globalFieldPriorityDraft.{{ $fieldKey }}"
+                                        <select wire:model.change="globalFieldPriorityDraft.{{ $fieldKey }}"
                                             class="rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-accent)]">
                                             @foreach ([1, 2, 3, 4] as $priorityValue)
                                                 <option value="{{ $priorityValue }}">{{ $priorityValue }}</option>
@@ -58,7 +58,7 @@
                             </div>
 
                             <label class="mt-4 flex items-center gap-2 rounded-lg bg-[var(--color-panel)] px-3 py-2 text-sm font-semibold">
-                                <input type="checkbox" wire:model.live="globalPrioritizeCropFieldsWhenNegativeDraft"
+                                <input type="checkbox" wire:model.change="globalPrioritizeCropFieldsWhenNegativeDraft"
                                     class="rounded border-[var(--color-line-strong)] text-[var(--color-accent)]">
                                 <span>Prefer crop fields while crop production is negative</span>
                             </label>
@@ -75,7 +75,7 @@
 
                                 <label class="grid gap-1 text-sm">
                                     <span class="font-medium text-[var(--color-ink)]">Max level</span>
-                                    <input type="number" min="1" max="20" wire:model.live="globalFieldLevelCapDraft"
+                                    <input type="number" min="1" max="20" wire:model.blur="globalFieldLevelCapDraft"
                                         class="rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-accent)]">
                                 </label>
                             </div>
@@ -89,19 +89,19 @@
                     <div class="space-y-4">
                         <div class="grid gap-3 lg:grid-cols-3">
                             <label class="flex items-center gap-2 rounded-lg bg-[var(--color-panel-alt)] px-3 py-3 text-sm">
-                                <input type="checkbox" wire:model.live="globalHeroDefaultsDraft.adventures_enabled"
+                                <input type="checkbox" wire:model.change="globalHeroDefaultsDraft.adventures_enabled"
                                     class="rounded border-[var(--color-line-strong)] text-[var(--color-accent)]">
                                 <span>Enable adventures</span>
                             </label>
 
                             <label class="flex items-center gap-2 rounded-lg bg-[var(--color-panel-alt)] px-3 py-3 text-sm">
-                                <input type="checkbox" wire:model.live="globalHeroDefaultsDraft.revive_enabled"
+                                <input type="checkbox" wire:model.change="globalHeroDefaultsDraft.revive_enabled"
                                     class="rounded border-[var(--color-line-strong)] text-[var(--color-accent)]">
                                 <span>Revive dead hero</span>
                             </label>
 
                             <label class="flex items-center gap-2 rounded-lg bg-[var(--color-panel-alt)] px-3 py-3 text-sm">
-                                <input type="checkbox" wire:model.live="globalHeroDefaultsDraft.attribute_upgrade_enabled"
+                                <input type="checkbox" wire:model.change="globalHeroDefaultsDraft.attribute_upgrade_enabled"
                                     class="rounded border-[var(--color-line-strong)] text-[var(--color-accent)]">
                                 <span>Upgrade attributes</span>
                             </label>
@@ -109,7 +109,7 @@
 
                         <label class="grid max-w-56 gap-1 text-sm">
                             <span class="font-medium text-[var(--color-ink)]">Minimum health</span>
-                            <input type="number" min="0" max="100" wire:model.live="globalHeroDefaultsDraft.min_health"
+                            <input type="number" min="0" max="100" wire:model.blur="globalHeroDefaultsDraft.min_health"
                                 class="rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-accent)]">
                         </label>
 
@@ -125,7 +125,7 @@
                                     <label wire:key="global-hero-weight-{{ $attributeKey }}" class="grid gap-1 text-sm">
                                         <span class="font-medium text-[var(--color-ink)]">{{ $attributeLabel }}</span>
                                         <input type="number" min="0" max="100"
-                                            wire:model.live="globalHeroDefaultsDraft.attribute_weights.{{ $attributeKey }}"
+                                            wire:model.blur="globalHeroDefaultsDraft.attribute_weights.{{ $attributeKey }}"
                                             class="rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-accent)]">
                                     </label>
                                 @endforeach
@@ -141,7 +141,7 @@
                             <div class="mt-4 grid max-w-sm gap-1 text-sm">
                                 <span class="font-medium text-[var(--color-ink)]">Max one-way travel time</span>
                                 <div class="flex items-center overflow-hidden rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] focus-within:border-[var(--color-accent)]">
-                                    <input type="number" min="1" max="10080" step="1" wire:model.live="globalTradeMaxDurationMinutesDraft"
+                                    <input type="number" min="1" max="10080" step="1" wire:model.live.debounce.500ms="globalTradeMaxDurationMinutesDraft"
                                         class="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-sm text-[var(--color-ink)] outline-none focus:ring-0">
                                     <span class="shrink-0 px-3 text-xs font-semibold text-[var(--color-muted)]">minutes</span>
                                 </div>
