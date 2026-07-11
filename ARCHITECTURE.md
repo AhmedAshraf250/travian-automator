@@ -6,6 +6,14 @@ This document explains the current project structure, the responsibility of each
 
 It is intentionally simple and practical.
 
+For detailed Travian business rules, read:
+
+- [docs/travian-domain-rules.md](./docs/travian-domain-rules.md)
+
+For dashboard component boundaries, read:
+
+- [docs/dashboard-architecture.md](./docs/dashboard-architecture.md)
+
 ## Current Architectural Style
 
 The project currently follows a layered Laravel structure with clear separation between:
@@ -16,6 +24,7 @@ The project currently follows a layered Laravel structure with clear separation 
 - `Livewire`: dashboard interaction and screen state
 - `Jobs`: background execution
 - `Enums` and `Data`: structured value objects and states
+- project skills and docs: persistent handoff context for future sessions
 
 This is a good direction for long-term growth because the business flow does not directly depend on Guzzle, Blade, or one parser implementation.
 
@@ -74,12 +83,20 @@ Example:
 
 Contains dashboard state and actions.
 
-Example:
+Examples:
 
 - `Dashboard/Index.php`
-  - user interaction layer
+  - dashboard shell and modal coordination
   - queues sync jobs
-  - loads accounts and logs for rendering
+  - coordinates shared dashboard state
+- `Dashboard/AccountRow.php`
+  - account row island
+  - account-level controls and display state
+- `Dashboard/VillageRow.php`
+  - village row island
+  - village-level quick controls and display state
+- `Dashboard/Concerns/...`
+  - focused action groups used by the dashboard shell
 
 ### `app/Models`
 
@@ -103,6 +120,7 @@ Examples:
 - village row
 - activity log panel
 - import modal
+- row views and modal partials
 
 The Blade files should display state, not perform sync logic.
 
@@ -160,13 +178,14 @@ Important:
 
 ### Dashboard live refresh
 
-The dashboard uses Livewire polling to re-render from the database every few seconds.
+The dashboard uses Livewire refresh patterns to re-render from the database. Keep polling as narrow as possible.
 
 Important:
 
 - this is an internal Laravel request
 - it does not call Travian by itself
 - it only reflects already-persisted state
+- row islands should reduce payload and keep unrelated UI from rerendering unnecessarily
 
 ## Source of Truth
 
@@ -249,7 +268,9 @@ The direction is good, but a few parts will eventually need another refactor:
    - later we may split this into dedicated sync and execution jobs if throughput grows
 4. Dashboard view formatting is still evolving fast
    - presentational view models may help later
+   - modal data should stay lazy where possible
 5. We still need a clearer strategy for simulation between syncs
+6. More domain rules should move into explicit catalogs and services as features grow
 
 These are normal growth points, not architectural failure.
 
@@ -392,6 +413,7 @@ Recommended path:
 - queueable job
 - consume existing snapshots
 - write result to activity log
+- avoid noisy "nothing to do" logs for ordinary blocked policy decisions
 
 ### New UI block
 

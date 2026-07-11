@@ -21,6 +21,7 @@ use App\Models\SystemSetting;
 use App\Models\Village;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Schema;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 /**
@@ -38,6 +39,25 @@ class Index extends Component
     use ManagesProgramSettings;
     use ManagesVillageDemolition;
     use ManagesVillageSettings;
+
+    /**
+     * Browser events emitted by row islands that still need the dashboard shell.
+     *
+     * @var array<string, string>
+     */
+    protected $listeners = [
+        'dashboard-toggle-account-expansion' => 'toggleAccountExpansion',
+        'dashboard-open-account-settings' => 'openAccountSettingsModal',
+        'dashboard-open-village-settings' => 'openVillageSettingsModal',
+        'dashboard-open-marketplace-transfer' => 'openMarketplaceTransferModal',
+        'dashboard-open-village-demolition' => 'openVillageDemolitionModal',
+    ];
+
+    #[On('dashboard-row-updated')]
+    public function markDashboardChanged(): void
+    {
+        $this->dashboardRevision = '';
+    }
 
     /**
      * Mount the dashboard component.

@@ -34,30 +34,7 @@ trait BuildsDashboardViewData
                 ->orderBy('import_position');
         }
 
-        $relations = [
-            'settings',
-            'proxies',
-            'activeProxy',
-            'heroState',
-            'latestTravianActivityLog',
-        ];
-
-        $expandedAccountIds = $this->expandedAccountIds();
-
-        if ($expandedAccountIds !== []) {
-            $relations['villages'] = fn ($query) => $query
-                ->whereIn('account_id', $expandedAccountIds)
-                ->with([
-                    'settings',
-                    'resourceState',
-                    'runtimeState',
-                    'buildings' => fn ($query) => $query->orderBy('slot_id'),
-                    'buildingTargets' => fn ($query) => $query->orderBy('priority')->orderBy('slot_id'),
-                ]);
-        }
-
         return $query
-            ->with($relations)
             ->withCount('villages')
             ->orderBy('id')
             ->get();
@@ -235,7 +212,7 @@ trait BuildsDashboardViewData
             ],
         ];
 
-        if ($this->showVillageBuildPlanModal || $this->expandedAccountIds() !== []) {
+        if ($this->showVillageBuildPlanModal || $this->expandedAccountIds() !== [] || $this->expandedAccounts === []) {
             $constructionDefaults = SystemSetting::constructionDefaults();
 
             $payload['globalFieldPriority'] = $constructionDefaults['field_priority'];

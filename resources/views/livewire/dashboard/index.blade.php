@@ -3,7 +3,102 @@
     $programIsRunning = (bool) ($automationEnabled ?? true);
 @endphp
 
-<div class="min-h-screen">
+<div class="min-h-screen"
+    x-data="{
+        dashboardManualLoading: false,
+        dashboardLoadingPoint: { x: 32, y: 32 },
+        dashboardPendingRequests: 0,
+        dashboardLoadingTimeout: null,
+        dashboardHookRegistered: false,
+        activityLogHeightDraft: {{ $activityLogHeight }},
+        activityLogResizing: false,
+        init() {
+            const registerHook = () => {
+                if (this.dashboardHookRegistered || ! window.Livewire || typeof window.Livewire.hook !== 'function') {
+                    return;
+                }
+
+                this.dashboardHookRegistered = true;
+
+                window.Livewire.hook('request', ({ succeed, fail }) => {
+                    const finish = () => {
+                        if (this.dashboardPendingRequests > 0) {
+                            this.dashboardPendingRequests--;
+                        }
+
+                        if (this.dashboardPendingRequests <= 0) {
+                            this.dashboardPendingRequests = 0;
+                            this.dashboardManualLoading = false;
+                        }
+
+                        if (this.dashboardLoadingTimeout !== null) {
+                            clearTimeout(this.dashboardLoadingTimeout);
+                            this.dashboardLoadingTimeout = null;
+                        }
+                    };
+
+                    succeed(finish);
+                    fail(finish);
+                });
+            };
+
+            registerHook();
+            document.addEventListener('livewire:init', registerHook, { once: true });
+        },
+        rememberDashboardLoadingPoint(event) {
+            if (this.dashboardManualLoading) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+
+                return;
+            }
+
+            const trigger = event.target.closest('[wire\\:click], [wire\\:submit]');
+
+            if (! trigger) {
+                return;
+            }
+
+            this.dashboardLoadingPoint = {
+                x: Math.min(window.innerWidth - 32, Math.max(32, event.clientX)),
+                y: Math.min(window.innerHeight - 32, Math.max(32, event.clientY)),
+            };
+            this.dashboardManualLoading = true;
+            this.dashboardPendingRequests++;
+
+            if (this.dashboardLoadingTimeout !== null) {
+                clearTimeout(this.dashboardLoadingTimeout);
+            }
+
+            this.dashboardLoadingTimeout = setTimeout(() => {
+                this.dashboardPendingRequests = 0;
+                this.dashboardManualLoading = false;
+                this.dashboardLoadingTimeout = null;
+            }, 6000);
+        },
+        startActivityLogResize(event) {
+            event.preventDefault();
+            this.activityLogResizing = true;
+
+            const move = (moveEvent) => {
+                const availableHeight = Math.max(1, window.innerHeight);
+                const nextHeight = Math.round(((availableHeight - moveEvent.clientY) / availableHeight) * 100);
+                this.activityLogHeightDraft = Math.min(46, Math.max(12, nextHeight));
+            };
+
+            const stop = () => {
+                this.activityLogResizing = false;
+                $wire.set('activityLogHeight', this.activityLogHeightDraft);
+                window.removeEventListener('pointermove', move);
+                window.removeEventListener('pointerup', stop);
+            };
+
+            window.addEventListener('pointermove', move);
+            window.addEventListener('pointerup', stop, { once: true });
+            move(event);
+        },
+    }"
+    @click.capture="rememberDashboardLoadingPoint($event)">
     <div class="mx-auto flex min-h-screen w-full max-w-[118rem] flex-col gap-4 px-3 py-3 sm:px-4 lg:px-5"
         style="{{ $showActivityLog ? 'padding-bottom: calc('.$activityLogHeight.'vh + 1.25rem);' : 'padding-bottom: 4rem;' }}"
         @if ($shouldPollDashboard) wire:poll.10s.keep-alive="refreshDashboardIfChanged" @endif>
@@ -91,7 +186,15 @@
 
             <div class="space-y-3">
                 @forelse ($accounts as $account)
-                    @include('livewire.dashboard.partials.account-row', ['account' => $account])
+                    <livewire:dashboard.account-row
+                        :account-id="$account->id"
+                        :is-expanded="(bool) ($expandedAccounts[$account->id] ?? true)"
+                        :automation-enabled="$automationEnabled"
+                        :global-default-user-agent="$globalDefaultUserAgent"
+                        :global-field-priority="$globalFieldPriority"
+                        :global-field-level-cap="$globalFieldLevelCap"
+                        :global-prioritize-crop-fields-when-negative="$globalPrioritizeCropFieldsWhenNegative"
+                        :key="'dashboard-account-row-'.$account->id.'-'.(int) ($expandedAccounts[$account->id] ?? true)" />
                 @empty
                     <div class="rounded-lg border border-dashed border-[var(--color-line-strong)] bg-[var(--color-panel)] px-5 py-6 text-center shadow-sm">
                         <h3 class="font-[var(--font-display)] text-lg font-semibold">No accounts imported yet</h3>
@@ -109,7 +212,7 @@
     <aside class="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-3 pb-3 sm:px-4 lg:px-5">
         <div class="pointer-events-auto mx-auto max-w-[96rem]">
             @if ($showActivityLog)
-                <div style="height: {{ $activityLogHeight }}vh; min-height: 11rem; max-height: 38rem;">
+                <div :style="`height: ${activityLogHeightDraft}vh; min-height: 8.5rem; max-height: 46rem;`">
                     @include('livewire.dashboard.partials.activity-log-panel')
                 </div>
             @else
@@ -141,4 +244,6 @@
     @if ($showVillageDemolitionModal)
         @include('livewire.dashboard.partials.village-demolition-modal')
     @endif
+
+    @include('livewire.dashboard.partials.dashboard-loading-indicator')
 </div>

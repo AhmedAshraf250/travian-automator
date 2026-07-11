@@ -150,7 +150,7 @@
                     <div class="grid gap-3 md:grid-cols-2">
                         <label class="grid gap-1 text-sm">
                             <span class="font-semibold text-[var(--color-ink)]">Destination</span>
-                            <select wire:model.live="marketplaceDestinationMode"
+                            <select wire:model.change="marketplaceDestinationMode"
                                 class="h-10 min-w-0 rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] px-3 text-sm outline-none focus:border-[var(--color-accent)]">
                                 <option value="owned">Owned village</option>
                                 <option value="manual">Manual coordinates</option>
@@ -206,7 +206,7 @@
                                     </button>
                                     <input type="number" min="0" step="{{ $resourceStep }}"
                                         @if (($resourceMaxByModel[$resourceModel] ?? null) !== null) max="{{ $resourceMaxByModel[$resourceModel] }}" @endif
-                                        wire:model.live.debounce.350ms="{{ $resourceModel }}"
+                                        wire:model.live.debounce.700ms="{{ $resourceModel }}"
                                         class="min-w-0 border-0 bg-transparent px-3 text-center font-mono text-sm outline-none focus:ring-0">
                                     <button type="button" wire:click="adjustMarketplaceResourceDraft('{{ match ($resourceModel) { 'marketplaceWoodDraft' => 'wood', 'marketplaceClayDraft' => 'clay', 'marketplaceIronDraft' => 'iron', default => 'crop' } }}', 1)"
                                         class="inline-flex items-center justify-center border-l border-[var(--color-line)] text-base font-black text-[var(--color-muted)] transition hover:bg-[var(--color-panel)] hover:text-[var(--color-accent)]"
@@ -229,14 +229,14 @@
                         <div class="grid gap-2 sm:grid-cols-3">
                             <label class="flex items-center gap-2 rounded-lg bg-[var(--color-panel)] px-3 py-2 text-xs font-semibold text-[var(--color-muted)]"
                                 title="Allow this village to send surplus resources to other villages.">
-                                <input type="checkbox" wire:model.live="villageSendResourcesDraft"
+                                <input type="checkbox" wire:model.change="villageSendResourcesDraft"
                                     class="h-3.5 w-3.5 rounded border-[var(--color-line-strong)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]" />
                                 Send resources
                             </label>
 
                             <label class="flex items-center gap-2 rounded-lg bg-[var(--color-panel)] px-3 py-2 text-xs font-semibold text-[var(--color-muted)]"
                                 title="Allow other villages to supply this village when it needs resources.">
-                                <input type="checkbox" wire:model.live="villageSupplyResourcesDraft"
+                                <input type="checkbox" wire:model.change="villageSupplyResourcesDraft"
                                     class="h-3.5 w-3.5 rounded border-[var(--color-line-strong)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]" />
                                 Receive support
                             </label>
@@ -283,7 +283,7 @@
                                 <span class="font-medium text-[var(--color-ink)]">Max one-way merchant travel time</span>
                                 <div class="flex h-10 items-center overflow-hidden rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] focus-within:border-[var(--color-accent)]">
                                     <input type="number" min="1" max="10080"
-                                        wire:model.live.debounce.500ms="villageTradeMaxDurationMinutesDraft"
+                                        wire:model.live.debounce.900ms="villageTradeMaxDurationMinutesDraft"
                                         class="min-w-0 flex-1 border-0 bg-transparent px-3 text-sm text-[var(--color-ink)] outline-none focus:ring-0" />
                                     <span class="shrink-0 px-3 text-xs font-semibold text-[var(--color-muted)]">minutes</span>
                                 </div>

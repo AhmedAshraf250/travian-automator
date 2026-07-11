@@ -2,6 +2,7 @@
 
 use App\Enums\AccountStatus;
 use App\Enums\ActivityLogStatus;
+use App\Enums\ActivityType;
 use App\Jobs\CancelVillageDemolitionJob;
 use App\Jobs\DemolishVillageBuildingJob;
 use App\Jobs\RefreshVillageDemolitionSnapshotJob;
@@ -9,7 +10,9 @@ use App\Jobs\RefreshVillageMarketplaceSnapshotJob;
 use App\Jobs\RunTravianAutomationJob;
 use App\Jobs\SendManualMarketplaceTransferJob;
 use App\Jobs\SyncTravianAccountJob;
+use App\Livewire\Dashboard\AccountRow;
 use App\Livewire\Dashboard\Index;
+use App\Livewire\Dashboard\VillageRow;
 use App\Models\Account;
 use App\Models\AccountProxy;
 use App\Models\AccountSetting;
@@ -960,10 +963,10 @@ test('dashboard stores schedule pin and hold preferences', function () {
     Livewire::test(Index::class)
         ->call('toggleVillageSchedulePin', $village->id, 'field:1:5')
         ->call('toggleVillageScheduleHold', $village->id, 'field:1:5')
-        ->call('toggleVillageSchedulePin', $village->id, 'building:26:6');
+        ->call('toggleVillageSchedulePin', $village->id, 'building-target:26:15');
 
     expect($village->fresh()->settings?->construction_schedule)->toBe([
-        'pinned' => ['building:26:6', 'field:1:5'],
+        'pinned' => ['building-target:26:15', 'field:1:5'],
         'held' => ['field:1:5'],
     ]);
 
@@ -972,7 +975,7 @@ test('dashboard stores schedule pin and hold preferences', function () {
         ->call('toggleVillageScheduleHold', $village->id, 'field:1:5');
 
     expect($village->fresh()->settings?->construction_schedule)->toBe([
-        'pinned' => ['building:26:6'],
+        'pinned' => ['building-target:26:15'],
         'held' => [],
     ]);
 });
@@ -1018,6 +1021,18 @@ test('dashboard opens the village settings modal with existing slot data', funct
         'building_gid' => 24,
         'building_type' => 'البلدية',
         'current_level' => 10,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 30,
+        'building_gid' => 10,
+        'building_type' => 'المخزن',
+        'current_level' => 1,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 31,
+        'building_gid' => 11,
+        'building_type' => 'مخزن الحبوب',
+        'current_level' => 1,
     ]);
 
     $village->buildingTargets()->create([
@@ -1100,6 +1115,18 @@ test('dashboard saves village field priorities, automation toggles, and building
         'building_type' => 'البلدية',
         'current_level' => 10,
     ]);
+    $village->buildings()->create([
+        'slot_id' => 30,
+        'building_gid' => 10,
+        'building_type' => 'المخزن',
+        'current_level' => 1,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 31,
+        'building_gid' => 11,
+        'building_type' => 'مخزن الحبوب',
+        'current_level' => 1,
+    ]);
 
     Livewire::test(Index::class)
         ->call('openVillageSettingsModal', $village->id)
@@ -1128,13 +1155,13 @@ test('dashboard saves village field priorities, automation toggles, and building
         ->set('villageBuildingPlanDraft.26.target_level', 7)
         ->set('villageBuildingPlanDraft.26.priority', 1)
         ->set('villageBuildingPlanDraft.26.is_enabled', true)
-        ->set('villageBuildingPlanDraft.21.building_gid', 10)
+        ->set('villageBuildingPlanDraft.21.building_gid', 17)
         ->set('villageBuildingPlanDraft.21.target_level', 5)
         ->set('villageBuildingPlanDraft.21.priority', 2)
         ->set('villageBuildingPlanDraft.21.is_enabled', true)
         ->call('saveVillageSettings')
         ->assertHasNoErrors()
-        ->assertSet('showVillageBuildPlanModal', false);
+        ->assertSet('showVillageBuildPlanModal', true);
 
     $savedSettings = $village->fresh()->settings;
 
@@ -1180,7 +1207,7 @@ test('dashboard saves village field priorities, automation toggles, and building
             ->first()
             ?->only(['building_gid', 'target_level', 'priority', 'is_enabled'])
     )->toBe([
-        'building_gid' => 10,
+        'building_gid' => 17,
         'target_level' => 5,
         'priority' => 2,
         'is_enabled' => true,
@@ -1422,8 +1449,14 @@ test('dashboard rejects changing an occupied slot to a different building gid', 
         VillageBuildingTarget::query()
             ->where('village_id', $village->id)
             ->where('slot_id', 26)
-            ->exists()
-    )->toBeFalse();
+            ->first()
+            ?->only(['building_gid', 'target_level', 'priority', 'is_enabled'])
+    )->toBe([
+        'building_gid' => 15,
+        'target_level' => 14,
+        'priority' => 1,
+        'is_enabled' => true,
+    ]);
 });
 
 test('dashboard allows keeping the current building level as the final target', function () {
@@ -1493,6 +1526,12 @@ test('dashboard clamps resource bonus building target levels to five', function 
         'building_type' => null,
         'current_level' => 0,
     ]);
+    $village->buildings()->create([
+        'slot_id' => 4,
+        'building_gid' => 4,
+        'building_type' => 'حقل القمح',
+        'current_level' => 5,
+    ]);
 
     Livewire::test(Index::class)
         ->call('openVillageSettingsModal', $village->id)
@@ -1510,6 +1549,224 @@ test('dashboard clamps resource bonus building target levels to five', function 
             ->first()
             ?->target_level
     )->toBe(5);
+});
+
+test('dashboard rejects unavailable building targets before their requirements are met', function () {
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23378',
+        'name' => 'قرية Marshal25',
+        'is_active' => true,
+    ]);
+
+    $village->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+    ]);
+    $village->runtimeState()->create([
+        'tribe_id' => 2,
+        'troop_slots' => [],
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 25,
+        'building_gid' => 0,
+        'building_type' => null,
+        'current_level' => 0,
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('openVillageSettingsModal', $village->id)
+        ->set('villageBuildingPlanDraft.25.building_gid', 20)
+        ->set('villageBuildingPlanDraft.25.target_level', 2)
+        ->set('villageBuildingPlanDraft.25.priority', 1)
+        ->call('saveVillageSettings')
+        ->assertHasErrors('villageBuildingPlanDraft.25.building_gid');
+});
+
+test('dashboard shows unavailable layout building options with disabled reasons', function () {
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23378',
+        'name' => 'قرية Marshal25',
+        'is_active' => true,
+    ]);
+
+    $village->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+    ]);
+    $village->runtimeState()->create([
+        'tribe_id' => 2,
+        'troop_slots' => [],
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 25,
+        'building_gid' => 0,
+        'building_type' => null,
+        'current_level' => 0,
+    ]);
+
+    $component = Livewire::test(Index::class)
+        ->call('openVillageSettingsModal', $village->id)
+        ->call('setVillageSettingsTab', 'layouts')
+        ->assertSee('الإسطبل')
+        ->assertSee('needs');
+
+    $slotOptions = collect($component->get('slotBuildingOptions')[25] ?? []);
+
+    expect($slotOptions->firstWhere('gid', 20))
+        ->toMatchArray([
+            'gid' => 20,
+            'selectable' => false,
+        ]);
+    expect($slotOptions->firstWhere('gid', 20)['unavailable_reason'] ?? '')
+        ->toContain('أفران صهر الحديد Lv 3 required');
+    expect($slotOptions->firstWhere('gid', 38))
+        ->toMatchArray([
+            'gid' => 38,
+            'selectable' => false,
+        ]);
+});
+
+test('dashboard allows another duplicate-limited building option once any existing copy reaches max level', function () {
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23378',
+        'name' => 'قرية Marshal25',
+        'is_active' => true,
+    ]);
+
+    $village->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+    ]);
+    $village->runtimeState()->create([
+        'tribe_id' => 1,
+        'troop_slots' => [],
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 19,
+        'building_gid' => 10,
+        'building_type' => 'المخزن',
+        'current_level' => 20,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 20,
+        'building_gid' => 23,
+        'building_type' => 'المخبأ',
+        'current_level' => 10,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 21,
+        'building_gid' => 10,
+        'building_type' => 'المخزن',
+        'current_level' => 8,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 22,
+        'building_gid' => 23,
+        'building_type' => 'المخبأ',
+        'current_level' => 6,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 24,
+        'building_gid' => 11,
+        'building_type' => 'مخزن الحبوب',
+        'current_level' => 20,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 27,
+        'building_gid' => 11,
+        'building_type' => 'مخزن الحبوب',
+        'current_level' => 8,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 25,
+        'building_gid' => 0,
+        'building_type' => null,
+        'current_level' => 0,
+    ]);
+
+    $component = Livewire::test(Index::class)
+        ->call('openVillageSettingsModal', $village->id)
+        ->call('setVillageSettingsTab', 'layouts');
+
+    expect(collect($component->get('slotBuildingOptions')[25] ?? [])->firstWhere('gid', 10))
+        ->toMatchArray([
+            'gid' => 10,
+            'selectable' => true,
+        ]);
+    expect(collect($component->get('slotBuildingOptions')[25] ?? [])->firstWhere('gid', 11))
+        ->toMatchArray([
+            'gid' => 11,
+            'selectable' => true,
+        ]);
+    expect(collect($component->get('slotBuildingOptions')[25] ?? [])->firstWhere('gid', 23))
+        ->toMatchArray([
+            'gid' => 23,
+            'selectable' => true,
+        ]);
+});
+
+test('dashboard defaults observed resource bonus buildings and marks completed buildings', function () {
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23378',
+        'name' => 'قرية Marshal25',
+        'is_active' => true,
+    ]);
+
+    $village->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+    ]);
+    $village->runtimeState()->create([
+        'tribe_id' => 1,
+        'troop_slots' => [],
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 21,
+        'building_gid' => 8,
+        'building_type' => 'المطاحن',
+        'current_level' => 2,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 22,
+        'building_gid' => 23,
+        'building_type' => 'المخبأ',
+        'current_level' => 10,
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('openVillageSettingsModal', $village->id)
+        ->assertSet('villageBuildingPlanDraft.21.target_level', 5)
+        ->assertSet('villageBuildingPlanDraft.21.priority', 1)
+        ->assertSet('villageBuildingPlanDraft.22.current_is_maxed', true)
+        ->call('setVillageSettingsTab', 'layouts')
+        ->assertSee('max')
+        ->call('saveVillageSettings')
+        ->assertHasNoErrors();
+
+    expect(
+        VillageBuildingTarget::query()
+            ->where('village_id', $village->id)
+            ->where('slot_id', 21)
+            ->first()
+            ?->only(['building_gid', 'target_level', 'priority', 'is_enabled'])
+    )->toBe([
+        'building_gid' => 8,
+        'target_level' => 5,
+        'priority' => 1,
+        'is_enabled' => true,
+    ]);
 });
 
 test('dashboard ignores stale completed building targets while saving another slot', function () {
@@ -1675,8 +1932,12 @@ test('dashboard shows construction countdown and finish time in the village row 
         'executed_at' => $now,
     ]);
 
-    Livewire::test(Index::class)
-        ->set("expandedAccounts.{$account->id}", true)
+    Livewire::test(VillageRow::class, [
+        'villageId' => $village->id,
+        'globalFieldPriority' => VillageSetting::defaultFieldPriority(),
+        'globalFieldLevelCap' => 10,
+        'globalPrioritizeCropFieldsWhenNegative' => true,
+    ])
         ->assertSee('[0,0,0,0,0,0,0,0,0,0,0]')
         ->assertSee('Troops')
         ->assertSee('assets/troops-icons/hero.png')
@@ -1761,8 +2022,12 @@ test('dashboard keeps elapsed construction visible until the next sync confirms 
         'server_reported_at' => $now->subMinute(),
     ]);
 
-    Livewire::test(Index::class)
-        ->set("expandedAccounts.{$account->id}", true)
+    Livewire::test(VillageRow::class, [
+        'villageId' => $village->id,
+        'globalFieldPriority' => VillageSetting::defaultFieldPriority(),
+        'globalFieldLevelCap' => 10,
+        'globalPrioritizeCropFieldsWhenNegative' => true,
+    ])
         ->assertSee('الحطاب')
         ->assertSee('Lv 7')
         ->assertSee('Sync due');
@@ -1770,7 +2035,7 @@ test('dashboard keeps elapsed construction visible until the next sync confirms 
     Carbon::setTestNow();
 });
 
-test('dashboard schedule hides construction already running locally', function () {
+test('dashboard schedule keeps pinned running building target visible for release', function () {
     $now = now()->startOfSecond();
     Carbon::setTestNow($now);
 
@@ -1789,7 +2054,7 @@ test('dashboard schedule hides construction already running locally', function (
         'pause_fields' => false,
         'pause_buildings' => false,
         'construction_schedule' => [
-            'pinned' => ['building:33:5'],
+            'pinned' => ['building-target:33:22'],
             'held' => [],
         ],
     ]);
@@ -1825,10 +2090,15 @@ test('dashboard schedule hides construction already running locally', function (
         'is_enabled' => true,
     ]);
 
-    Livewire::test(Index::class)
-        ->set("expandedAccounts.{$account->id}", true)
+    Livewire::test(VillageRow::class, [
+        'villageId' => $village->id,
+        'globalFieldPriority' => VillageSetting::defaultFieldPriority(),
+        'globalFieldLevelCap' => 10,
+        'globalPrioritizeCropFieldsWhenNegative' => true,
+    ])
         ->assertSee('الأكاديمية')
-        ->assertDontSee("schedule-entry-{$village->id}-building:33:5");
+        ->assertSeeHtml("schedule-entry-{$village->id}-building-target:33:22")
+        ->assertSee('running');
 
     Carbon::setTestNow();
 });
@@ -1873,8 +2143,12 @@ test('dashboard field schedule allows candidates within the two level resource f
         $village->buildings()->create($slot);
     }
 
-    Livewire::test(Index::class)
-        ->set("expandedAccounts.{$account->id}", true)
+    Livewire::test(VillageRow::class, [
+        'villageId' => $village->id,
+        'globalFieldPriority' => VillageSetting::defaultFieldPriority(),
+        'globalFieldLevelCap' => 10,
+        'globalPrioritizeCropFieldsWhenNegative' => true,
+    ])
         ->assertSeeHtml("schedule-entry-{$village->id}-field:5:7")
         ->assertSeeHtml("schedule-entry-{$village->id}-field:4:6")
         ->assertSeeHtml("schedule-entry-{$village->id}-field:8:6");
@@ -1927,8 +2201,12 @@ test('dashboard field schedule respects field level cap on non capital villages'
         'current_level' => 10,
     ]);
 
-    Livewire::test(Index::class)
-        ->set("expandedAccounts.{$account->id}", true)
+    Livewire::test(VillageRow::class, [
+        'villageId' => $village->id,
+        'globalFieldPriority' => VillageSetting::defaultFieldPriority(),
+        'globalFieldLevelCap' => 20,
+        'globalPrioritizeCropFieldsWhenNegative' => true,
+    ])
         ->assertDontSeeHtml("schedule-entry-{$village->id}-field:1:11");
 });
 
@@ -1978,8 +2256,12 @@ test('dashboard field schedule allows capital villages above level ten when capp
         'current_level' => 10,
     ]);
 
-    Livewire::test(Index::class)
-        ->set("expandedAccounts.{$account->id}", true)
+    Livewire::test(VillageRow::class, [
+        'villageId' => $village->id,
+        'globalFieldPriority' => VillageSetting::defaultFieldPriority(),
+        'globalFieldLevelCap' => 12,
+        'globalPrioritizeCropFieldsWhenNegative' => true,
+    ])
         ->assertSeeHtml("schedule-entry-{$village->id}-field:1:11");
 });
 
@@ -2008,8 +2290,10 @@ test('dashboard account row ignores internal activity logs when showing the last
         'executed_at' => $now->subMinutes(1),
     ]);
 
-    Livewire::test(Index::class)
-        ->set('showActivityLog', false)
+    Livewire::test(AccountRow::class, [
+        'accountId' => $account->id,
+        'isExpanded' => false,
+    ])
         ->assertSee('2 hours ago')
         ->assertDontSee('1 minute ago')
         ->assertDontSee('3 minutes ago');
@@ -2047,6 +2331,37 @@ test('dashboard activity log displays the local PHP application timezone', funct
 
     Livewire::test(Index::class)
         ->assertSee($expectedLocalTime);
+});
+
+test('dashboard activity log marks local and travian-backed log sources', function () {
+    $account = Account::factory()->create([
+        'username' => 'marshal',
+    ]);
+
+    ActivityLog::query()->create([
+        'account_id' => $account->id,
+        'activity_type' => ActivityType::Manual,
+        'status' => ActivityLogStatus::Done,
+        'message' => 'Local dashboard decision.',
+        'executed_at' => now()->subSecond(),
+    ]);
+
+    ActivityLog::query()->create([
+        'account_id' => $account->id,
+        'activity_type' => ActivityType::Build,
+        'status' => ActivityLogStatus::Done,
+        'result' => [
+            'effective_uri' => 'https://example.travian.test/build.php?id=19',
+        ],
+        'message' => 'Travian request completed.',
+        'executed_at' => now(),
+    ]);
+
+    Livewire::test(Index::class)
+        ->assertSee('APP')
+        ->assertSee('TRAVIAN')
+        ->assertSee('Local dashboard decision.')
+        ->assertSee('Travian request completed.');
 });
 
 test('dashboard resizes the activity log drawer within bounds', function () {
@@ -2151,8 +2466,12 @@ test('dashboard styles outgoing attack movements with the attack icon palette', 
         'server_reported_at' => $now,
     ]);
 
-    Livewire::test(Index::class)
-        ->set("expandedAccounts.{$account->id}", true)
+    Livewire::test(VillageRow::class, [
+        'villageId' => $village->id,
+        'globalFieldPriority' => VillageSetting::defaultFieldPriority(),
+        'globalFieldLevelCap' => 10,
+        'globalPrioritizeCropFieldsWhenNegative' => true,
+    ])
         ->assertSee('assets/movements-icons/att2.gif')
         ->assertSee('#fff6b5')
         ->assertSee('1 هجوم');

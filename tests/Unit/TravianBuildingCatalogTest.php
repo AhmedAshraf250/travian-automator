@@ -17,6 +17,18 @@ test('travian building catalog exposes construction rules and fixed slots', func
     expect(TravianBuildingCatalog::fixedSlotForGid(16, 1))->toBe(39);
     expect(TravianBuildingCatalog::fixedSlotForGid(32, 2))->toBe(40);
     expect(TravianBuildingCatalog::maxLevelForGid(5))->toBe(5);
+    expect(TravianBuildingCatalog::maxLevelForGid(23))->toBe(10);
+    expect(TravianBuildingCatalog::finalLevelForGid(10))->toBe(20);
+    expect(TravianBuildingCatalog::finalLevelForGid(23))->toBe(10);
+    expect(TravianBuildingCatalog::isResourceBonusBuilding(8))->toBeTrue();
+    expect(TravianBuildingCatalog::isResourceBonusBuilding(23))->toBeFalse();
+    expect(TravianBuildingCatalog::defaultManagedTargetLevelForGid(8))->toBe(5);
+    expect(TravianBuildingCatalog::defaultManagedTargetLevelForGid(10))->toBe(20);
+    expect(TravianBuildingCatalog::defaultManagedTargetLevelForGid(11))->toBe(20);
+    expect(TravianBuildingCatalog::defaultManagedTargetLevelForGid(15))->toBe(14);
+    expect(TravianBuildingCatalog::allowsOnlyOneUntilMax(10))->toBeTrue();
+    expect(TravianBuildingCatalog::allowsOnlyOneUntilMax(23))->toBeTrue();
+    expect(TravianBuildingCatalog::allowsOnlyOneUntilMax(8))->toBeFalse();
     expect(TravianBuildingCatalog::levelOneCostForGid(24))->toMatchArray([
         'wood' => 1250,
         'clay' => 1110,
@@ -58,6 +70,12 @@ test('travian building catalog validates village construction eligibility', func
     expect(TravianBuildingCatalog::canConstructInVillage(41, $account, $village->fresh(['runtimeState', 'buildings']))->missingRequirements)->toMatchArray([
         ['gid' => 20, 'name' => 'الإسطبل', 'required_level' => 20, 'current_level' => 0],
         ['gid' => 16, 'name' => 'نقطة التجمع', 'required_level' => 10, 'current_level' => 0],
+    ]);
+    expect(TravianBuildingCatalog::canConstructInVillage(38, $account, $village->fresh(['runtimeState', 'buildings']))->missingRequirements)->toContain([
+        'gid' => 40,
+        'name' => null,
+        'required_level' => 0,
+        'current_level' => 0,
     ]);
 });
 

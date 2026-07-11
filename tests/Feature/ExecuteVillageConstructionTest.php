@@ -1171,6 +1171,63 @@ test('pinned building order takes precedence over fields for roman dual queues',
     expect($order)->toBe(['building', 'field']);
 });
 
+test('target pinned building order persists across changing building levels', function () {
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23386',
+        'name' => 'قرية Main Repair TOP',
+        'is_active' => true,
+    ]);
+
+    $settings = $village->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+        'construction_schedule' => [
+            'pinned' => ['building-target:26:15'],
+            'held' => [],
+        ],
+    ]);
+
+    $fieldSlot = $village->buildings()->create([
+        'slot_id' => 1,
+        'building_gid' => 1,
+        'building_type' => 'الحطاب',
+        'current_level' => 4,
+    ]);
+    $buildingSlot = $village->buildings()->create([
+        'slot_id' => 26,
+        'building_gid' => 15,
+        'building_type' => 'المبنى الرئيسي',
+        'current_level' => 7,
+    ]);
+    $target = $village->buildingTargets()->create([
+        'slot_id' => 26,
+        'building_gid' => 15,
+        'building_type' => 'المبنى الرئيسي',
+        'target_level' => 10,
+        'priority' => 4,
+        'is_enabled' => true,
+    ]);
+
+    $method = new ReflectionMethod(ExecuteVillageConstruction::class, 'resolveRomanQueueOrder');
+    $method->setAccessible(true);
+
+    $order = $method->invoke(app(ExecuteVillageConstruction::class), [
+        [
+            'slot' => $fieldSlot,
+            'field_key' => 'wood',
+        ],
+    ], [
+        [
+            'target' => $target,
+            'current_slot' => $buildingSlot,
+            'target_gid' => 15,
+            'mode' => 'upgrade',
+        ],
+    ], $settings);
+
+    expect($order)->toBe(['building', 'field']);
+});
+
 test('pinned building order takes precedence over fields for single queue tribes', function () {
     $account = Account::factory()->create();
     $village = $account->villages()->create([
@@ -1283,6 +1340,27 @@ test('building automation clamps stored resource bonus targets to max level five
         'current_level' => 5,
         'automation_enabled' => true,
     ]);
+    $village->buildings()->create([
+        'slot_id' => 26,
+        'building_gid' => 15,
+        'building_type' => 'المبنى الرئيسي',
+        'current_level' => 14,
+        'automation_enabled' => true,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 30,
+        'building_gid' => 10,
+        'building_type' => 'المخزن',
+        'current_level' => 20,
+        'automation_enabled' => true,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 31,
+        'building_gid' => 11,
+        'building_type' => 'مخزن الحبوب',
+        'current_level' => 20,
+        'automation_enabled' => true,
+    ]);
     $target = $village->buildingTargets()->create([
         'slot_id' => 21,
         'building_gid' => 8,
@@ -1298,7 +1376,147 @@ test('building automation clamps stored resource bonus targets to max level five
     $candidates = $method->invoke(app(ExecuteVillageConstruction::class), $account, $village->fresh(['runtimeState', 'buildings', 'buildingTargets']));
 
     expect($candidates)->toBe([])
-        ->and($target->fresh()?->target_level)->toBe(5);
+        ->and($target->fresh())->toBeNull();
+});
+
+test('building automation creates observed default building targets automatically', function () {
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23378',
+        'name' => 'AMH7',
+        'is_active' => true,
+    ]);
+    $village->runtimeState()->create([
+        'tribe_id' => 1,
+        'troop_slots' => [],
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 28,
+        'building_gid' => 8,
+        'building_type' => 'المطاحن',
+        'current_level' => 1,
+        'automation_enabled' => true,
+    ]);
+
+    $method = new ReflectionMethod(ExecuteVillageConstruction::class, 'selectBuildingCandidates');
+    $method->setAccessible(true);
+
+    $candidates = $method->invoke(app(ExecuteVillageConstruction::class), $account, $village->fresh(['runtimeState', 'buildings', 'buildingTargets']));
+    $village->refresh();
+    $target = $village->buildingTargets()->where('slot_id', 28)->first();
+
+    expect($target?->only(['building_gid', 'target_level', 'priority', 'is_enabled']))->toBe([
+        'building_gid' => 8,
+        'target_level' => 5,
+        'priority' => 1,
+        'is_enabled' => true,
+    ])
+        ->and($village->buildingTargets()->where('building_gid', 10)->exists())->toBeTrue()
+        ->and($village->buildingTargets()->where('building_gid', 11)->exists())->toBeTrue()
+        ->and(collect($candidates)->pluck('target_gid')->all())->toContain(8);
+});
+
+test('building automation balances equal priority warehouse and granary targets by current level', function () {
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23378',
+        'name' => 'CR7',
+        'is_active' => true,
+    ]);
+    $village->runtimeState()->create([
+        'tribe_id' => 1,
+        'troop_slots' => [],
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 19,
+        'building_gid' => 10,
+        'building_type' => 'المخزن',
+        'current_level' => 6,
+        'automation_enabled' => true,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 24,
+        'building_gid' => 11,
+        'building_type' => 'مخزن الحبوب',
+        'current_level' => 3,
+        'automation_enabled' => true,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 26,
+        'building_gid' => 15,
+        'building_type' => 'المبنى الرئيسي',
+        'current_level' => 14,
+        'automation_enabled' => true,
+    ]);
+    $village->buildingTargets()->create([
+        'slot_id' => 19,
+        'building_gid' => 10,
+        'building_type' => 'المخزن',
+        'target_level' => 12,
+        'priority' => 1,
+        'is_enabled' => true,
+    ]);
+    $village->buildingTargets()->create([
+        'slot_id' => 24,
+        'building_gid' => 11,
+        'building_type' => 'مخزن الحبوب',
+        'target_level' => 12,
+        'priority' => 1,
+        'is_enabled' => true,
+    ]);
+
+    $method = new ReflectionMethod(ExecuteVillageConstruction::class, 'selectBuildingCandidates');
+    $method->setAccessible(true);
+
+    $candidates = $method->invoke(app(ExecuteVillageConstruction::class), $account, $village->fresh(['runtimeState', 'buildings', 'buildingTargets']));
+
+    expect(collect($candidates)->take(2)->pluck('target_gid')->all())->toBe([11, 10]);
+});
+
+test('building automation creates a level fourteen main building repair target when fixed slot is destroyed', function () {
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23379',
+        'name' => 'Damaged',
+        'is_active' => true,
+    ]);
+    $village->runtimeState()->create([
+        'tribe_id' => 2,
+        'troop_slots' => [],
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 26,
+        'building_gid' => 0,
+        'building_type' => null,
+        'current_level' => 0,
+        'automation_enabled' => true,
+    ]);
+
+    $method = new ReflectionMethod(ExecuteVillageConstruction::class, 'selectBuildingCandidates');
+    $method->setAccessible(true);
+
+    $candidates = $method->invoke(app(ExecuteVillageConstruction::class), $account, $village->fresh(['runtimeState', 'buildings', 'buildingTargets']));
+    $target = $village->fresh()->buildingTargets()->where('slot_id', 26)->first();
+
+    expect($target?->only(['building_gid', 'target_level', 'priority', 'is_enabled']))->toBe([
+        'building_gid' => 15,
+        'target_level' => 14,
+        'priority' => 1,
+        'is_enabled' => true,
+    ])
+        ->and($village->fresh()->buildingTargets()->where('building_gid', 10)->exists())->toBeTrue()
+        ->and($village->fresh()->buildingTargets()->where('building_gid', 11)->exists())->toBeTrue()
+        ->and(collect($candidates)->pluck('target_gid')->all())->toContain(15)
+        ->and(collect($candidates)->firstWhere('target_gid', 15)['mode'])->toBe('construct');
 });
 
 test('single queue village does not fall through to fields when held building is blocked', function () {
@@ -1420,10 +1638,16 @@ test('single queue village falls through when top building is blocked but not he
                 ],
             ], [
                 ['slot_id' => 8, 'building_gid' => 4, 'building_name' => 'حقل القمح', 'current_level' => 4],
+                ['slot_id' => 26, 'building_gid' => 15, 'building_name' => 'المبنى الرئيسي', 'current_level' => 14],
+                ['slot_id' => 30, 'building_gid' => 10, 'building_name' => 'المخزن', 'current_level' => 20],
+                ['slot_id' => 31, 'building_gid' => 11, 'building_name' => 'مخزن الحبوب', 'current_level' => 20],
             ]),
         ],
         [
             fakeDorf2Overview([
+                ['slot_id' => 26, 'building_gid' => 15, 'building_name' => 'المبنى الرئيسي', 'current_level' => 14],
+                ['slot_id' => 30, 'building_gid' => 10, 'building_name' => 'المخزن', 'current_level' => 20],
+                ['slot_id' => 31, 'building_gid' => 11, 'building_name' => 'مخزن الحبوب', 'current_level' => 20],
                 ['slot_id' => 33, 'building_gid' => 22, 'building_name' => 'الأكاديمية', 'current_level' => 4],
             ]),
         ],
@@ -1441,7 +1665,7 @@ test('single queue village falls through when top building is blocked but not he
         'pause_fields' => false,
         'pause_buildings' => false,
         'construction_schedule' => [
-            'pinned' => ['building:33:5'],
+            'pinned' => ['building:33:5', 'field:8:5'],
             'held' => [],
         ],
     ]);
@@ -1464,6 +1688,24 @@ test('single queue village falls through when top building is blocked but not he
         'building_gid' => 22,
         'building_type' => 'الأكاديمية',
         'current_level' => 4,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 26,
+        'building_gid' => 15,
+        'building_type' => 'المبنى الرئيسي',
+        'current_level' => 14,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 30,
+        'building_gid' => 10,
+        'building_type' => 'المخزن',
+        'current_level' => 20,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 31,
+        'building_gid' => 11,
+        'building_type' => 'مخزن الحبوب',
+        'current_level' => 20,
     ]);
     $village->buildingTargets()->create([
         'slot_id' => 33,
@@ -2583,6 +2825,9 @@ test('building automation skips stale building target already completed in live 
         [fakeDorf1Overview('23385', 'قرية Completed', 1)],
         [
             fakeDorf2Overview([
+                ['slot_id' => 26, 'building_gid' => 15, 'building_name' => 'المبنى الرئيسي', 'current_level' => 14],
+                ['slot_id' => 30, 'building_gid' => 10, 'building_name' => 'المخزن', 'current_level' => 20],
+                ['slot_id' => 31, 'building_gid' => 11, 'building_name' => 'مخزن الحبوب', 'current_level' => 20],
                 ['slot_id' => 32, 'building_gid' => 17, 'building_name' => 'السوق', 'current_level' => 3],
             ]),
         ],
@@ -2611,6 +2856,24 @@ test('building automation skips stale building target already completed in live 
         'building_gid' => 17,
         'building_type' => 'السوق',
         'current_level' => 1,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 26,
+        'building_gid' => 15,
+        'building_type' => 'المبنى الرئيسي',
+        'current_level' => 14,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 30,
+        'building_gid' => 10,
+        'building_type' => 'المخزن',
+        'current_level' => 20,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 31,
+        'building_gid' => 11,
+        'building_type' => 'مخزن الحبوب',
+        'current_level' => 20,
     ]);
     $target = $village->buildingTargets()->create([
         'slot_id' => 32,
@@ -3154,7 +3417,14 @@ test('construction uses hero resources before marketplace support and immediatel
 
     expect($session->getRequests)->toContain('/build.php?id=37&category=1&reload=auto');
     expect(array_map(static fn (array $request): int => (int) $request['payload']['amount'], $session->putRequests))->toBe([435, 90, 485, 95]);
-    expect(ActivityLog::query()->where('activity_type', ActivityType::Hero)->where('message', 'Hero resources moved to village for construction.')->exists())->toBeTrue();
+    $heroLog = ActivityLog::query()
+        ->where('activity_type', ActivityType::Hero)
+        ->where('message', 'Hero resources moved to village for construction.')
+        ->first();
+
+    expect($heroLog)->not->toBeNull()
+        ->and($heroLog->payload['effective_uri'] ?? null)->toBe('https://example.com/api/v1/graphql')
+        ->and($heroLog->payload['status_code'] ?? null)->toBe(200);
     expect(ActivityLog::query()->where('activity_type', ActivityType::Build)->where('message', 'Building construction order issued successfully.')->exists())->toBeTrue();
     expect(ActivityLog::query()->where('activity_type', ActivityType::Transfer)->exists())->toBeFalse();
 });
@@ -3260,8 +3530,7 @@ test('construction skips hero resources and falls back to trade when hero resour
     app(ExecuteVillageConstruction::class)->handle($account->fresh(), $village->fresh(['settings', 'resourceState', 'runtimeState', 'buildings', 'buildingTargets']), $session);
 
     expect(ActivityLog::query()->where('activity_type', ActivityType::Hero)->exists())->toBeFalse();
-    expect(ActivityLog::query()->where('activity_type', ActivityType::Transfer)->latest('id')->value('message'))
-        ->toBe('No eligible supplier village could send resources for construction.');
+    expect(ActivityLog::query()->where('activity_type', ActivityType::Transfer)->exists())->toBeFalse();
 });
 
 test('village construction rethrows transient connection failures for account backoff', function () {

@@ -26,7 +26,7 @@ trait ManagesDashboardShell
      */
     public function toggleAccountExpansion(int $accountId): void
     {
-        $currentState = $this->expandedAccounts[$accountId] ?? false;
+        $currentState = $this->expandedAccounts[$accountId] ?? true;
 
         $this->expandedAccounts[$accountId] = ! $currentState;
     }
@@ -40,7 +40,7 @@ trait ManagesDashboardShell
     {
         return array_values(array_map(
             static fn (int|string $accountId): int => (int) $accountId,
-            array_keys(array_filter($this->expandedAccounts)),
+            array_keys(array_filter($this->expandedAccounts, static fn (bool $isExpanded): bool => $isExpanded)),
         ));
     }
 

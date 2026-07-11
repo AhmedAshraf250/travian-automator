@@ -11,6 +11,16 @@ Read this first when you need:
 - what should not be broken
 - where to continue next
 
+For Travian-domain work, also activate:
+
+- `.agents/skills/travian-automation-domain/SKILL.md`
+
+Then read the focused docs that match the task:
+
+- `docs/travian-domain-rules.md`
+- `docs/dashboard-architecture.md`
+- `docs/next-feature-troop-training.md`
+
 ## Core Product Goal
 
 Build a multi-account Travian automation system with:
@@ -21,6 +31,15 @@ Build a multi-account Travian automation system with:
 - a dashboard that reflects the latest synced state and post-build refresh state
 - per-village settings for fields, buildings, and target plans
 - room for future automation, simulation, and anti-detection improvements
+
+Current automation domains also include:
+
+- marketplace support and manual TR transfers
+- demolition through the Main Building
+- hero resource support
+- celebrations controls
+- schedule controls with TOP / Hold behavior
+- activity-log source labeling
 
 ## Current Golden Rules
 
@@ -54,15 +73,19 @@ Build a multi-account Travian automation system with:
 ### Dashboard
 
 - `app/Livewire/Dashboard/Index.php`
+- `app/Livewire/Dashboard/AccountRow.php`
+- `app/Livewire/Dashboard/VillageRow.php`
+- `app/Livewire/Dashboard/Concerns/...`
 - `resources/views/livewire/dashboard/...`
 
 Responsibilities:
 
-- render accounts, villages, logs, and global controls
+- render accounts, villages, logs, row islands, and global controls
 - queue sync requests
 - manage bulk import and program-level settings
 - manage village settings and building target plans
 - show live local countdowns for construction and movement rows
+- coordinate modals while keeping row-specific rendering inside row components
 
 ### Background Entry Point
 
@@ -117,6 +140,31 @@ Responsibilities:
 - issue upgrade / construction orders
 - refresh the affected village immediately after a successful order
 - allow flexible field fallback when the highest-priority field is not currently buildable
+- balance equal-priority building candidates by current level where needed
+- respect stable schedule TOP keys such as `building-target:{slot}:{gid}`
+
+### Trading And Manual Transfers
+
+- `app/Application/Accounts/Trading/...`
+- `resources/views/livewire/dashboard/partials/marketplace-transfer-modal.blade.php`
+
+Responsibilities:
+
+- support automatic village resources according to saved village policy
+- provide TR quick send and merchant refresh behavior
+- keep logs useful: successes and real failures, not repeated internal "nothing to do" noise
+
+### Demolition
+
+- `app/Application/Accounts/Construction/RefreshVillageDemolitionSnapshot.php`
+- dashboard D panel / modal state
+
+Responsibilities:
+
+- read demolition state from the Main Building page
+- show active countdowns
+- allow canceling active demolition
+- refresh snapshots after demolition or cancel flows
 
 ### Persisted State
 
@@ -240,10 +288,14 @@ When clearing session state manually, use `NULL`, not an empty string or random 
 
 1. [ARCHITECTURE.md](./ARCHITECTURE.md)
 2. [PROJECT-MAP.md](./PROJECT-MAP.md)
-3. [config/travian.php](./config/travian.php)
-4. [app/Livewire/Dashboard/Index.php](./app/Livewire/Dashboard/Index.php)
-5. [app/Application/Accounts/Sync/SyncAccountOverview.php](./app/Application/Accounts/Sync/SyncAccountOverview.php)
-6. [app/Application/Accounts/Session/Actions/TravianLoginAction.php](./app/Application/Accounts/Session/Actions/TravianLoginAction.php)
+3. [docs/travian-domain-rules.md](./docs/travian-domain-rules.md)
+4. [docs/dashboard-architecture.md](./docs/dashboard-architecture.md)
+5. [config/travian.php](./config/travian.php)
+6. [app/Livewire/Dashboard/Index.php](./app/Livewire/Dashboard/Index.php)
+7. [app/Livewire/Dashboard/AccountRow.php](./app/Livewire/Dashboard/AccountRow.php)
+8. [app/Livewire/Dashboard/VillageRow.php](./app/Livewire/Dashboard/VillageRow.php)
+9. [app/Application/Accounts/Sync/SyncAccountOverview.php](./app/Application/Accounts/Sync/SyncAccountOverview.php)
+10. [app/Application/Accounts/Session/Actions/TravianLoginAction.php](./app/Application/Accounts/Session/Actions/TravianLoginAction.php)
 
 ## Recommended Next Build Slices
 
@@ -258,6 +310,10 @@ When clearing session state manually, use `NULL`, not an empty string or random 
    - training
    - send / support
    - celebrations
+
+Before starting troop training, read:
+
+- [docs/next-feature-troop-training.md](./docs/next-feature-troop-training.md)
 
 ## Suggested Commit Language
 

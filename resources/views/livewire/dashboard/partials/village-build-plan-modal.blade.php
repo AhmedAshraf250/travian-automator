@@ -56,7 +56,7 @@
                 </div>
             </div>
 
-            <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+            <div class="min-h-0 flex-1 px-5 py-4 {{ $villageSettingsTab === 'layouts' ? 'overflow-hidden' : 'overflow-y-auto' }}">
                 @if ($villageSettingsTab === 'generals')
                     @php
                         $priorityLabels = ['wood' => 'Wood', 'clay' => 'Clay', 'iron' => 'Iron', 'crop' => 'Crop'];
@@ -216,7 +216,7 @@
                         </section>
                     </div>
                 @elseif ($villageSettingsTab === 'layouts')
-                    <section class="space-y-3">
+                    <section class="flex h-full min-h-0 flex-col gap-3">
                         <div class="flex flex-wrap items-center justify-between gap-3">
                             <h3 class="text-sm font-semibold text-[var(--color-ink)]">Slots 19-40</h3>
                             <span class="rounded-md bg-[var(--color-panel-alt)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-muted)]">
@@ -224,16 +224,16 @@
                             </span>
                         </div>
 
-                        <div class="overflow-x-auto rounded-lg border border-[var(--color-line)] bg-[var(--color-panel-alt)] p-2">
-                            <table class="min-w-[62rem] w-full border-separate border-spacing-y-2 text-left text-sm">
-                                <thead class="sticky top-0 z-20 bg-[var(--color-panel)] text-[11px] uppercase text-[var(--color-muted)] shadow-sm">
+                        <div class="min-h-0 flex-1 overflow-auto rounded-lg border border-[var(--color-line)] bg-[var(--color-panel-alt)] p-2">
+                            <table class="min-w-[58rem] w-full border-separate border-spacing-y-2 text-left text-sm">
+                                <thead class="text-[11px] uppercase text-[var(--color-muted)] shadow-sm">
                                     <tr>
-                                        <th class="px-3 py-2 font-semibold">Place ID</th>
-                                        <th class="px-3 py-2 font-semibold">Current</th>
-                                        <th class="px-3 py-2 font-semibold">Building</th>
-                                        <th class="px-3 py-2 font-semibold">Max level</th>
-                                        <th class="px-3 py-2 font-semibold">Priority</th>
-                                        <th class="px-3 py-2 font-semibold">Active</th>
+                                        <th class="sticky top-0 z-30 bg-[var(--color-panel)] px-3 py-2 font-semibold">Place ID</th>
+                                        <th class="sticky top-0 z-30 bg-[var(--color-panel)] px-3 py-2 font-semibold">Current</th>
+                                        <th class="sticky top-0 z-30 bg-[var(--color-panel)] px-3 py-2 font-semibold">Building</th>
+                                        <th class="sticky top-0 z-30 bg-[var(--color-panel)] px-3 py-2 font-semibold">Max level</th>
+                                        <th class="sticky top-0 z-30 bg-[var(--color-panel)] px-3 py-2 font-semibold">Priority</th>
+                                        <th class="sticky top-0 z-30 bg-[var(--color-panel)] px-3 py-2 font-semibold">Active</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -247,11 +247,17 @@
                                             $displayBuildingOption = collect($buildingOptions)->firstWhere('gid', (int) ($draft['building_gid'] ?? 0));
                                             $displayBuildingName = $displayBuildingOption['label'] ?? ($draft['current_name'] ?? 'Empty');
                                             $currentBuildingIcon = $buildingIconForGid((int) ($draft['current_gid'] ?? 0));
-                                            $targetBuildingIcon = $buildingIconForGid((int) ($draft['building_gid'] ?? 0));
+                                            $currentIsMaxed = (bool) ($draft['current_is_maxed'] ?? false);
+                                            $currentMaxLevel = $draft['current_max_level'] ?? null;
+                                            $rowStateClasses = $slotIsFixed
+                                                ? 'bg-slate-200/90 ring-slate-400/70'
+                                                : ($slotHasBuilding
+                                                    ? 'bg-emerald-50/80 ring-emerald-500/25'
+                                                    : 'bg-[var(--color-panel)] ring-[var(--color-line)]');
                                         @endphp
                                         <tr wire:key="village-build-slot-{{ $slotId }}"
-                                            class="relative shadow-sm ring-1 transition focus-within:z-20 focus-within:ring-[var(--color-accent)] {{ $slotIsFixed ? 'bg-slate-200/90 ring-slate-400/70' : 'bg-[var(--color-panel)] ring-[var(--color-line)]' }}">
-                                            <td class="rounded-l-lg px-3 py-2 font-mono text-xs font-semibold text-[var(--color-ink)] {{ $slotIsFixed ? 'border-l-4 border-slate-500' : '' }}">
+                                            class="relative shadow-sm ring-1 transition focus-within:z-20 focus-within:ring-[var(--color-accent)] {{ $rowStateClasses }}">
+                                            <td class="rounded-l-lg px-3 py-2 font-mono text-xs font-semibold text-[var(--color-ink)] {{ $slotIsFixed ? 'border-l-4 border-slate-500' : ($slotHasBuilding ? 'border-l-4 border-emerald-500' : '') }}">
                                                 {{ $slotId }}
                                             </td>
                                             <td class="px-3 py-2">
@@ -267,42 +273,91 @@
                                                     </span>
                                                     <div class="min-w-0">
                                                         <p class="truncate text-xs font-semibold text-[var(--color-ink)]">{{ $draft['current_name'] }}</p>
-                                                        @if ((int) ($draft['current_level'] ?? 0) > 0)
-                                                            <span class="mt-1 inline-flex rounded-md border border-emerald-600/25 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-bold text-emerald-800">
-                                                                Lv {{ $draft['current_level'] }}
-                                                            </span>
-                                                        @else
-                                                            <span class="mt-1 inline-flex rounded-md border border-[var(--color-line)] bg-[var(--color-panel-alt)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-muted)]">
-                                                                Lv --
-                                                            </span>
-                                                        @endif
+                                                        <div class="mt-1 flex flex-wrap items-center gap-1">
+                                                            @if ((int) ($draft['current_level'] ?? 0) > 0)
+                                                                <span class="inline-flex rounded-md border border-emerald-600/25 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-bold text-emerald-800">
+                                                                    Lv {{ $draft['current_level'] }}
+                                                                </span>
+                                                            @else
+                                                                <span class="inline-flex rounded-md border border-[var(--color-line)] bg-[var(--color-panel-alt)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-muted)]">
+                                                                    Lv --
+                                                                </span>
+                                                            @endif
+                                                            @if ($currentIsMaxed)
+                                                                <span title="Reached final level{{ $currentMaxLevel !== null ? ' '.$currentMaxLevel : '' }}"
+                                                                    class="inline-flex rounded-md border border-amber-500/25 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800">
+                                                                    max
+                                                                </span>
+                                                            @endif
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td class="px-3 py-2">
                                                 <div class="flex items-center gap-2">
-                                                    <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)]">
-                                                        @if ($targetBuildingIcon !== null)
-                                                            <img src="{{ asset($targetBuildingIcon) }}" alt=""
-                                                                class="max-h-7 max-w-7 object-contain"
-                                                                onerror="this.parentElement.classList.add('opacity-40')" />
-                                                        @else
-                                                            <span class="text-[10px] font-semibold text-[var(--color-muted)]">--</span>
-                                                        @endif
-                                                    </span>
                                                     @if ($buildingIsReadonly)
                                                         <div
                                                             class="min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm font-semibold text-[var(--color-ink)] {{ $slotIsFixed ? 'border-slate-300 bg-slate-100' : 'border-[var(--color-line)] bg-white/70' }}">
                                                             {{ (int) ($draft['building_gid'] ?? 0) > 0 ? $displayBuildingName : 'Empty' }}
                                                         </div>
                                                     @else
-                                                        <select wire:model.change="villageBuildingPlanDraft.{{ $slotId }}.building_gid"
-                                                            class="min-w-0 flex-1 rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 py-2 text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-accent)]">
-                                                            <option value="0">Empty</option>
-                                                            @foreach ($buildingOptions as $option)
-                                                                <option value="{{ $option['gid'] }}">{{ $option['label'] }}</option>
-                                                            @endforeach
-                                                        </select>
+                                                        <div class="relative min-w-0 flex-1"
+                                                            x-data="{ open: false }"
+                                                            @keydown.escape.window="open = false">
+                                                            <button type="button"
+                                                                @click="open = !open"
+                                                                class="flex min-h-10 w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 py-2 text-left text-sm text-[var(--color-ink)] outline-none transition hover:border-[var(--color-accent)] focus:border-[var(--color-accent)]">
+                                                                <span class="inline-flex min-w-0 items-center gap-2">
+                                                                    @if ((int) ($draft['building_gid'] ?? 0) > 0 && ($displayBuildingOption['icon'] ?? null) !== null)
+                                                                        <img src="{{ asset($displayBuildingOption['icon']) }}" alt=""
+                                                                            class="h-5 w-5 shrink-0 object-contain"
+                                                                            onerror="this.classList.add('hidden')" />
+                                                                    @else
+                                                                        <span class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border border-[var(--color-line)] bg-[var(--color-panel-alt)] text-[10px] font-semibold text-[var(--color-muted)]">--</span>
+                                                                    @endif
+                                                                    <span class="truncate">{{ (int) ($draft['building_gid'] ?? 0) > 0 ? $displayBuildingName : 'Empty' }}</span>
+                                                                </span>
+                                                                <span class="shrink-0 text-xs text-[var(--color-muted)]">▾</span>
+                                                            </button>
+
+                                                            <div x-cloak x-show="open" @click.outside="open = false"
+                                                                class="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] p-1 shadow-[0_18px_55px_rgba(15,23,42,0.18)]">
+                                                                <button type="button"
+                                                                    @click="$wire.set('villageBuildingPlanDraft.{{ $slotId }}.building_gid', 0); $wire.set('villageBuildingPlanDraft.{{ $slotId }}.target_level', 0); open = false"
+                                                                    class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-semibold text-[var(--color-ink)] hover:bg-[var(--color-panel-alt)]">
+                                                                    <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border border-[var(--color-line)] bg-[var(--color-panel-alt)] text-[10px] text-[var(--color-muted)]">--</span>
+                                                                    <span class="truncate">Empty</span>
+                                                                </button>
+                                                                @foreach ($buildingOptions as $option)
+                                                                    @php
+                                                                        $optionSelectable = (bool) ($option['selectable'] ?? true);
+                                                                        $optionReason = $option['unavailable_reason'] ?? null;
+                                                                    @endphp
+                                                                    <button type="button"
+                                                                        wire:key="slot-{{ $slotId }}-building-option-{{ $option['gid'] }}"
+                                                                        @if ($optionSelectable)
+                                                                            @click="$wire.set('villageBuildingPlanDraft.{{ $slotId }}.building_gid', {{ (int) $option['gid'] }}); $wire.set('villageBuildingPlanDraft.{{ $slotId }}.target_level', 1); open = false"
+                                                                        @endif
+                                                                        @disabled(! $optionSelectable)
+                                                                        title="{{ $optionReason ?? $option['label'] }}"
+                                                                        class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-semibold transition {{ $optionSelectable ? 'text-[var(--color-ink)] hover:bg-[var(--color-panel-alt)]' : 'cursor-not-allowed bg-rose-50/80 text-rose-900 opacity-80' }}">
+                                                                        <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded bg-white ring-1 {{ $optionSelectable ? 'ring-black/5' : 'ring-rose-200' }}">
+                                                                            @if (($option['icon'] ?? null) !== null)
+                                                                                <img src="{{ asset($option['icon']) }}" alt=""
+                                                                                    class="h-5 w-5 object-contain {{ $optionSelectable ? '' : 'opacity-60' }}"
+                                                                                    onerror="this.classList.add('hidden')" />
+                                                                            @else
+                                                                                <span class="text-[10px] font-bold text-[var(--color-muted)]">{{ $option['gid'] }}</span>
+                                                                            @endif
+                                                                        </span>
+                                                                        <span class="truncate">{{ $option['label'] }}</span>
+                                                                        @if (! $optionSelectable)
+                                                                            <span class="ms-auto shrink-0 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">needs</span>
+                                                                        @endif
+                                                                    </button>
+                                                                @endforeach
+                                                            </div>
+                                                        </div>
                                                     @endif
                                                 </div>
                                                 @error("villageBuildingPlanDraft.$slotId.building_gid")
@@ -352,7 +407,7 @@
                             <h3 class="text-sm font-semibold text-[var(--color-ink)]">Celebrations</h3>
 
                             <label class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-panel)] px-3 py-2 text-xs font-semibold text-[var(--color-muted)]">
-                                <input type="checkbox" wire:model.change="villageCelebrationEnabledDraft"
+                                <input type="checkbox" wire:model.live="villageCelebrationEnabledDraft"
                                     class="h-3.5 w-3.5 rounded border-[var(--color-line-strong)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]" />
                                 Enable celebrations
                             </label>
@@ -422,7 +477,7 @@
 
                             <label class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-panel)] px-3 py-2 text-xs font-semibold text-[var(--color-muted)]"
                                 title="Allow crop support when this village has negative crop production.">
-                                <input type="checkbox" wire:model.change="villageSupplyNegativeCropDraft"
+                                <input type="checkbox" wire:model.live="villageSupplyNegativeCropDraft"
                                     @disabled(! $villageSupplyResourcesDraft)
                                     class="h-3.5 w-3.5 rounded border-[var(--color-line-strong)] text-[var(--color-accent)] disabled:opacity-50 focus:ring-[var(--color-accent)]" />
                                 Negative crop support
@@ -462,7 +517,7 @@
                                 <span class="font-medium text-[var(--color-ink)]">Max one-way merchant travel time</span>
                                 <div class="flex items-center overflow-hidden rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] focus-within:border-[var(--color-accent)]">
                                     <input type="number" min="1" max="10080"
-                                        wire:model.live.debounce.500ms="villageTradeMaxDurationMinutesDraft"
+                                        wire:model.live.debounce.900ms="villageTradeMaxDurationMinutesDraft"
                                         class="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-sm text-[var(--color-ink)] outline-none focus:ring-0" />
                                     <span class="shrink-0 px-3 text-xs font-semibold text-[var(--color-muted)]">minutes</span>
                                 </div>

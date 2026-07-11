@@ -35,7 +35,7 @@
                     <div class="space-y-4">
                         <label class="block space-y-2">
                             <span class="text-sm font-semibold">Global fallback user agent</span>
-                            <textarea wire:model.live.debounce.500ms="defaultUserAgent" rows="4"
+                            <textarea wire:model="defaultUserAgent" rows="4"
                                 class="w-full rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] px-3 py-3 text-sm leading-6 text-[var(--color-ink)] outline-none transition placeholder:text-[var(--color-muted)] focus:border-[var(--color-accent)] focus:ring-4 focus:ring-[color:var(--color-accent-soft)]"
                                 placeholder="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ..."></textarea>
                         </label>
@@ -141,7 +141,7 @@
                             <div class="mt-4 grid max-w-sm gap-1 text-sm">
                                 <span class="font-medium text-[var(--color-ink)]">Max one-way travel time</span>
                                 <div class="flex items-center overflow-hidden rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] focus-within:border-[var(--color-accent)]">
-                                    <input type="number" min="1" max="10080" step="1" wire:model.live.debounce.500ms="globalTradeMaxDurationMinutesDraft"
+                                    <input type="number" min="1" max="10080" step="1" wire:model.live.debounce.900ms="globalTradeMaxDurationMinutesDraft"
                                         class="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-sm text-[var(--color-ink)] outline-none focus:ring-0">
                                     <span class="shrink-0 px-3 text-xs font-semibold text-[var(--color-muted)]">minutes</span>
                                 </div>

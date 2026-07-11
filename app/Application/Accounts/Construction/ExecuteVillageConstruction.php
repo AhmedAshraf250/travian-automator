@@ -666,6 +666,9 @@ class ExecuteVillageConstruction
     {
         $candidates = [];
         $candidateKeys = [];
+        $this->ensureDefaultBuildingTargets($village);
+
+        $village->loadMissing(['buildingTargets', 'buildings']);
         $targets = $village->buildingTargets->sortBy('priority')->values();
 
         foreach ($targets as $target) {
@@ -718,6 +721,14 @@ class ExecuteVillageConstruction
                 continue;
             }
 
+            $finalLevel = TravianBuildingCatalog::finalLevelForGid($targetGid);
+
+            if ($finalLevel !== null && $currentLevel >= $finalLevel) {
+                $target->delete();
+
+                continue;
+            }
+
             if ($currentGid === 0) {
                 $eligibility = TravianBuildingCatalog::canConstructInVillage($targetGid, $account, $village);
 
@@ -757,7 +768,244 @@ class ExecuteVillageConstruction
             ]);
         }
 
-        return $candidates;
+        return $this->orderBuildingCandidatesForPriorityBalance($candidates);
+    }
+
+    /**
+     * Keep equal-priority building targets balanced by upgrading the lower current level first.
+     *
+     * @param  list<array{target: VillageBuildingTarget, current_slot: VillageBuilding, target_gid: int, mode: 'upgrade'|'construct'}>  $candidates
+     * @return list<array{target: VillageBuildingTarget, current_slot: VillageBuilding, target_gid: int, mode: 'upgrade'|'construct'}>
+     */
+    protected function orderBuildingCandidatesForPriorityBalance(array $candidates): array
+    {
+        $indexedCandidates = array_map(
+            static fn (array $candidate, int $index): array => [
+                'candidate' => $candidate,
+                'index' => $index,
+                'priority' => (int) $candidate['target']->priority,
+                'current_level' => (int) $candidate['current_slot']->current_level,
+                'slot_id' => (int) $candidate['current_slot']->slot_id,
+            ],
+            $candidates,
+            array_keys($candidates),
+        );
+
+        usort($indexedCandidates, static function (array $left, array $right): int {
+            foreach (['priority', 'current_level', 'slot_id', 'index'] as $key) {
+                if ($left[$key] !== $right[$key]) {
+                    return $left[$key] <=> $right[$key];
+                }
+            }
+
+            return 0;
+        });
+
+        return array_values(array_map(
+            static fn (array $row): array => $row['candidate'],
+            $indexedCandidates,
+        ));
+    }
+
+    protected function ensureDefaultBuildingTargets(Village $village): void
+    {
+        $this->ensureEssentialMainBuildingTarget($village);
+        $this->ensureObservedManagedBuildingTargets($village);
+        $this->ensureMissingWarehouseTargets($village);
+    }
+
+    protected function ensureEssentialMainBuildingTarget(Village $village): void
+    {
+        $mainSlot = $village->buildings->firstWhere('slot_id', 26);
+
+        if (! $mainSlot instanceof VillageBuilding) {
+            $mainSlot = $village->buildings()->create([
+                'slot_id' => 26,
+                'building_gid' => 0,
+                'building_type' => null,
+                'current_level' => 0,
+            ]);
+
+            $village->setRelation('buildings', $village->buildings->push($mainSlot));
+        }
+
+        if ((int) $mainSlot->building_gid !== 0 || (int) $mainSlot->current_level > 0) {
+            return;
+        }
+
+        $targetLevel = TravianBuildingCatalog::defaultManagedTargetLevelForGid(15) ?? 14;
+        $existingTarget = $village->buildingTargets->firstWhere('slot_id', 26);
+
+        if ($existingTarget instanceof VillageBuildingTarget && (int) $existingTarget->target_level >= $targetLevel) {
+            return;
+        }
+
+        $village->buildingTargets()->updateOrCreate(
+            ['slot_id' => 26],
+            [
+                'building_gid' => 15,
+                'building_type' => TravianBuildingCatalog::nameForGid(15),
+                'target_level' => $targetLevel,
+                'priority' => 1,
+                'is_enabled' => true,
+            ],
+        );
+
+        $village->unsetRelation('buildingTargets');
+        $village->load('buildingTargets');
+    }
+
+    protected function ensureObservedManagedBuildingTargets(Village $village): void
+    {
+        $changed = false;
+
+        foreach ($village->buildings as $building) {
+            if (! $building instanceof VillageBuilding) {
+                continue;
+            }
+
+            $slotId = (int) $building->slot_id;
+            $buildingGid = (int) $building->building_gid;
+
+            if ($slotId < 19 || $slotId > 40 || ! TravianBuildingCatalog::isDefaultManagedBuilding($buildingGid)) {
+                continue;
+            }
+
+            $finalLevel = TravianBuildingCatalog::finalLevelForGid($buildingGid);
+
+            if ($finalLevel !== null && (int) $building->current_level >= $finalLevel) {
+                continue;
+            }
+
+            if ($village->buildingTargets->firstWhere('slot_id', $slotId) instanceof VillageBuildingTarget) {
+                continue;
+            }
+
+            $village->buildingTargets()->create([
+                'slot_id' => $slotId,
+                'building_gid' => $buildingGid,
+                'building_type' => TravianBuildingCatalog::nameForGid($buildingGid) ?? $building->building_type,
+                'target_level' => TravianBuildingCatalog::defaultManagedTargetLevelForGid($buildingGid),
+                'priority' => 1,
+                'is_enabled' => true,
+            ]);
+
+            $changed = true;
+        }
+
+        if ($changed) {
+            $village->unsetRelation('buildingTargets');
+            $village->load('buildingTargets');
+        }
+    }
+
+    protected function ensureMissingWarehouseTargets(Village $village): void
+    {
+        $changed = false;
+
+        foreach ([10, 11] as $requiredGid) {
+            if ($this->hasBuildingOrTarget($village, $requiredGid)) {
+                continue;
+            }
+
+            $slotId = $this->firstEmptyFlexibleSlot($village);
+
+            if ($slotId === null) {
+                continue;
+            }
+
+            if (! $village->buildings->firstWhere('slot_id', $slotId) instanceof VillageBuilding) {
+                $village->buildings()->create([
+                    'slot_id' => $slotId,
+                    'building_gid' => 0,
+                    'building_type' => null,
+                    'current_level' => 0,
+                ]);
+                $village->load('buildings');
+            }
+
+            $village->buildingTargets()->create([
+                'slot_id' => $slotId,
+                'building_gid' => $requiredGid,
+                'building_type' => TravianBuildingCatalog::nameForGid($requiredGid),
+                'target_level' => TravianBuildingCatalog::defaultManagedTargetLevelForGid($requiredGid),
+                'priority' => 1,
+                'is_enabled' => true,
+            ]);
+
+            $changed = true;
+            $village->load('buildingTargets');
+        }
+
+        if ($changed) {
+            $village->unsetRelation('buildingTargets');
+            $village->load('buildingTargets');
+        }
+    }
+
+    protected function hasBuildingOrTarget(Village $village, int $gid): bool
+    {
+        foreach ($village->buildings as $building) {
+            if ($building instanceof VillageBuilding && (int) $building->building_gid === $gid) {
+                return true;
+            }
+        }
+
+        foreach ($village->buildingTargets as $target) {
+            if ($target instanceof VillageBuildingTarget && (int) $target->building_gid === $gid && (int) $target->target_level > 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function hasIncompleteBuildingOrTarget(Village $village, int $gid): bool
+    {
+        $finalLevel = TravianBuildingCatalog::finalLevelForGid($gid);
+
+        foreach ($village->buildings as $building) {
+            if (! $building instanceof VillageBuilding || (int) $building->building_gid !== $gid) {
+                continue;
+            }
+
+            if ($finalLevel === null || (int) $building->current_level < $finalLevel) {
+                return true;
+            }
+        }
+
+        foreach ($village->buildingTargets as $target) {
+            if (! $target instanceof VillageBuildingTarget || (int) $target->building_gid !== $gid || (int) $target->target_level < 1) {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    protected function firstEmptyFlexibleSlot(Village $village): ?int
+    {
+        $currentSlots = $village->buildings->keyBy('slot_id');
+        $targetSlots = $village->buildingTargets->keyBy('slot_id');
+
+        foreach (range(19, 38) as $slotId) {
+            $slot = $currentSlots->get($slotId);
+            $target = $targetSlots->get($slotId);
+
+            if ($slot instanceof VillageBuilding && (int) $slot->building_gid !== 0) {
+                continue;
+            }
+
+            if ($target instanceof VillageBuildingTarget && (int) $target->target_level > 0) {
+                continue;
+            }
+
+            return $slotId;
+        }
+
+        return null;
     }
 
     /**
@@ -1597,6 +1845,10 @@ class ExecuteVillageConstruction
         VillageBuildingTarget $target,
         BuildingEligibility $eligibility,
     ): void {
+        if ($this->buildingRulesBlockAlreadyLogged($village, $target)) {
+            return;
+        }
+
         ActivityLog::query()->create([
             'account_id' => $account->id,
             'village_id' => $village->id,
@@ -1617,6 +1869,20 @@ class ExecuteVillageConstruction
         ]);
     }
 
+    protected function buildingRulesBlockAlreadyLogged(Village $village, VillageBuildingTarget $target): bool
+    {
+        return ActivityLog::query()
+            ->where('village_id', $village->id)
+            ->where('activity_type', ActivityType::Build)
+            ->where('status', ActivityLogStatus::Pending)
+            ->where('message', 'Building candidate blocked by construction rules.')
+            ->where('executed_at', '>=', now()->subMinutes($this->buildPageBlockCooldownMinutes()))
+            ->where('payload->slot_id', (int) $target->slot_id)
+            ->where('payload->building_gid', (int) $target->building_gid)
+            ->where('payload->target_level', (int) $target->target_level)
+            ->exists();
+    }
+
     /**
      * Log non-resource build page blocks, such as unmet server-rendered prerequisites.
      *
@@ -1625,6 +1891,10 @@ class ExecuteVillageConstruction
     protected function recordBuildPageBlockedCandidate(Account $account, Village $village, array $payload, BuildPageAnalysis $analysis): void
     {
         if ($analysis->isResourceShortage() || $analysis->blockedReason === null) {
+            return;
+        }
+
+        if (($payload['queue_kind'] ?? null) === 'field') {
             return;
         }
 
@@ -1715,7 +1985,7 @@ class ExecuteVillageConstruction
             fn (array $candidate, int $index): array => [
                 'candidate' => $candidate,
                 'index' => $index,
-                'pinned_position' => $pinnedPositions[$this->candidateScheduleKey($candidate, $queueKind)] ?? PHP_INT_MAX,
+                'pinned_position' => $this->candidatePinnedPosition($candidate, $queueKind, $pinnedPositions) ?? PHP_INT_MAX,
             ],
             $candidates,
             array_keys($candidates),
@@ -1749,14 +2019,18 @@ class ExecuteVillageConstruction
         foreach ($fieldCandidates as $candidate) {
             $rows[] = [
                 'key' => $this->candidateScheduleKey($candidate, 'field'),
+                'keys' => $this->candidateScheduleKeys($candidate, 'field'),
                 'kind' => 'field',
+                'priority' => $this->candidatePriority($candidate, $settings, 'field'),
             ];
         }
 
         foreach ($buildingCandidates as $candidate) {
             $rows[] = [
                 'key' => $this->candidateScheduleKey($candidate, 'building'),
+                'keys' => $this->candidateScheduleKeys($candidate, 'building'),
                 'kind' => 'building',
+                'priority' => $this->candidatePriority($candidate, $settings, 'building'),
             ];
         }
 
@@ -1767,10 +2041,15 @@ class ExecuteVillageConstruction
             ->map(static fn (array $row, int $index): array => [
                 ...$row,
                 'index' => $index,
-                'pinned_position' => $pinnedPositions[$row['key']] ?? PHP_INT_MAX,
+                'kind_order' => $row['kind'] === 'building' ? 0 : 1,
+                'pinned_position' => collect($row['keys'])
+                    ->map(static fn (string $key): int => $pinnedPositions[$key] ?? PHP_INT_MAX)
+                    ->min(),
             ])
             ->sortBy([
                 ['pinned_position', 'asc'],
+                ['priority', 'asc'],
+                ['kind_order', 'asc'],
                 ['index', 'asc'],
             ])
             ->values();
@@ -1810,7 +2089,7 @@ class ExecuteVillageConstruction
 
         return array_values(array_filter(
             $candidates,
-            fn (array $candidate): bool => isset($visibleLookup[$this->candidateScheduleKey($candidate, $queueKind)]),
+            fn (array $candidate): bool => $this->candidateHasAnyScheduleKey($candidate, $queueKind, $visibleLookup),
         ));
     }
 
@@ -1842,7 +2121,47 @@ class ExecuteVillageConstruction
             return ['building', 'field'];
         }
 
+        if ($bestFieldPin === null && $bestBuildingPin === null && $this->hasEssentialMainBuildingRepairCandidate($buildingCandidates)) {
+            return ['building', 'field'];
+        }
+
         return ['field', 'building'];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $buildingCandidates
+     */
+    protected function hasEssentialMainBuildingRepairCandidate(array $buildingCandidates): bool
+    {
+        return collect($buildingCandidates)->contains(static function (array $candidate): bool {
+            $currentSlot = $candidate['current_slot'] ?? null;
+
+            return $currentSlot instanceof VillageBuilding
+                && (int) ($candidate['target_gid'] ?? 0) === 15
+                && (int) $currentSlot->slot_id === 26
+                && (int) $currentSlot->building_gid === 0
+                && (int) $currentSlot->current_level === 0;
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $candidate
+     */
+    protected function candidatePriority(array $candidate, VillageSetting $settings, string $queueKind): int
+    {
+        if ($queueKind === 'building') {
+            $target = $candidate['target'] ?? null;
+
+            return $target instanceof VillageBuildingTarget ? (int) $target->priority : 999;
+        }
+
+        $fieldKey = $candidate['field_key'] ?? null;
+
+        if (! is_string($fieldKey) || $fieldKey === '') {
+            return 999;
+        }
+
+        return (int) ($this->resolveEffectiveFieldPriority($settings)[$fieldKey] ?? 999);
     }
 
     /**
@@ -1862,7 +2181,7 @@ class ExecuteVillageConstruction
         $bestPosition = null;
 
         foreach ($candidates as $candidate) {
-            $position = $pinnedPositions[$this->candidateScheduleKey($candidate, $queueKind)] ?? null;
+            $position = $this->candidatePinnedPosition($candidate, $queueKind, $pinnedPositions);
 
             if ($position === null) {
                 continue;
@@ -1881,10 +2200,15 @@ class ExecuteVillageConstruction
      */
     protected function candidateIsHeld(array $candidate, VillageSetting $settings, string $queueKind): bool
     {
-        $scheduleKey = $this->candidateScheduleKey($candidate, $queueKind);
         $preferences = $this->constructionSchedulePreferences($settings);
 
-        return in_array($scheduleKey, $preferences['held'], true);
+        foreach ($this->candidateScheduleKeys($candidate, $queueKind) as $scheduleKey) {
+            if (in_array($scheduleKey, $preferences['held'], true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -1922,9 +2246,55 @@ class ExecuteVillageConstruction
      */
     protected function candidateScheduleKey(array $candidate, string $queueKind): string
     {
-        return $queueKind === 'field'
-            ? $this->fieldCandidateScheduleKey($candidate)
-            : $this->buildingCandidateScheduleKey($candidate);
+        return $this->candidateScheduleKeys($candidate, $queueKind)[0];
+    }
+
+    /**
+     * Return the primary schedule key followed by legacy aliases that should still match saved preferences.
+     *
+     * @param  array<string, mixed>  $candidate
+     * @return list<string>
+     */
+    protected function candidateScheduleKeys(array $candidate, string $queueKind): array
+    {
+        if ($queueKind === 'field') {
+            return [$this->fieldCandidateScheduleKey($candidate)];
+        }
+
+        return [
+            $this->buildingTargetScheduleKey($candidate),
+            $this->legacyBuildingCandidateScheduleKey($candidate),
+        ];
+    }
+
+    /**
+     * @param  array<string, int>  $pinnedPositions
+     */
+    protected function candidatePinnedPosition(array $candidate, string $queueKind, array $pinnedPositions): ?int
+    {
+        $positions = [];
+
+        foreach ($this->candidateScheduleKeys($candidate, $queueKind) as $scheduleKey) {
+            if (array_key_exists($scheduleKey, $pinnedPositions)) {
+                $positions[] = $pinnedPositions[$scheduleKey];
+            }
+        }
+
+        return $positions === [] ? null : min($positions);
+    }
+
+    /**
+     * @param  array<string, int>  $scheduleKeyLookup
+     */
+    protected function candidateHasAnyScheduleKey(array $candidate, string $queueKind, array $scheduleKeyLookup): bool
+    {
+        foreach ($this->candidateScheduleKeys($candidate, $queueKind) as $scheduleKey) {
+            if (isset($scheduleKeyLookup[$scheduleKey])) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -1946,6 +2316,34 @@ class ExecuteVillageConstruction
      * }  $candidate
      */
     protected function buildingCandidateScheduleKey(array $candidate): string
+    {
+        return $this->buildingTargetScheduleKey($candidate);
+    }
+
+    /**
+     * @param  array{
+     *     target: VillageBuildingTarget,
+     *     current_slot: VillageBuilding,
+     *     target_gid: int,
+     *     mode: 'upgrade'|'construct'
+     * }  $candidate
+     */
+    protected function buildingTargetScheduleKey(array $candidate): string
+    {
+        $currentSlot = $candidate['current_slot'];
+
+        return 'building-target:'.(int) $currentSlot->slot_id.':'.(int) $candidate['target_gid'];
+    }
+
+    /**
+     * @param  array{
+     *     target: VillageBuildingTarget,
+     *     current_slot: VillageBuilding,
+     *     target_gid: int,
+     *     mode: 'upgrade'|'construct'
+     * }  $candidate
+     */
+    protected function legacyBuildingCandidateScheduleKey(array $candidate): string
     {
         $currentSlot = $candidate['current_slot'];
         $targetLevel = $candidate['mode'] === 'construct'

@@ -27,6 +27,18 @@ This application is a Laravel application and its main Laravel ecosystems packag
 
 This project has domain-specific skills available in `**/skills/**`. You MUST activate the relevant skill whenever you work in that domain—don't wait until you're stuck.
 
+For Travian-specific work, activate `.agents/skills/travian-automation-domain/SKILL.md` and read the relevant handoff docs before editing:
+
+- `docs/travian-domain-rules.md`
+- `docs/dashboard-architecture.md`
+- `docs/next-feature-troop-training.md` when working on troop training
+
+Use the root handoff files for orientation:
+
+- `PROJECT-HANDBOOK.md` is the fast start.
+- `PROJECT-MAP.md` is the visual map.
+- `ARCHITECTURE.md` is the high-level system architecture.
+
 ## Conventions
 
 - You must follow all existing code conventions used in this application. When creating or editing a file, check sibling files for the correct structure, approach, and naming.

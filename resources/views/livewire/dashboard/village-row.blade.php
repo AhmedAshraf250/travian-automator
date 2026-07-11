@@ -170,12 +170,16 @@
         default => 'Small first',
     };
     $celebrationMinimumCulturePoints = (int) ($settings?->celebration_min_culture_points ?? \App\Models\VillageSetting::defaultCelebrationMinCulturePoints());
+    $isProgramPaused = ! (bool) ($automationEnabled ?? true);
+    $isAccountPaused = ! (bool) ($village->account?->is_active ?? true);
     $isVillagePaused = ! $village->is_active;
-    $villageNameClasses = $isVillagePaused ? 'text-amber-700' : 'text-[var(--color-ink)]';
+    $isAutomationPausedByParent = $isProgramPaused || $isAccountPaused;
+    $automationControlsDisabled = $isVillagePaused || $isAutomationPausedByParent;
+    $villageNameClasses = ($isVillagePaused || $isAutomationPausedByParent) ? 'text-amber-700' : 'text-[var(--color-ink)]';
     $enabledSignalClasses = 'border-emerald-700 bg-emerald-500 text-white shadow-inner ring-1 ring-emerald-700/30';
     $disabledSignalClasses = 'border-slate-300 bg-slate-200 text-slate-500 shadow-sm hover:bg-slate-300';
-    $pausedSignalClasses = 'border-amber-500 bg-amber-300 text-amber-950 shadow-inner';
-    $controlButtonClasses = static fn (bool $isEnabled): string => $isVillagePaused
+    $pausedSignalClasses = 'cursor-not-allowed border-amber-500 bg-amber-300 text-amber-950 opacity-80 shadow-inner';
+    $controlButtonClasses = static fn (bool $isEnabled): string => ($isVillagePaused || $isAutomationPausedByParent)
         ? $pausedSignalClasses
         : ($isEnabled ? $enabledSignalClasses : $disabledSignalClasses);
     $buildingIconForGid = static function (int $gid): ?string {
@@ -222,6 +226,11 @@
         ->filter(static fn ($building): bool => (int) $building->slot_id >= 19
             && (int) $building->slot_id <= 40
             && (int) $building->building_gid > 0)
+        ->filter(static function ($building): bool {
+            $finalLevel = \App\Application\Travian\TravianBuildingCatalog::finalLevelForGid((int) $building->building_gid);
+
+            return $finalLevel === null || (int) $building->current_level < $finalLevel;
+        })
         ->sortBy('slot_id')
         ->values()
         ->map(fn ($building): array => [
@@ -317,7 +326,7 @@
     if ($buildingsAutomationEnabled) {
         $village->buildingTargets
             ->sortBy('priority')
-            ->each(function ($target) use (&$buildingScheduleEntries, $village, $buildingIconForGid, $constructionMatchesCandidate): void {
+            ->each(function ($target) use (&$buildingScheduleEntries, $village, $buildingIconForGid, $constructionMatchesCandidate, $pinnedScheduleKeys, $heldScheduleKeys): void {
                 if (! $target->is_enabled || (int) $target->target_level < 1) {
                     return;
                 }
@@ -336,14 +345,42 @@
                 }
 
                 $gid = (int) ($target->building_gid ?: $slot->building_gid);
+                $maxLevel = \App\Application\Travian\TravianBuildingCatalog::finalLevelForGid($gid);
+
+                if ($maxLevel !== null && ($currentLevel >= (int) $maxLevel || $nextLevel > (int) $maxLevel)) {
+                    return;
+                }
+
                 $buildingName = $target->building_type ?: (\App\Application\Travian\TravianBuildingCatalog::nameForGid($gid) ?? 'Building');
+                $scheduleKey = "building-target:{$target->slot_id}:{$gid}";
+                $legacyScheduleKey = "building:{$target->slot_id}:{$nextLevel}";
 
                 if ($constructionMatchesCandidate($buildingName, $nextLevel)) {
+                    if (! in_array($scheduleKey, $pinnedScheduleKeys, true)
+                        && ! in_array($scheduleKey, $heldScheduleKeys, true)
+                        && ! in_array($legacyScheduleKey, $pinnedScheduleKeys, true)
+                        && ! in_array($legacyScheduleKey, $heldScheduleKeys, true)) {
+                        return;
+                    }
+
+                    $buildingScheduleEntries->push([
+                        'key' => $scheduleKey,
+                        'legacy_key' => $legacyScheduleKey,
+                        'kind' => 'B',
+                        'name' => $buildingName,
+                        'slot_id' => (int) $target->slot_id,
+                        'priority' => (int) $target->priority,
+                        'icon' => $buildingIconForGid($gid),
+                        'level_label' => "{$currentLevel}->{$nextLevel}",
+                        'running' => true,
+                    ]);
+
                     return;
                 }
 
                 $buildingScheduleEntries->push([
-                    'key' => "building:{$target->slot_id}:{$nextLevel}",
+                    'key' => $scheduleKey,
+                    'legacy_key' => $legacyScheduleKey,
                     'kind' => 'B',
                     'name' => $buildingName,
                     'slot_id' => (int) $target->slot_id,
@@ -357,18 +394,29 @@
     $pinnedSchedulePositions = array_flip($pinnedScheduleKeys);
     $orderScheduleEntries = static fn ($entries) => $entries
         ->values()
-        ->map(static fn (array $entry, int $index): array => [
+        ->map(static function (array $entry, int $index) use ($pinnedScheduleKeys, $heldScheduleKeys, $pinnedSchedulePositions): array {
+            $entryKeys = array_values(array_filter([
+                $entry['key'] ?? null,
+                $entry['legacy_key'] ?? null,
+            ], static fn ($key): bool => is_string($key) && $key !== ''));
+            $pinnedPositions = array_values(array_filter(
+                array_map(static fn (string $key): int => $pinnedSchedulePositions[$key] ?? PHP_INT_MAX, $entryKeys),
+                static fn (int $position): bool => $position !== PHP_INT_MAX,
+            ));
+
+            return [
                 'entry' => [
                     ...$entry,
-                    'pinned' => in_array($entry['key'], $pinnedScheduleKeys, true),
-                    'held' => in_array($entry['key'], $heldScheduleKeys, true),
+                    'pinned' => collect($entryKeys)->contains(static fn (string $key): bool => in_array($key, $pinnedScheduleKeys, true)),
+                    'held' => collect($entryKeys)->contains(static fn (string $key): bool => in_array($key, $heldScheduleKeys, true)),
                     'reserve' => false,
                 ],
                 'index' => $index,
                 'priority' => (int) ($entry['priority'] ?? 999),
                 'kind_order' => ($entry['kind'] ?? null) === 'B' ? 0 : 1,
-                'pinned_position' => $pinnedSchedulePositions[$entry['key']] ?? PHP_INT_MAX,
-            ])
+                'pinned_position' => $pinnedPositions === [] ? PHP_INT_MAX : min($pinnedPositions),
+            ];
+        })
             ->sortBy([
                 ['pinned_position', 'asc'],
                 ['priority', 'asc'],
@@ -474,54 +522,84 @@
 
             <div class="relative mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--color-muted)]">
                 <button type="button" @click="openControl = openControl === 'fields' ? null : 'fields'"
+                    @disabled($automationControlsDisabled)
                     class="inline-flex h-7 w-7 items-center justify-center rounded-md border text-[11px] font-extrabold transition {{ $controlButtonClasses($fieldsAutomationEnabled) }}"
                     title="F - Fields: enable, pause, and inspect resource field upgrades">
                     F
                 </button>
 
                 <button type="button" @click="openControl = openControl === 'buildings' ? null : 'buildings'"
+                    @disabled($automationControlsDisabled)
                     class="inline-flex h-7 w-7 items-center justify-center rounded-md border text-[11px] font-extrabold transition {{ $controlButtonClasses($buildingsAutomationEnabled) }}"
                     title="B - Buildings: enable, pause, and inspect village building upgrades">
                     B
                 </button>
 
                 <button type="button" @click="openControl = openControl === 'schedule' ? null : 'schedule'"
+                    @disabled($automationControlsDisabled)
                     class="inline-flex h-7 w-7 items-center justify-center rounded-md border text-[11px] font-extrabold transition {{ $controlButtonClasses($scheduleEntries->isNotEmpty()) }}"
                     title="S - Schedule: move orders to TOP or Hold them until they can run">
                     S
                 </button>
 
-                <button type="button" wire:click="toggleVillageHeroResources({{ $village->id }})"
+                <button type="button" @click="openControl = openControl === 'resources' ? null : 'resources'"
+                    @disabled($automationControlsDisabled)
                     class="inline-flex h-7 w-7 items-center justify-center rounded-md border text-[11px] font-extrabold transition {{ $controlButtonClasses($heroResourcesEnabled) }}"
                     title="R - Resources: use stored hero resources before marketplace support">
                     R
                 </button>
 
                 <button type="button" @click="openControl = openControl === 'celebrations' ? null : 'celebrations'"
+                    @disabled($automationControlsDisabled)
                     class="inline-flex h-7 w-7 items-center justify-center rounded-md border text-[11px] font-extrabold transition {{ $controlButtonClasses($celebrationEnabled) }}"
                     title="C - Celebrations: inspect and toggle town hall celebrations">
                     C
                 </button>
 
                 <button type="button" wire:click="toggleVillageTroopTrainingAutomation({{ $village->id }})"
+                    @disabled($automationControlsDisabled)
                     class="inline-flex h-7 w-7 items-center justify-center rounded-md border text-[11px] font-extrabold transition {{ $controlButtonClasses($troopTrainingEnabled) }}"
                     title="T - Troops: train enabled troop queues for this village">
                     T
                 </button>
 
-                <button type="button" wire:click="openMarketplaceTransferModal({{ $village->id }})"
-                    class="inline-flex h-7 w-8 items-center justify-center rounded-md border border-[#7b5a2e]/45 bg-[#d3b581]/35 text-[10px] font-black tracking-tight text-[#4a2d0c] transition hover:border-[#7b5a2e] hover:bg-[#d3b581]/60"
+                <button type="button" wire:click="$dispatch('dashboard-open-marketplace-transfer', { villageId: {{ $village->id }} })"
+                    @disabled($automationControlsDisabled)
+                    class="inline-flex h-7 w-8 items-center justify-center rounded-md border text-[10px] font-black tracking-tight transition {{ $automationControlsDisabled ? $pausedSignalClasses : 'border-[#7b5a2e]/45 bg-[#d3b581]/35 text-[#4a2d0c] hover:border-[#7b5a2e] hover:bg-[#d3b581]/60' }}"
                     title="TR - Transfer resources: send marketplace resources from this village"
                     aria-label="Send marketplace resources from this village">
                     TR
                 </button>
 
-                <button type="button" wire:click="openVillageDemolitionModal({{ $village->id }})"
-                    class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-rose-700/35 bg-rose-500/10 text-[11px] font-black text-rose-800 transition hover:border-rose-700 hover:bg-rose-500/20"
+                <button type="button" wire:click="$dispatch('dashboard-open-village-demolition', { villageId: {{ $village->id }} })"
+                    @disabled($automationControlsDisabled)
+                    class="inline-flex h-7 w-7 items-center justify-center rounded-md border text-[11px] font-black transition {{ $automationControlsDisabled ? $pausedSignalClasses : 'border-rose-700/35 bg-rose-500/10 text-rose-800 hover:border-rose-700 hover:bg-rose-500/20' }}"
                     title="D - Demolish: lower one building level from the Main Building"
                     aria-label="Open building demolition panel">
                     D
                 </button>
+
+                <div x-cloak x-show="openControl === 'resources'" @click.outside="openControl = null" @keydown.escape.window="openControl = null"
+                    class="absolute left-0 top-8 z-50 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] p-3 text-xs shadow-[0_18px_55px_rgba(15,23,42,0.18)]">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="font-semibold text-[var(--color-ink)]">Hero resources</span>
+                        <button type="button" wire:click="toggleVillageHeroResources({{ $village->id }})"
+                            @disabled($automationControlsDisabled)
+                            class="inline-flex items-center gap-2 rounded-full border px-1.5 py-1 text-[11px] font-semibold transition {{ $heroResourcesEnabled ? 'border-emerald-600/35 bg-emerald-500/10 text-emerald-800' : 'border-rose-600/30 bg-rose-500/10 text-rose-800' }}"
+                            title="Enable or pause hero resource usage for this village">
+                            <span class="relative inline-flex h-6 w-11 items-center rounded-full {{ $heroResourcesEnabled ? 'bg-emerald-500' : 'bg-rose-500' }}">
+                                <span class="absolute inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-black shadow-sm transition {{ $heroResourcesEnabled ? 'right-0.5 text-emerald-700' : 'left-0.5 text-rose-700' }}">
+                                    {{ $heroResourcesEnabled ? '✓' : '×' }}
+                                </span>
+                            </span>
+                            {{ $heroResourcesEnabled ? 'On' : 'Off' }}
+                        </button>
+                    </div>
+
+                    <p class="mt-3 text-[11px] leading-4 text-[var(--color-muted)]">
+                        Uses stored hero resource rewards only when construction is short on resources, before trying marketplace support.
+                    </p>
+                </div>
 
                 <div x-cloak x-show="openControl === 'celebrations'" @click.outside="openControl = null" @keydown.escape.window="openControl = null"
                     class="absolute left-0 top-8 z-50 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] p-3 text-xs shadow-[0_18px_55px_rgba(15,23,42,0.18)]">
@@ -627,9 +705,6 @@
                                     @endif
                                 </span>
                                 <span class="inline-flex min-w-0 flex-1 items-center gap-1.5">
-                                    <span class="rounded-md border border-[var(--color-line)] bg-[var(--color-panel-alt)] px-1.5 py-0.5 font-mono text-[10px] font-extrabold text-[var(--color-muted)]">
-                                        #{{ $buildingControl['slot_id'] }}
-                                    </span>
                                     <span class="min-w-0 truncate font-semibold text-[var(--color-ink)]">{{ $buildingControl['name'] }}</span>
                                 </span>
                                 <span class="rounded-md border border-[var(--color-line)] bg-[var(--color-panel-alt)] px-1.5 py-0.5 font-mono text-[10px] font-extrabold text-[var(--color-muted)]">
@@ -679,6 +754,12 @@
                                         <span class="rounded bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-extrabold text-sky-900"
                                             title="Reserved building candidate outside the immediate field queue">
                                             B
+                                        </span>
+                                    @endif
+                                    @if ($scheduleEntry['running'] ?? false)
+                                        <span class="rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-900"
+                                            title="This order is already running; it is shown so you can remove TOP or Hold.">
+                                            running
                                         </span>
                                     @endif
                                 </span>
@@ -991,7 +1072,7 @@
         </div>
 
         <div class="flex shrink-0 flex-wrap items-center gap-1.5 xl:justify-end">
-            <button type="button" wire:click="openVillageSettingsModal({{ $village->id }})"
+            <button type="button" wire:click="$dispatch('dashboard-open-village-settings', { villageId: {{ $village->id }} })"
                 class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-line-strong)] text-sm font-semibold transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
                 title="Village settings">
                 &#9881;

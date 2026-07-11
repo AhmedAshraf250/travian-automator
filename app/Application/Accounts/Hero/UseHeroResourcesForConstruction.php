@@ -142,6 +142,8 @@ class UseHeroResourcesForConstruction
         $this->logHeroResourceActivity($account, $village, ActivityLogStatus::Done, 'Hero resources moved to village for construction.', [
             'construction' => $constructionPayload,
             'resources' => $usedResources,
+            'effective_uri' => $inventorySnapshot['effective_uri'],
+            'status_code' => $inventorySnapshot['status_code'],
             'item_ids' => array_map(
                 static fn (array $preparedUse): int => (int) $preparedUse['payload']['itemId'],
                 $preparedUses,
@@ -152,7 +154,7 @@ class UseHeroResourcesForConstruction
     }
 
     /**
-     * @return array{items: list<array<string, mixed>>, village_resources: array<string, mixed>, travian_village_id: int|string|null}|null
+     * @return array{items: list<array<string, mixed>>, village_resources: array<string, mixed>, travian_village_id: int|string|null, effective_uri: string, status_code: int}|null
      */
     protected function fetchHeroInventory(AccountSession $session, string $referer): ?array
     {
@@ -185,6 +187,8 @@ class UseHeroResourcesForConstruction
             'items' => array_values(array_filter($inventory, 'is_array')),
             'village_resources' => is_array($village['resources'] ?? null) ? $village['resources'] : [],
             'travian_village_id' => $village['id'] ?? null,
+            'effective_uri' => $response->effectiveUri,
+            'status_code' => $response->statusCode,
         ];
     }
 

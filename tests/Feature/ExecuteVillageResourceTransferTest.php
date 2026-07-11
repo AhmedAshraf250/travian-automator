@@ -381,7 +381,7 @@ test('resource transfer stops before confirmation when merchant travel time exce
         ->where('message', 'Resource transfer stopped: merchant travel time is above the configured limit.')
         ->exists())->toBeTrue();
     expect(ActivityLog::query()->where('activity_type', ActivityType::Transfer)->latest('id')->value('message'))
-        ->toBe('No supplier village could send resources within the configured travel time for construction.');
+        ->toBe('Resource transfer stopped: merchant travel time is above the configured limit.');
 });
 
 test('resource transfer does not send resources to villages without supply enabled', function () {

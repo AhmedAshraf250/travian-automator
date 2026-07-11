@@ -94,7 +94,7 @@ final class TravianBuildingCatalog
         20 => ['cost' => ['wood' => 260, 'clay' => 140, 'iron' => 220, 'crop' => 100, 'total_resources' => 720, 'crop_consumption' => 5], 'requirements' => [['gid' => 13, 'level' => 3], ['gid' => 22, 'level' => 5]]],
         21 => ['cost' => ['wood' => 460, 'clay' => 510, 'iron' => 600, 'crop' => 320, 'total_resources' => 1890, 'crop_consumption' => 3], 'requirements' => [['gid' => 22, 'level' => 10], ['gid' => 15, 'level' => 5]]],
         22 => ['cost' => ['wood' => 220, 'clay' => 160, 'iron' => 90, 'crop' => 40, 'total_resources' => 510, 'crop_consumption' => 4], 'requirements' => [['gid' => 19, 'level' => 3], ['gid' => 15, 'level' => 3]]],
-        23 => ['cost' => ['wood' => 40, 'clay' => 50, 'iron' => 30, 'crop' => 10, 'total_resources' => 130, 'crop_consumption' => 0], 'requirements' => []],
+        23 => ['cost' => ['wood' => 40, 'clay' => 50, 'iron' => 30, 'crop' => 10, 'total_resources' => 130, 'crop_consumption' => 0], 'requirements' => [], 'max_level' => 10],
         24 => ['cost' => ['wood' => 1250, 'clay' => 1110, 'iron' => 1260, 'crop' => 600, 'total_resources' => 4220, 'crop_consumption' => 4], 'requirements' => [['gid' => 15, 'level' => 10], ['gid' => 22, 'level' => 10]]],
         25 => ['cost' => ['wood' => 580, 'clay' => 460, 'iron' => 350, 'crop' => 180, 'total_resources' => 1570, 'crop_consumption' => 1], 'requirements' => [['gid' => 15, 'level' => 5]], 'mutually_exclusive' => [26]],
         26 => ['cost' => ['wood' => 550, 'clay' => 800, 'iron' => 750, 'crop' => 250, 'total_resources' => 2350, 'crop_consumption' => 1], 'requirements' => [['gid' => 18, 'level' => 1], ['gid' => 15, 'level' => 5]], 'capital_only' => true, 'account_unique' => true, 'mutually_exclusive' => [25]],
@@ -166,6 +166,71 @@ final class TravianBuildingCatalog
     }
 
     /**
+     * Return the effective final building level used by layout and scheduling UI.
+     */
+    public static function finalLevelForGid(int $gid): ?int
+    {
+        if (! isset(self::DEFINITIONS[$gid])) {
+            return null;
+        }
+
+        if (self::isFieldGid($gid)) {
+            return null;
+        }
+
+        return self::maxLevelForGid($gid) ?? 20;
+    }
+
+    /**
+     * Determine whether this gid is one of the resource bonus buildings.
+     */
+    public static function isResourceBonusBuilding(int $gid): bool
+    {
+        return in_array($gid, [5, 6, 7, 8, 9], true);
+    }
+
+    /**
+     * Return the default target level this application manages automatically.
+     */
+    public static function defaultManagedTargetLevelForGid(int $gid): ?int
+    {
+        if (self::isResourceBonusBuilding($gid)) {
+            return 5;
+        }
+
+        return match ($gid) {
+            10, 11 => self::finalLevelForGid($gid),
+            15 => 14,
+            16, 31, 32, 33 => 1,
+            default => null,
+        };
+    }
+
+    /**
+     * Determine whether a discovered or missing building should receive a target automatically.
+     */
+    public static function isDefaultManagedBuilding(int $gid): bool
+    {
+        return self::defaultManagedTargetLevelForGid($gid) !== null;
+    }
+
+    /**
+     * Travian only allows another copy of these after the existing one reaches max level.
+     */
+    public static function allowsOnlyOneUntilMax(int $gid): bool
+    {
+        return in_array($gid, [10, 11, 23], true);
+    }
+
+    /**
+     * Determine whether this building can have multiple copies once the current copy is complete.
+     */
+    public static function allowsMultipleCopiesAfterMax(int $gid): bool
+    {
+        return in_array($gid, [10, 11, 23], true);
+    }
+
+    /**
      * Return the level-one construction resources for one gid.
      *
      * @return array{wood: int, clay: int, iron: int, crop: int, crop_consumption: int, total_resources: int}|null
@@ -209,13 +274,18 @@ final class TravianBuildingCatalog
         $missingRequirements = [];
 
         foreach ($rule['requirements'] as $requirement) {
-            $currentLevel = self::highestKnownLevel($village, (int) $requirement['gid']);
+            $requiredGid = (int) $requirement['gid'];
+            $requiredLevel = (int) $requirement['level'];
+            $currentLevel = self::highestKnownLevel($village, $requiredGid);
+            $requirementIsMet = $requiredLevel <= 0
+                ? self::hasKnownBuildingGid($village, $requiredGid)
+                : $currentLevel >= $requiredLevel;
 
-            if ($currentLevel < (int) $requirement['level']) {
+            if (! $requirementIsMet) {
                 $missingRequirements[] = [
-                    'gid' => (int) $requirement['gid'],
-                    'name' => self::nameForGid((int) $requirement['gid']),
-                    'required_level' => (int) $requirement['level'],
+                    'gid' => $requiredGid,
+                    'name' => self::nameForGid($requiredGid),
+                    'required_level' => $requiredLevel,
                     'current_level' => $currentLevel,
                 ];
             }
@@ -455,6 +525,16 @@ final class TravianBuildingCatalog
         return (int) $village->buildings
             ->where('building_gid', $gid)
             ->max('current_level');
+    }
+
+    /**
+     * Determine whether the village has discovered this gid at any level.
+     */
+    private static function hasKnownBuildingGid(Village $village, int $gid): bool
+    {
+        return $village->buildings
+            ->where('building_gid', $gid)
+            ->isNotEmpty();
     }
 
     /**

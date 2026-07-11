@@ -1,6 +1,4 @@
 @php
-    $accountIsExpanded = (bool) ($expandedAccounts[$account->id] ?? false);
-    $loadedVillages = $account->relationLoaded('villages') ? $account->villages : collect();
     $resolvedUserAgent = $account->user_agent ?: ($globalDefaultUserAgent ?? null);
     $programPaused = ! (bool) ($automationEnabled ?? true);
     $accountStatusValue = $programPaused && $account->is_active ? 'program_paused' : ($account->is_active ? $account->status->value : 'paused');
@@ -16,6 +14,14 @@
     $accountAccentClass = $accountStatusValue === 'paused' || $accountStatusValue === 'program_paused' || ! $account->is_active
         ? 'border-l-amber-400'
         : ($accountStatusValue === 'syncing' ? 'border-l-sky-400' : ($accountStatusValue === 'connection_issue' || $accountStatusValue === 'error' ? 'border-l-rose-500' : 'border-l-[var(--color-accent)]'));
+    $accountHeaderClasses = match ($accountStatusValue) {
+        'syncing' => 'border-sky-500/25 bg-sky-100/90 text-sky-950',
+        'connection_issue', 'error' => 'border-rose-500/35 bg-rose-100/90 text-rose-950',
+        'paused', 'program_paused' => 'border-amber-500/45 bg-amber-100 text-amber-950',
+        default => $account->is_active
+            ? 'border-teal-600/20 bg-teal-50/95 text-slate-900'
+            : 'border-amber-500/45 bg-amber-100 text-amber-950',
+    };
     $accountNameClasses = match ($accountStatusValue) {
         'syncing' => 'border-sky-500/25 bg-sky-500/10 text-sky-950',
         'connection_issue', 'error' => 'border-rose-500/25 bg-rose-500/10 text-rose-950',
@@ -58,8 +64,8 @@
 @endphp
 
 <article wire:key="account-row-{{ $account->id }}"
-    class="overflow-visible rounded-lg border border-l-4 border-[var(--color-line)] {{ $accountAccentClass }} bg-[var(--color-panel)] shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
-    <div class="flex flex-col gap-2 border-b border-[var(--color-line)] bg-[var(--color-panel-alt)]/75 px-3 py-2 lg:flex-row lg:items-center lg:justify-between">
+    class="overflow-visible rounded-lg border border-l-4 border-[var(--color-line)] {{ $accountAccentClass }} bg-slate-50/75 shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
+    <div class="flex flex-col gap-2 rounded-t-md border-b-2 px-3 py-2 shadow-[inset_0_-1px_0_rgba(255,255,255,0.65)] lg:flex-row lg:items-center lg:justify-between {{ $accountHeaderClasses }}">
         <div class="min-w-0 space-y-1.5">
             <div class="flex flex-wrap items-center gap-2">
                 <h3 class="inline-flex h-8 max-w-full items-center truncate rounded-md border px-3 text-base font-semibold shadow-sm {{ $accountNameClasses }}">
@@ -70,11 +76,11 @@
                     {{ $accountStatusValue === 'connection_issue' ? 'connection' : ($accountStatusValue === 'program_paused' ? 'program paused' : $accountStatusValue) }}
                 </span>
 
-                <span class="inline-flex h-7 items-center rounded-md bg-[var(--color-panel-alt)] px-2.5 text-[11px] font-semibold text-[var(--color-muted)]">
+                <span class="inline-flex h-7 items-center rounded-md bg-white/55 px-2.5 text-[11px] font-semibold {{ str_contains($accountHeaderClasses, 'text-amber') ? 'text-amber-950/75' : 'text-slate-700' }}">
                     {{ $account->villages_count }} villages
                 </span>
 
-                <span class="inline-flex h-7 items-center rounded-md bg-[var(--color-panel-alt)] px-2.5 text-[11px] font-semibold text-[var(--color-muted)]">
+                <span class="inline-flex h-7 items-center rounded-md bg-white/55 px-2.5 text-[11px] font-semibold {{ str_contains($accountHeaderClasses, 'text-amber') ? 'text-amber-950/75' : 'text-slate-700' }}">
                     Synced {{ $accountLastSeenAt?->diffForHumans() ?? 'never' }}
                 </span>
 
@@ -114,7 +120,7 @@
                 @endif
 
                 @if ($accountTribeLabel !== null)
-                    <span class="inline-flex h-7 items-center gap-1.5 rounded-md bg-[var(--color-panel-alt)] px-2.5 text-[11px] font-semibold text-[var(--color-muted)]">
+                    <span class="inline-flex h-7 items-center gap-1.5 rounded-md bg-white/55 px-2.5 text-[11px] font-semibold {{ str_contains($accountHeaderClasses, 'text-amber') ? 'text-amber-950/75' : 'text-slate-700' }}">
                         @if ($accountTribeIcon !== null)
                             <img src="{{ asset($accountTribeIcon) }}" alt="{{ $accountTribeLabel }}"
                                 class="h-4 w-4 shrink-0 object-contain"
@@ -135,14 +141,14 @@
                 @endif
             </div>
 
-            <div class="flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] text-[var(--color-muted)]">
-                <span class="inline-flex h-6 max-w-full items-center truncate rounded-md bg-[var(--color-panel-alt)] px-2.5">
+            <div class="flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] {{ str_contains($accountHeaderClasses, 'text-amber') ? 'text-amber-950/70' : 'text-slate-600' }}">
+                <span class="inline-flex h-6 max-w-full items-center truncate rounded-md bg-white/55 px-2.5">
                     {{ $account->server_url }}
                 </span>
-                <span class="inline-flex h-6 max-w-full items-center truncate rounded-md bg-[var(--color-panel-alt)] px-2.5">
+                <span class="inline-flex h-6 max-w-full items-center truncate rounded-md bg-white/55 px-2.5">
                     {{ $proxySummary }}
                 </span>
-                <span class="inline-flex h-6 max-w-full items-center truncate rounded-md bg-[var(--color-panel-alt)] px-2.5 lg:max-w-[34rem]">
+                <span class="inline-flex h-6 max-w-full items-center truncate rounded-md bg-white/55 px-2.5 lg:max-w-[34rem]">
                     UA: {{ $resolvedUserAgent ?: 'Not set' }}
                 </span>
             </div>
@@ -156,14 +162,14 @@
                     onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden');" />
                 <span class="hidden text-[10px] font-black uppercase text-[var(--color-muted)]">A</span>
             </span>
-            <button type="button" wire:click="toggleAccountExpansion({{ $account->id }})"
-                class="inline-flex h-8 min-w-8 items-center justify-center gap-1 rounded-md border border-[var(--color-line-strong)] px-2 text-xs font-semibold transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+            <button type="button" wire:click="$dispatch('dashboard-toggle-account-expansion', { accountId: {{ $account->id }} })"
+                class="inline-flex h-8 min-w-10 items-center justify-center gap-1 rounded-md border px-2 text-xs font-extrabold shadow-sm transition {{ $accountIsExpanded ? 'border-sky-700/25 bg-sky-500/15 text-sky-950 hover:bg-sky-500/25' : 'border-slate-500/25 bg-slate-100 text-slate-800 hover:bg-slate-200' }}"
                 title="{{ $accountIsExpanded ? 'Hide village rows' : 'Show village rows' }}"
                 aria-label="{{ $accountIsExpanded ? 'Hide village rows' : 'Show village rows' }}">
                 <span class="text-sm leading-none">{{ $accountIsExpanded ? '▾' : '▸' }}</span>
                 <span>{{ $account->villages_count }}</span>
             </button>
-            <button type="button" wire:click="openAccountSettingsModal({{ $account->id }})"
+            <button type="button" wire:click="$dispatch('dashboard-open-account-settings', { accountId: {{ $account->id }} })"
                 class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[var(--color-line-strong)] text-sm font-semibold transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
                 title="Account settings"
                 aria-label="Account settings">
@@ -172,14 +178,14 @@
 
             @if ($account->is_active)
                 <button type="button" wire:click="pauseAccount({{ $account->id }})"
-                    class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-amber-800/20 bg-amber-500/10 text-sm font-semibold text-amber-900 transition hover:bg-amber-500/20"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-amber-700/35 bg-amber-400/35 text-sm font-black text-amber-950 shadow-sm transition hover:bg-amber-400/55"
                     title="Pause this account"
                     aria-label="Pause this account">
                     &#9208;
                 </button>
             @else
                 <button type="button" wire:click="activateAccount({{ $account->id }})"
-                    class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-emerald-800/20 bg-emerald-500/10 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-500/20"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-emerald-700/35 bg-emerald-500/25 text-sm font-black text-emerald-950 shadow-sm transition hover:bg-emerald-500/40"
                     title="Activate this account"
                     aria-label="Activate this account">
                     &#9654;
@@ -196,11 +202,16 @@
     </div>
 
     @if ($accountIsExpanded)
-        <div class="bg-[var(--color-panel-alt)]/45 px-4 py-3">
+        <div class="border-t border-white/70 bg-[var(--color-panel-alt)]/55 px-4 pb-3 pt-4">
         @if ($loadedVillages->isNotEmpty())
-            <div class="relative space-y-2 border-l border-[var(--color-line-strong)] pl-4">
+            <div class="relative space-y-2 border-l-2 border-[var(--color-line-strong)] pl-4">
                 @foreach ($loadedVillages as $village)
-                    @include('livewire.dashboard.partials.village-row', ['account' => $account, 'village' => $village])
+                    <livewire:dashboard.village-row
+                        :village-id="$village->id"
+                        :global-field-priority="$globalFieldPriority"
+                        :global-field-level-cap="$globalFieldLevelCap"
+                        :global-prioritize-crop-fields-when-negative="$globalPrioritizeCropFieldsWhenNegative"
+                        :key="'dashboard-village-row-'.$village->id" />
                 @endforeach
             </div>
         @else

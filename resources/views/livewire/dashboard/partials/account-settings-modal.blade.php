@@ -36,14 +36,14 @@
                 @if ($accountSettingsTab === 'account')
                     <div class="space-y-4">
                         <label class="flex items-center gap-3 rounded-lg bg-[var(--color-panel-alt)] px-4 py-3 text-sm font-semibold">
-                            <input type="checkbox" wire:model.live="accountInheritUserAgentDraft"
+                            <input type="checkbox" wire:model.change="accountInheritUserAgentDraft"
                                 class="rounded border-[var(--color-line-strong)] text-[var(--color-accent)]">
                             <span>Use program user agent</span>
                         </label>
 
                         <label class="block space-y-2">
                             <span class="text-sm font-semibold">Account user agent</span>
-                            <textarea wire:model.live.debounce.500ms="accountUserAgentDraft" rows="5"
+                            <textarea wire:model="accountUserAgentDraft" rows="5"
                                 @disabled($accountInheritUserAgentDraft)
                                 class="w-full rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] px-3 py-3 text-sm leading-6 text-[var(--color-ink)] outline-none transition placeholder:text-[var(--color-muted)] focus:border-[var(--color-accent)] focus:ring-4 focus:ring-[color:var(--color-accent-soft)] disabled:opacity-60"
                                 placeholder="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ..."></textarea>
@@ -110,7 +110,7 @@
                                                 <option value="socks5h">socks5h</option>
                                             </select>
 
-                                            <input type="text" wire:model.live.debounce.400ms="accountProxyDrafts.{{ $proxyIndex }}.host"
+                                            <input type="text" wire:model="accountProxyDrafts.{{ $proxyIndex }}.host"
                                                 title="Proxy host or IP"
                                                 class="rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] px-3 py-2 text-xs text-[var(--color-ink)] outline-none focus:border-[var(--color-accent)]"
                                                 placeholder="1.2.3.4">
@@ -120,12 +120,12 @@
                                                 class="rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] px-3 py-2 text-xs text-[var(--color-ink)] outline-none focus:border-[var(--color-accent)]"
                                                 placeholder="1080">
 
-                                            <input type="text" wire:model.live.debounce.400ms="accountProxyDrafts.{{ $proxyIndex }}.username"
+                                            <input type="text" wire:model="accountProxyDrafts.{{ $proxyIndex }}.username"
                                                 title="Optional proxy username"
                                                 class="rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] px-3 py-2 text-xs text-[var(--color-ink)] outline-none focus:border-[var(--color-accent)]"
                                                 placeholder="proxy user">
 
-                                            <input type="password" wire:model.live.debounce.400ms="accountProxyDrafts.{{ $proxyIndex }}.password"
+                                            <input type="password" wire:model="accountProxyDrafts.{{ $proxyIndex }}.password"
                                                 title="Optional proxy password. Leave empty to keep the saved password."
                                                 class="rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] px-3 py-2 text-xs text-[var(--color-ink)] outline-none focus:border-[var(--color-accent)]"
                                                 placeholder="{{ isset($proxyDraft['id']) && $proxyDraft['id'] ? 'keep saved' : 'proxy password' }}">

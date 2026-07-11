@@ -140,20 +140,6 @@ class ExecuteVillageResourceTransfer
         }
 
         if ($sentShipments === []) {
-            if ($lastBlockedReason === 'duration_limit') {
-                $this->logTransferActivity($account, $recipientVillage, null, ActivityLogStatus::Pending, "No supplier village could send resources within the configured travel time for {$transferPurpose}.", [
-                    'construction' => $constructionPayload,
-                    'needed_resources' => $remainingResources,
-                ]);
-
-                return;
-            }
-
-            $this->logTransferActivity($account, $recipientVillage, null, ActivityLogStatus::Pending, "No eligible supplier village could send resources for {$transferPurpose}.", [
-                'construction' => $constructionPayload,
-                'needed_resources' => $remainingResources,
-            ]);
-
             return;
         }
 

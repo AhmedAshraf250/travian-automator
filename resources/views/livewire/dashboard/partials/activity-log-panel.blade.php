@@ -1,28 +1,21 @@
 @if ($showActivityLog)
-    <section class="flex h-full flex-col overflow-hidden rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[0_18px_55px_rgba(15,23,42,0.18)]">
-        <div class="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--color-line)] bg-[var(--color-panel)] px-3 py-2">
+    <section class="relative flex h-full flex-col overflow-hidden rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[0_18px_55px_rgba(15,23,42,0.18)]">
+        <div class="absolute inset-x-0 top-0 z-10 h-2 cursor-ns-resize bg-transparent hover:bg-[var(--color-accent)]/15"
+            @pointerdown="startActivityLogResize($event)"
+            title="Drag to resize activity log"
+            aria-label="Drag to resize activity log"></div>
+
+        <div class="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--color-line)] bg-[var(--color-panel)] px-2.5 py-1.5">
             <div class="flex items-center gap-2">
-                <h2 class="font-[var(--font-display)] text-sm font-semibold">Activity log</h2>
-                <span class="rounded-md bg-[var(--color-panel-alt)] px-2 py-1 text-[11px] font-semibold text-[var(--color-muted)]">
+                <h2 class="font-[var(--font-display)] text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">Activity log</h2>
+                <span class="rounded-md bg-[var(--color-panel-alt)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-muted)]">
                     {{ $activityLogCount }}
                 </span>
             </div>
 
             <div class="flex items-center gap-1.5">
-                <button type="button" wire:click="decreaseActivityLogHeight"
-                    class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--color-line-strong)] text-sm font-bold text-[var(--color-muted)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
-                    title="Make activity log shorter"
-                    aria-label="Make activity log shorter">
-                    −
-                </button>
-                <button type="button" wire:click="increaseActivityLogHeight"
-                    class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--color-line-strong)] text-sm font-bold text-[var(--color-muted)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
-                    title="Make activity log taller"
-                    aria-label="Make activity log taller">
-                    +
-                </button>
                 <button type="button" wire:click="toggleActivityLog"
-                    class="inline-flex h-7 items-center justify-center rounded-md border border-[var(--color-line-strong)] px-2.5 text-xs font-semibold text-[var(--color-ink)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]">
+                    class="inline-flex h-6 items-center justify-center rounded-md border border-[var(--color-line-strong)] px-2 text-[11px] font-semibold text-[var(--color-ink)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]">
                     Hide
                 </button>
             </div>
@@ -35,8 +28,40 @@
                         $activityType = $activityLog->activity_type->value;
                         $statusValue = $activityLog->status->value;
                         $payload = is_array($activityLog->payload) ? $activityLog->payload : [];
+                        $result = is_array($activityLog->result) ? $activityLog->result : [];
                         $logOccurredAt = $activityLog->executed_at ?? $activityLog->created_at;
                         $logDisplayAt = $logOccurredAt?->timezone(config('app.timezone'));
+                        $travianEvidenceKeys = [
+                            'status_code',
+                            'preview_status_code',
+                            'confirm_status_code',
+                            'reload_status_code',
+                            'refresh_status_code',
+                            'effective_uri',
+                            'build_effective_uri',
+                            'dorf1_effective_uri',
+                            'dorf2_effective_uri',
+                            'tasks_effective_uri',
+                            'details_effective_uri',
+                            'action_uri',
+                        ];
+                        $hasTravianEvidence = collect([$payload, $result])
+                            ->contains(function (array $sourcePayload) use ($travianEvidenceKeys): bool {
+                                foreach ($travianEvidenceKeys as $key) {
+                                    if (array_key_exists($key, $sourcePayload) && filled($sourcePayload[$key])) {
+                                        return true;
+                                    }
+                                }
+
+                                return false;
+                            });
+                        $logSourceLabel = $hasTravianEvidence ? 'TRAVIAN' : 'APP';
+                        $logSourceTitle = $hasTravianEvidence
+                            ? 'This log is tied to a Travian request or response.'
+                            : 'This log was created by local application logic before/without a Travian response.';
+                        $logSourceClasses = $hasTravianEvidence
+                            ? 'bg-blue-100 text-blue-950 ring-1 ring-blue-200'
+                            : 'bg-slate-100 text-slate-700 ring-1 ring-slate-200';
 
                         $logRemainingSeconds = isset($payload['remaining_seconds'])
                             ? (int) $payload['remaining_seconds']
@@ -91,6 +116,10 @@
                         <span class="text-slate-500">^</span>
                         <span class="rounded px-1 py-0 text-[10px] font-bold uppercase {{ $activityClasses }}">
                             {{ $activityType }}
+                        </span>
+                        <span class="rounded px-1 py-0 text-[10px] font-bold uppercase {{ $logSourceClasses }}"
+                            title="{{ $logSourceTitle }}">
+                            {{ $logSourceLabel }}
                         </span>
                         <span class="rounded px-1 py-0 text-[10px] font-bold uppercase {{ $statusClasses }}">
                             {{ $statusValue }}

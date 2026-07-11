@@ -2,11 +2,13 @@
 
 namespace App\Livewire\Dashboard\Concerns;
 
+use App\Application\Travian\Data\BuildingEligibility;
 use App\Application\Travian\TravianBuildingCatalog;
 use App\Enums\VillageCelebrationType;
 use App\Models\SystemSetting;
 use App\Models\Village;
 use App\Models\VillageBuilding;
+use App\Models\VillageBuildingTarget;
 use App\Models\VillageSetting;
 use Illuminate\Validation\ValidationException;
 
@@ -211,6 +213,11 @@ trait ManagesVillageSettings
             'field_priority' => VillageSetting::defaultFieldPriority(),
         ]);
         $tribeId = $village->runtimeState?->tribe_id !== null ? (int) $village->runtimeState->tribe_id : null;
+        $this->ensureDefaultBuildingTargets($village, $tribeId);
+        $village->load([
+            'buildingTargets' => fn ($query) => $query->orderBy('priority')->orderBy('slot_id'),
+        ]);
+
         $fieldLevelCapMode = in_array((string) $settings->field_level_cap_mode, VillageSetting::fieldLevelCapModes(), true)
             ? (string) $settings->field_level_cap_mode
             : VillageSetting::FieldCapInherit;
@@ -399,6 +406,10 @@ trait ManagesVillageSettings
                 $buildingGid = $currentGid;
             }
 
+            if ($buildingGid === 0) {
+                $targetLevel = 0;
+            }
+
             if ($targetLevel <= 0) {
                 $village->buildingTargets()->where('slot_id', $slotId)->delete();
 
@@ -427,6 +438,28 @@ trait ManagesVillageSettings
                 throw ValidationException::withMessages([
                     "villageBuildingPlanDraft.{$slotId}.building_gid" => 'This building is not available for the current tribe.',
                 ]);
+            }
+
+            if ($currentGid === 0 && $this->duplicateLimitedBuildingExistsBeforeMax($village, $buildingGid, $slotId)) {
+                throw ValidationException::withMessages([
+                    "villageBuildingPlanDraft.{$slotId}.building_gid" => 'Travian only allows another copy after the existing building reaches max level.',
+                ]);
+            }
+
+            if ($currentGid === 0 && $this->buildingExistsOrIsPlannedElsewhere($village, $buildingGid, $slotId)) {
+                throw ValidationException::withMessages([
+                    "villageBuildingPlanDraft.{$slotId}.building_gid" => 'This building already exists or is planned in another slot.',
+                ]);
+            }
+
+            if ($currentGid === 0 && ! $this->canKeepPlannedBeforeRequirements($buildingGid)) {
+                $eligibility = TravianBuildingCatalog::canConstructInVillage($buildingGid, $village->account, $village);
+
+                if (! $eligibility->allowed) {
+                    throw ValidationException::withMessages([
+                        "villageBuildingPlanDraft.{$slotId}.building_gid" => 'Travian requirements are not met for this building yet.',
+                    ]);
+                }
             }
 
             if ($currentGid !== 0 && $targetLevel < $currentLevel) {
@@ -460,7 +493,18 @@ trait ManagesVillageSettings
         }
 
         $this->logManualActivity($village->account, $village, 'Village settings saved from dashboard.');
-        $this->resetVillageBuildPlanState();
+        $village = $village->fresh([
+            'runtimeState',
+            'buildings' => fn ($query) => $query->orderBy('slot_id'),
+            'buildingTargets' => fn ($query) => $query->orderBy('priority')->orderBy('slot_id'),
+        ]);
+
+        if ($village instanceof Village) {
+            $this->slotBuildingOptions = $this->buildSlotBuildingOptions($village, $tribeId);
+            $this->villageBuildingPlanDraft = $this->buildVillagePlanDraft($village, $tribeId);
+            $this->updateVillageCelebrationReadinessMessage($village);
+            $this->showVillageBuildPlanModal = true;
+        }
 
         session()->flash('dashboard-banner', "{$village->name}: village settings were saved.");
     }
@@ -523,6 +567,8 @@ trait ManagesVillageSettings
             $currentLevel = $currentSlot instanceof VillageBuilding ? (int) $currentSlot->current_level : 0;
             $fixedSlotGid = TravianBuildingCatalog::fixedSlotGidForSlot($slotId, $tribeId);
             $targetGid = $target?->building_gid;
+            $targetLevel = (int) ($target?->target_level ?? 0);
+            $priority = max(1, min(4, (int) ($target?->priority ?? 4)));
 
             if ($targetGid === null || (int) $targetGid === 0) {
                 $targetGid = $target !== null
@@ -538,14 +584,28 @@ trait ManagesVillageSettings
                     : $fixedSlotGid;
             }
 
+            if ($target === null && TravianBuildingCatalog::isDefaultManagedBuilding($currentGid)) {
+                $targetLevel = TravianBuildingCatalog::defaultManagedTargetLevelForGid($currentGid) ?? 0;
+                $priority = 1;
+            }
+
+            if ($target === null && $currentGid === 0 && $fixedSlotGid !== null && TravianBuildingCatalog::isDefaultManagedBuilding($fixedSlotGid)) {
+                $targetLevel = TravianBuildingCatalog::defaultManagedTargetLevelForGid($fixedSlotGid) ?? 0;
+                $priority = 1;
+            }
+
             $draft[$slotId] = [
                 'slot_id' => $slotId,
                 'current_gid' => $currentGid,
                 'current_name' => $this->resolveCurrentSlotLabel($currentSlot, $slotId, $tribeId),
                 'current_level' => $currentLevel,
+                'current_max_level' => TravianBuildingCatalog::finalLevelForGid($currentGid),
+                'current_is_maxed' => $currentGid > 0
+                    && TravianBuildingCatalog::finalLevelForGid($currentGid) !== null
+                    && $currentLevel >= TravianBuildingCatalog::finalLevelForGid($currentGid),
                 'building_gid' => (int) ($resolvedBuildingGid ?? 0),
-                'target_level' => (int) ($target?->target_level ?? 0),
-                'priority' => max(1, min(4, (int) ($target?->priority ?? 4))),
+                'target_level' => $targetLevel,
+                'priority' => $priority,
                 'is_enabled' => (bool) ($target?->is_enabled ?? true),
                 'is_locked' => $currentGid !== 0 || $fixedSlotGid !== null,
             ];
@@ -554,15 +614,354 @@ trait ManagesVillageSettings
         return $draft;
     }
 
+    protected function ensureDefaultBuildingTargets(Village $village, ?int $tribeId): void
+    {
+        $changed = false;
+
+        foreach ([26, 39, 40] as $fixedSlotId) {
+            $fixedGid = TravianBuildingCatalog::fixedSlotGidForSlot($fixedSlotId, $tribeId);
+
+            if ($fixedGid === null) {
+                continue;
+            }
+
+            if (! $village->buildings->firstWhere('slot_id', $fixedSlotId) instanceof VillageBuilding) {
+                $village->buildings()->create([
+                    'slot_id' => $fixedSlotId,
+                    'building_gid' => 0,
+                    'building_type' => null,
+                    'current_level' => 0,
+                ]);
+                $village->load('buildings');
+            }
+
+            $fixedTargetLevel = TravianBuildingCatalog::defaultManagedTargetLevelForGid($fixedGid);
+
+            if ($fixedTargetLevel === null || $village->buildingTargets->firstWhere('slot_id', $fixedSlotId) instanceof VillageBuildingTarget) {
+                continue;
+            }
+
+            $fixedSlot = $village->buildings->firstWhere('slot_id', $fixedSlotId);
+
+            if ($fixedSlot instanceof VillageBuilding && (int) $fixedSlot->building_gid === $fixedGid) {
+                $finalLevel = TravianBuildingCatalog::finalLevelForGid($fixedGid);
+
+                if ($finalLevel !== null && (int) $fixedSlot->current_level >= $finalLevel) {
+                    continue;
+                }
+            }
+
+            $village->buildingTargets()->create([
+                'slot_id' => $fixedSlotId,
+                'building_gid' => $fixedGid,
+                'building_type' => TravianBuildingCatalog::nameForGid($fixedGid),
+                'target_level' => $fixedTargetLevel,
+                'priority' => 1,
+                'is_enabled' => true,
+            ]);
+
+            $changed = true;
+            $village->load('buildingTargets');
+        }
+
+        foreach ($village->buildings as $building) {
+            if (! $building instanceof VillageBuilding) {
+                continue;
+            }
+
+            $slotId = (int) $building->slot_id;
+            $buildingGid = (int) $building->building_gid;
+
+            if ($slotId < 19 || $slotId > 40 || ! TravianBuildingCatalog::isDefaultManagedBuilding($buildingGid)) {
+                continue;
+            }
+
+            if ($buildingGid > 0
+                && TravianBuildingCatalog::finalLevelForGid($buildingGid) !== null
+                && (int) $building->current_level >= (int) TravianBuildingCatalog::finalLevelForGid($buildingGid)) {
+                continue;
+            }
+
+            if ($village->buildingTargets->firstWhere('slot_id', $slotId) instanceof VillageBuildingTarget) {
+                continue;
+            }
+
+            $village->buildingTargets()->create([
+                'slot_id' => $slotId,
+                'building_gid' => $buildingGid,
+                'building_type' => TravianBuildingCatalog::nameForGid($buildingGid) ?? $building->building_type,
+                'target_level' => TravianBuildingCatalog::defaultManagedTargetLevelForGid($buildingGid),
+                'priority' => 1,
+                'is_enabled' => true,
+            ]);
+
+            $changed = true;
+        }
+
+        foreach ([10, 11] as $requiredGid) {
+            if ($this->hasBuildingOrTarget($village, $requiredGid)) {
+                continue;
+            }
+
+            $slotId = $this->firstEmptyFlexibleSlot($village, $tribeId);
+
+            if ($slotId === null) {
+                continue;
+            }
+
+            if (! $village->buildings->firstWhere('slot_id', $slotId) instanceof VillageBuilding) {
+                $village->buildings()->create([
+                    'slot_id' => $slotId,
+                    'building_gid' => 0,
+                    'building_type' => null,
+                    'current_level' => 0,
+                ]);
+                $village->load('buildings');
+            }
+
+            $village->buildingTargets()->create([
+                'slot_id' => $slotId,
+                'building_gid' => $requiredGid,
+                'building_type' => TravianBuildingCatalog::nameForGid($requiredGid),
+                'target_level' => TravianBuildingCatalog::defaultManagedTargetLevelForGid($requiredGid),
+                'priority' => 1,
+                'is_enabled' => true,
+            ]);
+
+            $changed = true;
+            $village->load('buildingTargets');
+        }
+
+        if ($changed) {
+            $village->load([
+                'buildings' => fn ($query) => $query->orderBy('slot_id'),
+                'buildingTargets' => fn ($query) => $query->orderBy('priority')->orderBy('slot_id'),
+            ]);
+        }
+    }
+
+    protected function hasBuildingOrTarget(Village $village, int $gid): bool
+    {
+        foreach ($village->buildings as $building) {
+            if ($building instanceof VillageBuilding && (int) $building->building_gid === $gid) {
+                return true;
+            }
+        }
+
+        foreach ($village->buildingTargets as $target) {
+            if ($target instanceof VillageBuildingTarget && (int) $target->building_gid === $gid && (int) $target->target_level > 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function hasIncompleteBuildingOrTarget(Village $village, int $gid): bool
+    {
+        $finalLevel = TravianBuildingCatalog::finalLevelForGid($gid);
+
+        foreach ($village->buildings as $building) {
+            if (! $building instanceof VillageBuilding || (int) $building->building_gid !== $gid) {
+                continue;
+            }
+
+            if ($finalLevel === null || (int) $building->current_level < $finalLevel) {
+                return true;
+            }
+        }
+
+        foreach ($village->buildingTargets as $target) {
+            if (! $target instanceof VillageBuildingTarget || (int) $target->building_gid !== $gid || (int) $target->target_level < 1) {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    protected function firstEmptyFlexibleSlot(Village $village, ?int $tribeId): ?int
+    {
+        $currentSlots = $village->buildings->keyBy('slot_id');
+        $targetSlots = $village->buildingTargets->keyBy('slot_id');
+
+        foreach (range(19, 38) as $slotId) {
+            $slot = $currentSlots->get($slotId);
+            $target = $targetSlots->get($slotId);
+
+            if (TravianBuildingCatalog::fixedSlotGidForSlot($slotId, $tribeId) !== null) {
+                continue;
+            }
+
+            if ($slot instanceof VillageBuilding && (int) $slot->building_gid !== 0) {
+                continue;
+            }
+
+            if ($target instanceof VillageBuildingTarget && (int) $target->target_level > 0) {
+                continue;
+            }
+
+            return $slotId;
+        }
+
+        return null;
+    }
+
+    protected function duplicateLimitedBuildingExistsBeforeMax(Village $village, int $gid, int $slotId): bool
+    {
+        if (! TravianBuildingCatalog::allowsOnlyOneUntilMax($gid)) {
+            return false;
+        }
+
+        $finalLevel = TravianBuildingCatalog::finalLevelForGid($gid);
+
+        if ($finalLevel !== null) {
+            foreach ($village->buildings as $building) {
+                if (! $building instanceof VillageBuilding || (int) $building->slot_id === $slotId || (int) $building->building_gid !== $gid) {
+                    continue;
+                }
+
+                if ((int) $building->current_level >= $finalLevel) {
+                    return false;
+                }
+            }
+        }
+
+        foreach ($village->buildings as $building) {
+            if (! $building instanceof VillageBuilding || (int) $building->slot_id === $slotId || (int) $building->building_gid !== $gid) {
+                continue;
+            }
+
+            if ($finalLevel === null || (int) $building->current_level < $finalLevel) {
+                return true;
+            }
+        }
+
+        foreach ($village->buildingTargets as $target) {
+            if (! $target instanceof VillageBuildingTarget || (int) $target->slot_id === $slotId || (int) $target->building_gid !== $gid) {
+                continue;
+            }
+
+            if ((int) $target->target_level > 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function buildingExistsOrIsPlannedElsewhere(Village $village, int $gid, int $slotId): bool
+    {
+        if ($gid < 1 || TravianBuildingCatalog::allowsMultipleCopiesAfterMax($gid)) {
+            return false;
+        }
+
+        foreach ($village->buildings as $building) {
+            if (! $building instanceof VillageBuilding || (int) $building->slot_id === $slotId) {
+                continue;
+            }
+
+            if ((int) $building->building_gid === $gid) {
+                return true;
+            }
+        }
+
+        foreach ($village->buildingTargets as $target) {
+            if (! $target instanceof VillageBuildingTarget || (int) $target->slot_id === $slotId) {
+                continue;
+            }
+
+            if ((int) $target->building_gid === $gid && (int) $target->target_level > 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function shouldHideBuildingOption(Village $village, int $gid, int $slotId): bool
+    {
+        if ($this->duplicateLimitedBuildingExistsBeforeMax($village, $gid, $slotId)) {
+            return true;
+        }
+
+        if ($this->buildingExistsOrIsPlannedElsewhere($village, $gid, $slotId)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    protected function decorateBuildingOptionForVillage(Village $village, array $option): array
+    {
+        $gid = (int) $option['gid'];
+
+        if ($this->canKeepPlannedBeforeRequirements($gid)) {
+            return [
+                ...$option,
+                'selectable' => true,
+                'unavailable_reason' => null,
+            ];
+        }
+
+        $eligibility = TravianBuildingCatalog::canConstructInVillage($gid, $village->account, $village);
+
+        return [
+            ...$option,
+            'selectable' => $eligibility->allowed,
+            'unavailable_reason' => $eligibility->allowed ? null : $this->buildingOptionUnavailableReason($eligibility),
+        ];
+    }
+
+    protected function buildingOptionUnavailableReason(BuildingEligibility $eligibility): string
+    {
+        if ($eligibility->blockedReason !== 'missing_requirements' || $eligibility->missingRequirements === []) {
+            return match ($eligibility->blockedReason) {
+                'capital_required' => 'Unavailable now: this building requires a capital village.',
+                'account_unique_building_exists' => 'Unavailable now: this building already exists in another village.',
+                'mutually_exclusive_building_exists' => 'Unavailable now: another exclusive building already exists.',
+                'tribe_restricted' => 'Unavailable now: this building is not available for this tribe.',
+                default => 'Unavailable now: Travian requirements are not met in this village.',
+            };
+        }
+
+        $requirements = collect($eligibility->missingRequirements)
+            ->map(function (array $requirement): string {
+                $name = $requirement['name'] ?? ('gid '.$requirement['gid']);
+                $requiredLevel = (int) $requirement['required_level'];
+
+                if ($requiredLevel <= 0) {
+                    return "{$name} required";
+                }
+
+                return "{$name} Lv {$requiredLevel} required";
+            })
+            ->implode(', ');
+
+        return "Unavailable now: {$requirements}.";
+    }
+
+    protected function canKeepPlannedBeforeRequirements(int $gid): bool
+    {
+        return in_array($gid, [10, 11, 15, 16, 31, 32, 33], true);
+    }
+
     /**
      * Build the per-slot selectable building options for the current village.
      *
-     * @return array<int, list<array{gid: int, label: string, category: int|null}>>
+     * @return array<int, list<array{gid: int, label: string, category: int|null, icon: string|null, selectable: bool, unavailable_reason: string|null}>>
      */
     protected function buildSlotBuildingOptions(Village $village, ?int $tribeId): array
     {
         $currentSlots = $village->buildings->keyBy('slot_id');
-        $genericOptions = collect(TravianBuildingCatalog::buildingOptionsForTribe($tribeId))->keyBy('gid');
+        $genericOptions = collect(TravianBuildingCatalog::buildingOptionsForTribe($tribeId))
+            ->map(fn (array $option): array => [
+                ...$option,
+                'icon' => $this->buildingIconPathForGid((int) $option['gid']),
+            ])
+            ->keyBy('gid');
         $slotOptions = [];
 
         foreach (range(19, 40) as $slotId) {
@@ -584,7 +983,11 @@ trait ManagesVillageSettings
                 continue;
             }
 
-            $slotOptions[$slotId] = array_values($genericOptions->all());
+            $slotOptions[$slotId] = $genericOptions
+                ->reject(fn (array $option): bool => $this->shouldHideBuildingOption($village, (int) $option['gid'], $slotId))
+                ->map(fn (array $option): array => $this->decorateBuildingOptionForVillage($village, $option))
+                ->values()
+                ->all();
         }
 
         return $slotOptions;
@@ -593,7 +996,7 @@ trait ManagesVillageSettings
     /**
      * Resolve one select option payload for a gid.
      *
-     * @return array{gid: int, label: string, category: int|null}|null
+     * @return array{gid: int, label: string, category: int|null, icon: string|null, selectable: bool, unavailable_reason: string|null}|null
      */
     protected function catalogOptionForGid(int $gid): ?array
     {
@@ -607,7 +1010,28 @@ trait ManagesVillageSettings
             'gid' => $gid,
             'label' => $label,
             'category' => TravianBuildingCatalog::buildCategoryForGid($gid),
+            'icon' => $this->buildingIconPathForGid($gid),
+            'selectable' => true,
+            'unavailable_reason' => null,
         ];
+    }
+
+    protected function buildingIconPathForGid(int $gid): ?string
+    {
+        if ($gid < 1) {
+            return null;
+        }
+
+        foreach ([
+            "assets/buildings-icons/type{$gid}_small.png",
+            "assets/buildings-icons/type{$gid}_teahouse_small.png",
+        ] as $candidate) {
+            if (file_exists(public_path($candidate))) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 
     /**

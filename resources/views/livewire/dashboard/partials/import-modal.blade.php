@@ -32,7 +32,7 @@
                         </div>
                     </div>
 
-                    <textarea wire:model.live.debounce.350ms="bulkImportDraft" rows="8"
+                    <textarea wire:model.live.debounce.900ms="bulkImportDraft" rows="8"
                         class="w-full rounded-lg border border-[var(--color-line-strong)] bg-white px-3 py-3 font-mono text-sm leading-6 text-[var(--color-ink)] outline-none transition placeholder:text-[var(--color-muted)] focus:border-[var(--color-accent)] focus:ring-4 focus:ring-[color:var(--color-accent-soft)]"
                         placeholder="!https://ts7.x1.arabics.travian.com/!marshal!12345678&#10;https://ts7.x1.arabics.travian.com/ marshal 12345678"></textarea>
                 </section>

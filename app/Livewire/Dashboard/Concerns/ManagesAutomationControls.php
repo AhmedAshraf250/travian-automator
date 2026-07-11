@@ -108,6 +108,12 @@ trait ManagesAutomationControls
     public function toggleVillageFieldsAutomation(int $villageId): void
     {
         $village = Village::query()->with(['account', 'settings'])->findOrFail($villageId);
+        if ($this->villageAutomationControlsLocked($village)) {
+            $this->skipRender();
+
+            return;
+        }
+
         $settings = $village->settings ?? $village->settings()->create([
             'field_priority' => VillageSetting::defaultFieldPriority(),
         ]);
@@ -131,6 +137,12 @@ trait ManagesAutomationControls
     public function toggleVillageBuildingsAutomation(int $villageId): void
     {
         $village = Village::query()->with(['account', 'settings'])->findOrFail($villageId);
+        if ($this->villageAutomationControlsLocked($village)) {
+            $this->skipRender();
+
+            return;
+        }
+
         $settings = $village->settings ?? $village->settings()->create([
             'field_priority' => VillageSetting::defaultFieldPriority(),
         ]);
@@ -154,6 +166,12 @@ trait ManagesAutomationControls
     public function toggleVillageHeroResources(int $villageId): void
     {
         $village = Village::query()->with(['account', 'settings'])->findOrFail($villageId);
+        if ($this->villageAutomationControlsLocked($village)) {
+            $this->skipRender();
+
+            return;
+        }
+
         $settings = $village->settings ?? $village->settings()->create([
             'field_priority' => VillageSetting::defaultFieldPriority(),
         ]);
@@ -182,6 +200,12 @@ trait ManagesAutomationControls
         }
 
         $village = Village::query()->with('account')->findOrFail($villageId);
+        if ($this->villageAutomationControlsLocked($village)) {
+            $this->skipRender();
+
+            return;
+        }
+
         $slot = $village->buildings()
             ->where('slot_id', $slotId)
             ->whereBetween('building_gid', [1, 4])
@@ -209,6 +233,12 @@ trait ManagesAutomationControls
         }
 
         $village = Village::query()->with('account')->findOrFail($villageId);
+        if ($this->villageAutomationControlsLocked($village)) {
+            $this->skipRender();
+
+            return;
+        }
+
         $slot = $village->buildings()
             ->where('slot_id', $slotId)
             ->where('building_gid', '>', 0)
@@ -238,6 +268,12 @@ trait ManagesAutomationControls
     public function toggleVillageCelebrationAutomation(int $villageId): void
     {
         $village = Village::query()->with(['account', 'settings'])->findOrFail($villageId);
+        if ($this->villageAutomationControlsLocked($village)) {
+            $this->skipRender();
+
+            return;
+        }
+
         $settings = $village->settings ?? $village->settings()->create([
             'field_priority' => VillageSetting::defaultFieldPriority(),
         ]);
@@ -266,6 +302,12 @@ trait ManagesAutomationControls
     public function toggleVillageTroopTrainingAutomation(int $villageId): void
     {
         $village = Village::query()->with(['account', 'settings'])->findOrFail($villageId);
+        if ($this->villageAutomationControlsLocked($village)) {
+            $this->skipRender();
+
+            return;
+        }
+
         $settings = $village->settings ?? $village->settings()->create([
             'field_priority' => VillageSetting::defaultFieldPriority(),
         ]);
@@ -447,6 +489,12 @@ trait ManagesAutomationControls
     protected function updateVillageConstructionSchedule(int $villageId, callable $callback, callable $messageResolver): void
     {
         $village = Village::query()->with(['account', 'settings'])->findOrFail($villageId);
+        if ($this->villageAutomationControlsLocked($village)) {
+            $this->skipRender();
+
+            return;
+        }
+
         $settings = $village->settings ?? $village->settings()->create([
             'field_priority' => VillageSetting::defaultFieldPriority(),
         ]);
@@ -507,7 +555,7 @@ trait ManagesAutomationControls
     }
 
     /**
-     * Validate dashboard schedule keys formatted as "field:slot:target" or "building:slot:target".
+     * Validate dashboard schedule keys.
      */
     protected function isSupportedScheduleKey(string $scheduleKey): bool
     {
@@ -517,20 +565,30 @@ trait ManagesAutomationControls
             return false;
         }
 
-        [$queueKind, $slotId, $targetLevel] = $parts;
+        [$queueKind, $slotId, $target] = $parts;
 
-        if (! in_array($queueKind, ['field', 'building'], true) || ! ctype_digit($slotId) || ! ctype_digit($targetLevel)) {
+        if (! in_array($queueKind, ['field', 'building', 'building-target'], true) || ! ctype_digit($slotId) || ! ctype_digit($target)) {
             return false;
         }
 
         $slotId = (int) $slotId;
-        $targetLevel = (int) $targetLevel;
+        $target = (int) $target;
 
-        return $targetLevel >= 1
-            && $targetLevel <= 20
-            && (
-                ($queueKind === 'field' && $slotId >= 1 && $slotId <= 18)
-                || ($queueKind === 'building' && $slotId >= 19 && $slotId <= 40)
-            );
+        if ($queueKind === 'field') {
+            return $slotId >= 1 && $slotId <= 18 && $target >= 1 && $target <= 20;
+        }
+
+        if ($queueKind === 'building') {
+            return $slotId >= 19 && $slotId <= 40 && $target >= 1 && $target <= 20;
+        }
+
+        return $slotId >= 19 && $slotId <= 40 && $target >= 1 && $target <= 99;
+    }
+
+    protected function villageAutomationControlsLocked(Village $village): bool
+    {
+        return ! SystemSetting::automationEnabled()
+            || ! (bool) $village->is_active
+            || ! (bool) $village->account?->is_active;
     }
 }
