@@ -1083,8 +1083,8 @@
                 aria-label="{{ $village->is_active ? 'Pause village' : 'Activate village' }}">
                 {!! $village->is_active ? '&#9208;' : '&#9654;' !!}
             </button>
-            <button type="button" wire:click="requestVillageSync({{ $village->id }})"
-                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-line-strong)] text-sm font-semibold transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+            <button type="button" wire:click="requestVillageSync({{ $village->id }})" wire:loading.attr="disabled" wire:target="requestVillageSync({{ $village->id }})"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-line-strong)] text-sm font-semibold transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-wait disabled:opacity-60"
                 title="Sync and run village automation"
                 aria-label="Sync and run village automation">
                 &#8635;

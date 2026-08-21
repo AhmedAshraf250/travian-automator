@@ -2,6 +2,7 @@
 
 namespace App\Application\Accounts\Automation;
 
+use App\Enums\AccountStatus;
 use App\Jobs\RunTravianAutomationJob;
 use App\Models\Account;
 use App\Models\SystemSetting;
@@ -31,6 +32,7 @@ class DispatchDueAccountAutomation
             ->with('settings', 'heroState', 'villages.runtimeState')
             ->where('is_active', true)
             ->where('is_archived', false)
+            ->where('status', '!=', AccountStatus::Syncing)
             ->where(function ($query) use ($now): void {
                 $query
                     ->whereNull('connection_retry_after')

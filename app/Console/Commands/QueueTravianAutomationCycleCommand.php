@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Application\Accounts\Automation\DispatchDueAccountAutomation;
+use App\Application\Accounts\Automation\RecoverStaleSyncingAccounts;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -14,8 +15,12 @@ class QueueTravianAutomationCycleCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle(DispatchDueAccountAutomation $dispatchDueAccountAutomation): int
-    {
+    public function handle(
+        DispatchDueAccountAutomation $dispatchDueAccountAutomation,
+        RecoverStaleSyncingAccounts $recoverStaleSyncingAccounts,
+    ): int {
+        $recoverStaleSyncingAccounts->handle();
+
         $accountId = $this->argument('account');
         $result = $dispatchDueAccountAutomation->handle(
             $accountId !== null ? (int) $accountId : null,

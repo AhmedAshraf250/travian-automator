@@ -25,3 +25,7 @@ Schedule::command('travian:automation-cycle')
     ->when(fn (): bool => SystemSetting::automationEnabled())
     ->everyMinute()
     ->withoutOverlapping(10);
+
+Schedule::command('travian:cleanup-runtime')
+    ->hourly()
+    ->withoutOverlapping(30);

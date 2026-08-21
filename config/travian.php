@@ -61,6 +61,24 @@ return [
         // When Travian rejects a construction candidate for non-resource reasons, skip that exact candidate briefly.
         'build_page_block_cooldown_minutes' => (int) env('TRAVIAN_BUILD_PAGE_BLOCK_COOLDOWN_MINUTES', 10),
     ],
+    'runtime' => [
+        'heartbeat_stale_seconds' => (int) env('TRAVIAN_RUNTIME_HEARTBEAT_STALE_SECONDS', 150),
+        'heartbeat_interval_seconds' => (int) env('TRAVIAN_RUNTIME_HEARTBEAT_INTERVAL_SECONDS', 30),
+        'supervisor_poll_seconds' => (int) env('TRAVIAN_RUNTIME_SUPERVISOR_POLL_SECONDS', 2),
+        'queue_sleep_seconds' => (int) env('TRAVIAN_QUEUE_WORKER_SLEEP_SECONDS', 3),
+        'queue_memory_mb' => (int) env('TRAVIAN_QUEUE_WORKER_MEMORY_MB', 512),
+        'queue_max_time_seconds' => (int) env('TRAVIAN_QUEUE_WORKER_MAX_TIME_SECONDS', 3600),
+        'host' => env('TRAVIAN_RUNTIME_HOST', '127.0.0.1'),
+        'port' => (int) env('TRAVIAN_RUNTIME_PORT', 8000),
+    ],
+    'retention' => [
+        'activity_log_days' => (int) env('TRAVIAN_ACTIVITY_LOG_RETENTION_DAYS', 7),
+        'activity_log_max_rows' => (int) env('TRAVIAN_ACTIVITY_LOG_MAX_ROWS', 5000),
+        'failed_job_days' => (int) env('TRAVIAN_FAILED_JOB_RETENTION_DAYS', 14),
+        'failed_job_max_rows' => (int) env('TRAVIAN_FAILED_JOB_MAX_ROWS', 1000),
+        'cleanup_batch_size' => (int) env('TRAVIAN_CLEANUP_BATCH_SIZE', 500),
+        'cleanup_max_batches' => (int) env('TRAVIAN_CLEANUP_MAX_BATCHES', 100),
+    ],
     'server' => [
         'timezone' => env('TRAVIAN_SERVER_TIMEZONE', 'Europe/London'),
     ],

@@ -192,8 +192,8 @@
                 </button>
             @endif
 
-            <button type="button" wire:click="requestAccountSync({{ $account->id }})"
-                class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[var(--color-line-strong)] text-sm font-semibold transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+            <button type="button" wire:click="requestAccountSync({{ $account->id }})" wire:loading.attr="disabled" wire:target="requestAccountSync({{ $account->id }})"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[var(--color-line-strong)] text-sm font-semibold transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-wait disabled:opacity-60"
                 title="Update account and run automation"
                 aria-label="Update account and run automation">
                 &#8635;

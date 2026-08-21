@@ -2,9 +2,12 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
+use Throwable;
 
 /**
  * Stores simple global system switches used by the automation dashboard.
@@ -36,6 +39,11 @@ class SystemSetting extends Model
      * Shared key for default trade automation behavior.
      */
     public const TRADE_DEFAULTS_KEY = 'trade_defaults';
+
+    /**
+     * Shared key for local runtime process heartbeats.
+     */
+    public const RUNTIME_HEARTBEATS_KEY = 'runtime_heartbeats';
 
     /**
      * Return the default per-resource field upgrade order.
@@ -96,6 +104,101 @@ class SystemSetting extends Model
             ['key' => static::AUTOMATION_ENABLED_KEY],
             ['value' => ['enabled' => $enabled]],
         );
+    }
+
+    /**
+     * Mark one local runtime component as alive.
+     */
+    public static function markRuntimeHeartbeat(string $component, ?CarbonInterface $seenAt = null): void
+    {
+        if (! static::settingsTableExists()) {
+            return;
+        }
+
+        $normalizedComponent = static::normalizeRuntimeComponent($component);
+
+        if ($normalizedComponent === null) {
+            return;
+        }
+
+        $setting = static::query()->firstOrNew(['key' => static::RUNTIME_HEARTBEATS_KEY]);
+        $value = is_array($setting->value) ? $setting->value : [];
+        $value[$normalizedComponent] = [
+            'seen_at' => ($seenAt ?? now())->toIso8601String(),
+        ];
+
+        $setting->value = $value;
+        $setting->save();
+    }
+
+    /**
+     * Resolve live/offline runtime process health for the dashboard.
+     *
+     * @return array{
+     *     queue_worker: array{label: string, online: bool, last_seen_at: ?CarbonImmutable, stale_after_seconds: int},
+     *     scheduler: array{label: string, online: bool, last_seen_at: ?CarbonImmutable, stale_after_seconds: int},
+     *     all_required_online: bool
+     * }
+     */
+    public static function runtimeHealth(?int $staleAfterSeconds = null): array
+    {
+        if (! static::settingsTableExists()) {
+            return static::buildRuntimeHealth([], $staleAfterSeconds);
+        }
+
+        $setting = static::query()->firstWhere('key', static::RUNTIME_HEARTBEATS_KEY);
+
+        return static::runtimeHealthFromValue(is_array($setting?->value) ? $setting->value : [], $staleAfterSeconds);
+    }
+
+    /**
+     * Resolve runtime health from an already loaded system setting value.
+     *
+     * @param  array<string, mixed>  $value
+     * @return array{
+     *     queue_worker: array{label: string, online: bool, last_seen_at: ?CarbonImmutable, stale_after_seconds: int},
+     *     scheduler: array{label: string, online: bool, last_seen_at: ?CarbonImmutable, stale_after_seconds: int},
+     *     all_required_online: bool
+     * }
+     */
+    public static function runtimeHealthFromValue(array $value, ?int $staleAfterSeconds = null): array
+    {
+        return static::buildRuntimeHealth(static::parseRuntimeHeartbeats($value), $staleAfterSeconds);
+    }
+
+    /**
+     * @param  array{queue_worker?: CarbonImmutable, scheduler?: CarbonImmutable}  $heartbeats
+     * @return array{
+     *     queue_worker: array{label: string, online: bool, last_seen_at: ?CarbonImmutable, stale_after_seconds: int},
+     *     scheduler: array{label: string, online: bool, last_seen_at: ?CarbonImmutable, stale_after_seconds: int},
+     *     all_required_online: bool
+     * }
+     */
+    protected static function buildRuntimeHealth(array $heartbeats, ?int $staleAfterSeconds = null): array
+    {
+        $staleAfterSeconds = max(15, $staleAfterSeconds ?? (int) config('travian.runtime.heartbeat_stale_seconds', 90));
+        $now = now();
+        $components = [
+            'queue_worker' => 'Queue worker',
+            'scheduler' => 'Scheduler',
+        ];
+        $health = [];
+
+        foreach ($components as $component => $label) {
+            $lastSeenAt = $heartbeats[$component] ?? null;
+
+            $health[$component] = [
+                'label' => $label,
+                'online' => $lastSeenAt instanceof CarbonInterface
+                    && $lastSeenAt->diffInSeconds($now, true) <= $staleAfterSeconds,
+                'last_seen_at' => $lastSeenAt,
+                'stale_after_seconds' => $staleAfterSeconds,
+            ];
+        }
+
+        $health['all_required_online'] = $health['queue_worker']['online'] && $health['scheduler']['online'];
+
+        return $health;
     }
 
     /**
@@ -281,6 +384,55 @@ class SystemSetting extends Model
             'trade_defaults' => static::tradeDefaults(),
             'hero_defaults' => static::heroDefaults(),
         ];
+    }
+
+    /**
+     * Resolve persisted runtime heartbeat timestamps.
+     *
+     * @return array{queue_worker?: CarbonImmutable, scheduler?: CarbonImmutable}
+     */
+    protected static function runtimeHeartbeats(): array
+    {
+        if (! static::settingsTableExists()) {
+            return [];
+        }
+
+        $setting = static::query()->firstWhere('key', static::RUNTIME_HEARTBEATS_KEY);
+
+        return static::parseRuntimeHeartbeats(is_array($setting?->value) ? $setting->value : []);
+    }
+
+    /**
+     * @param  array<string, mixed>  $value
+     * @return array{queue_worker?: CarbonImmutable, scheduler?: CarbonImmutable}
+     */
+    protected static function parseRuntimeHeartbeats(array $value): array
+    {
+        $heartbeats = [];
+
+        foreach (['queue_worker', 'scheduler'] as $component) {
+            $seenAt = $value[$component]['seen_at'] ?? null;
+
+            if (! is_string($seenAt) || trim($seenAt) === '') {
+                continue;
+            }
+
+            try {
+                $heartbeats[$component] = CarbonImmutable::parse($seenAt);
+            } catch (Throwable) {
+            }
+        }
+
+        return $heartbeats;
+    }
+
+    protected static function normalizeRuntimeComponent(string $component): ?string
+    {
+        return match ($component) {
+            'queue', 'queue_worker' => 'queue_worker',
+            'schedule', 'scheduler' => 'scheduler',
+            default => null,
+        };
     }
 
     /**

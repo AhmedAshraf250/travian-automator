@@ -271,6 +271,26 @@ test('dashboard poll recovers accounts stuck in syncing after a timed out job', 
         ->exists())->toBeTrue();
 });
 
+test('automation cycle recovers accounts stuck in syncing without an open dashboard', function () {
+    Queue::fake();
+    config()->set('travian.automation.stale_syncing_minutes', 5);
+
+    $account = Account::factory()->create([
+        'is_active' => true,
+        'is_archived' => false,
+        'status' => AccountStatus::Syncing,
+        'updated_at' => now()->subMinutes(10),
+    ]);
+
+    $this->artisan('travian:automation-cycle')
+        ->assertSuccessful();
+
+    $account->refresh();
+
+    expect($account->status)->toBe(AccountStatus::Error);
+    expect($account->last_error_message)->toBe('Background job timed out or stopped before it could finish.');
+});
+
 test('dashboard shows imported account username', function () {
     $account = Account::factory()->create([
         'username' => 'strategist',
@@ -308,6 +328,29 @@ test('village update queues village sync followed by village automation', functi
     Queue::assertPushedWithChain(SyncTravianAccountJob::class, [
         new RunTravianAutomationJob($account->id, $village->id, false, true),
     ]);
+});
+
+test('village update ignores repeated clicks while account sync work is pending', function () {
+    Queue::fake();
+
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => '23378',
+        'name' => 'قرية Marshal25',
+        'is_active' => true,
+    ]);
+
+    Livewire::test(Index::class)
+        ->call('requestVillageSync', $village->id)
+        ->call('requestVillageSync', $village->id);
+
+    Queue::assertPushed(SyncTravianAccountJob::class, 1);
+
+    expect(ActivityLog::query()
+        ->where('account_id', $account->id)
+        ->where('village_id', $village->id)
+        ->where('message', 'Village-only update requested and queued.')
+        ->count())->toBe(1);
 });
 
 test('village timer sync is ignored while global automation is paused', function () {
@@ -681,13 +724,30 @@ test('account update queues a manual sync even during connection cooldown', func
     Livewire::test(Index::class)
         ->call('requestAccountSync', $account->id);
 
-    expect($account->fresh()->status)->toBe(AccountStatus::ConnectionIssue);
+    expect($account->fresh()->status)->toBe(AccountStatus::Syncing);
 
     Queue::assertPushed(SyncTravianAccountJob::class, function (SyncTravianAccountJob $job) use ($account) {
         return $job->accountId === $account->id
             && $job->villageId === null
             && $job->ignoreConnectionBackoff === true;
     });
+});
+
+test('account update ignores repeated clicks while sync work is pending', function () {
+    Queue::fake();
+
+    $account = Account::factory()->create();
+
+    Livewire::test(Index::class)
+        ->call('requestAccountSync', $account->id)
+        ->call('requestAccountSync', $account->id);
+
+    Queue::assertPushed(SyncTravianAccountJob::class, 1);
+
+    expect(ActivityLog::query()
+        ->where('account_id', $account->id)
+        ->where('message', 'Sync requested and queued from dashboard.')
+        ->count())->toBe(1);
 });
 
 test('account update is not queued while account is paused', function () {
@@ -779,10 +839,24 @@ test('dashboard toggles the global automation switch', function () {
 
     Livewire::test(Index::class)
         ->call('toggleAutomation')
-        ->assertSee('Running')
+        ->assertSee('Enabled')
         ->assertSee('Pause');
 
     expect(SystemSetting::automationEnabled())->toBeTrue();
+});
+
+test('dashboard separates automation intent from runtime process health', function () {
+    Livewire::test(Index::class)
+        ->assertSee('Enabled')
+        ->assertSee('Runtime offline')
+        ->assertDontSee('Running');
+
+    SystemSetting::markRuntimeHeartbeat('queue_worker', now());
+    SystemSetting::markRuntimeHeartbeat('scheduler', now());
+
+    Livewire::test(Index::class)
+        ->assertSee('Enabled')
+        ->assertSee('Runtime online');
 });
 
 test('dashboard saves the global fallback user agent setting', function () {

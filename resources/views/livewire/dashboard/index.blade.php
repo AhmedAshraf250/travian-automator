@@ -1,6 +1,31 @@
 @php
     $shouldPollDashboard = ! $showProgramSettingsModal && ! $showAccountSettingsModal && ! $showImportModal && ! $showVillageBuildPlanModal && ! $showMarketplaceTransferModal && ! $showVillageDemolitionModal;
     $programIsRunning = (bool) ($automationEnabled ?? true);
+    $runtimeHealth = $runtimeHealth ?? [];
+    $runtimeIsOnline = (bool) ($runtimeHealth['all_required_online'] ?? false);
+    $runtimeStateLabel = $runtimeIsOnline ? 'Runtime online' : 'Runtime offline';
+    $runtimeOfflineComponents = collect([
+        $runtimeHealth['queue_worker'] ?? null,
+        $runtimeHealth['scheduler'] ?? null,
+    ])
+        ->filter(fn ($component) => is_array($component) && ! (bool) ($component['online'] ?? false))
+        ->map(fn ($component) => $component['label'] ?? 'Process')
+        ->values()
+        ->all();
+    $runtimeTitle = $runtimeIsOnline
+        ? 'Queue worker and scheduler sent recent heartbeats.'
+        : 'Missing recent heartbeat: '.implode(', ', $runtimeOfflineComponents);
+    $headerState = ! $programIsRunning ? 'paused' : ($runtimeIsOnline ? 'online' : 'offline');
+    $headerClasses = match ($headerState) {
+        'paused' => 'border-amber-400 bg-amber-50/95',
+        'offline' => 'border-rose-400/50 bg-rose-50/95',
+        default => 'border-emerald-500/20 bg-[var(--color-panel)]/95',
+    };
+    $titleClasses = match ($headerState) {
+        'paused' => 'text-amber-950',
+        'offline' => 'text-rose-950',
+        default => 'text-emerald-800',
+    };
 @endphp
 
 <div class="min-h-screen"
@@ -101,31 +126,39 @@
     @click.capture="rememberDashboardLoadingPoint($event)">
     <div class="mx-auto flex min-h-screen w-full max-w-[118rem] flex-col gap-4 px-3 py-3 sm:px-4 lg:px-5"
         style="{{ $showActivityLog ? 'padding-bottom: calc('.$activityLogHeight.'vh + 1.25rem);' : 'padding-bottom: 4rem;' }}"
-        @if ($shouldPollDashboard) wire:poll.10s.keep-alive="refreshDashboardIfChanged" @endif>
-        <header class="sticky top-0 z-40 -mx-3 border-b px-3 py-2 shadow-[0_10px_28px_rgba(15,23,42,0.08)] backdrop-blur sm:-mx-4 sm:px-4 lg:-mx-5 lg:px-5 {{ $programIsRunning ? 'border-emerald-500/20 bg-[var(--color-panel)]/95' : 'border-amber-400 bg-amber-50/95' }}">
+        @if ($shouldPollDashboard) wire:poll.20s.keep-alive="refreshDashboardIfChanged" @endif>
+        <header class="sticky top-0 z-40 -mx-3 border-b px-3 py-2 shadow-[0_10px_28px_rgba(15,23,42,0.08)] backdrop-blur sm:-mx-4 sm:px-4 lg:-mx-5 lg:px-5 {{ $headerClasses }}">
             <div class="mx-auto flex max-w-[118rem] flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
                 <div class="flex min-w-0 flex-wrap items-center gap-2">
-                    <h1 class="font-[var(--font-display)] text-lg font-semibold sm:text-xl {{ $programIsRunning ? 'text-emerald-800' : 'text-amber-950' }}">
+                    <h1 class="font-[var(--font-display)] text-lg font-semibold sm:text-xl {{ $titleClasses }}">
                         Travian Multi-Account Automation
                     </h1>
 
                     <span
                         class="inline-flex items-center gap-2 rounded-lg border px-2.5 py-1 text-[11px] font-semibold {{ $programIsRunning ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-900' : 'border-amber-500/35 bg-amber-300/35 text-amber-950' }}"
-                        title="Global build and automation state">
+                        title="Global automation intent">
                         <span class="relative inline-flex h-5 w-9 items-center rounded-full {{ $programIsRunning ? 'bg-emerald-500' : 'bg-amber-400' }}">
                             <span class="absolute inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-[9px] font-black shadow-sm transition {{ $programIsRunning ? 'right-0.5 text-emerald-700' : 'left-0.5 text-amber-800' }}">
                                 {{ $programIsRunning ? '✓' : '×' }}
                             </span>
                         </span>
-                        {{ $programIsRunning ? 'Running' : 'Paused' }}
+                        {{ $programIsRunning ? 'Enabled' : 'Paused' }}
+                    </span>
+
+                    <span
+                        class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold {{ $runtimeIsOnline ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-900' : 'border-rose-500/35 bg-rose-500/10 text-rose-950' }}"
+                        title="{{ $runtimeTitle }}">
+                        <span class="h-1.5 w-1.5 rounded-full {{ $runtimeIsOnline ? 'bg-emerald-500' : 'bg-rose-500' }}"></span>
+                        {{ $runtimeStateLabel }}
                     </span>
 
                     <span
                         class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-panel-alt)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-muted)]"
-                        title="Dashboard checks local database changes every 10 seconds">
+                        title="Dashboard checks local database changes every 20 seconds">
                         <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                        DB 10s
+                        DB 20s
                     </span>
+
                 </div>
 
                 <div class="flex flex-wrap items-center gap-2">

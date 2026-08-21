@@ -2,12 +2,11 @@
 
 namespace App\Livewire\Dashboard\Concerns;
 
+use App\Application\Accounts\Automation\QueueAccountWork;
 use App\Enums\AccountStatus;
 use App\Enums\ActivityLogStatus;
 use App\Enums\ActivityType;
 use App\Enums\VillageCelebrationType;
-use App\Jobs\RunTravianAutomationJob;
-use App\Jobs\SyncTravianAccountJob;
 use App\Models\Account;
 use App\Models\ActivityLog;
 use App\Models\SystemSetting;
@@ -65,19 +64,11 @@ trait ManagesAutomationControls
             return;
         }
 
-        $account->forceFill([
-            'connection_retry_after' => null,
-        ])->save();
+        if (! app(QueueAccountWork::class)->queueManualAccountSync($account)) {
+            session()->flash('dashboard-banner', "Account {$account->username} already has sync work queued or running.");
 
-        ActivityLog::query()->create([
-            'account_id' => $account->id,
-            'activity_type' => ActivityType::Sync,
-            'status' => ActivityLogStatus::Pending,
-            'message' => 'Sync requested and queued from dashboard.',
-            'scheduled_at' => now(),
-        ]);
-
-        SyncTravianAccountJob::dispatch($account->id, null, true);
+            return;
+        }
 
         $this->dashboardRevision = '';
 
@@ -441,25 +432,7 @@ trait ManagesAutomationControls
             return false;
         }
 
-        $village->account->forceFill([
-            'status' => AccountStatus::Syncing,
-            'connection_retry_after' => null,
-        ])->save();
-
-        ActivityLog::query()->create([
-            'account_id' => $village->account->id,
-            'village_id' => $village->id,
-            'activity_type' => ActivityType::Sync,
-            'status' => ActivityLogStatus::Pending,
-            'message' => $message,
-            'scheduled_at' => now(),
-        ]);
-
-        SyncTravianAccountJob::withChain([
-            new RunTravianAutomationJob($village->account->id, $village->id, false, true),
-        ])->dispatch($village->account->id, $village->id, true, $useReloadAuto);
-
-        return true;
+        return app(QueueAccountWork::class)->queueVillageSync($village, $message, $useReloadAuto);
     }
 
     protected function villageCanQueueSync(Village $village): bool

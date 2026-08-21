@@ -185,7 +185,7 @@ trait BuildsDashboardViewData
         $settingsTableExists = Schema::hasTable('system_settings');
         $baseSettings = $settingsTableExists
             ? SystemSetting::query()
-                ->whereIn('key', [SystemSetting::AUTOMATION_ENABLED_KEY, SystemSetting::DEFAULT_USER_AGENT_KEY])
+                ->whereIn('key', [SystemSetting::AUTOMATION_ENABLED_KEY, SystemSetting::DEFAULT_USER_AGENT_KEY, SystemSetting::RUNTIME_HEARTBEATS_KEY])
                 ->get()
                 ->keyBy('key')
             : collect();
@@ -198,6 +198,11 @@ trait BuildsDashboardViewData
 
         $payload = [
             'automationEnabled' => (bool) ($baseSettings->get(SystemSetting::AUTOMATION_ENABLED_KEY)?->value['enabled'] ?? true),
+            'runtimeHealth' => SystemSetting::runtimeHealthFromValue(
+                is_array($baseSettings->get(SystemSetting::RUNTIME_HEARTBEATS_KEY)?->value ?? null)
+                    ? $baseSettings->get(SystemSetting::RUNTIME_HEARTBEATS_KEY)->value
+                    : [],
+            ),
             'globalDefaultUserAgent' => $defaultUserAgent,
             'globalFieldPriority' => $constructionDefaults['field_priority'],
             'globalFieldLevelCap' => $constructionDefaults['field_level_cap'],
@@ -260,6 +265,10 @@ trait BuildsDashboardViewData
 
         if (Schema::hasTable('activity_logs')) {
             $parts['activity_logs'] = DB::table('activity_logs')->max('id');
+        }
+
+        if (Schema::hasTable('system_settings')) {
+            $parts['system_settings'] = DB::table('system_settings')->max('updated_at');
         }
 
         return sha1(json_encode($parts, JSON_THROW_ON_ERROR));
