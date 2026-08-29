@@ -1,6 +1,7 @@
 <?php
 
 use App\Application\Accounts\Construction\ExecuteVillageConstruction;
+use App\Application\Accounts\Hero\UseHeroResourcesForConstruction;
 use App\Application\Accounts\Session\Contracts\AccountSession;
 use App\Application\Accounts\Session\Data\SessionResponse;
 use App\Application\Accounts\Sync\Data\ParsedConstructionQueueEntry;
@@ -18,6 +19,8 @@ use App\Models\Account;
 use App\Models\ActivityLog;
 use App\Models\VillageSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+
+use function Pest\Laravel\mock;
 
 uses(RefreshDatabase::class);
 
@@ -378,6 +381,151 @@ test('roman village can issue one field order and one building order in the same
     expect($finalVillage->runtimeState?->construction_entries[1]['target_level'] ?? null)->toBe(2);
     expect($buildingLog?->payload['remaining_label'] ?? null)->toBe('0:12:00');
     expect($buildingLog?->result['overview_refreshed'] ?? null)->toBeTrue();
+});
+
+test('roman village uses hero resources for a field shortage even when its building order succeeds', function () {
+    bindConstructionRefreshSnapshots(
+        [
+            fakeDorf1Overview('23379', 'Roman Hero Fields', 1, [
+                [
+                    'building_name' => 'الحطاب',
+                    'target_level' => 2,
+                    'remaining_seconds' => 300,
+                    'remaining_label' => '0:05:00',
+                    'finish_label' => '12:30',
+                ],
+            ], [
+                ['slot_id' => 1, 'building_gid' => 1, 'building_name' => 'الحطاب', 'current_level' => 1],
+            ]),
+            fakeDorf1Overview('23379', 'Roman Hero Fields', 1, [
+                [
+                    'building_name' => 'المبنى الرئيسي',
+                    'target_level' => 11,
+                    'remaining_seconds' => 720,
+                    'remaining_label' => '0:12:00',
+                    'finish_label' => '12:37',
+                ],
+                [
+                    'building_name' => 'الحطاب',
+                    'target_level' => 2,
+                    'remaining_seconds' => 295,
+                    'remaining_label' => '0:04:55',
+                    'finish_label' => '12:30',
+                ],
+            ], [
+                ['slot_id' => 1, 'building_gid' => 1, 'building_name' => 'الحطاب', 'current_level' => 1],
+            ]),
+        ],
+        [
+            fakeDorf2Overview([
+                ['slot_id' => 26, 'building_gid' => 15, 'building_name' => 'المبنى الرئيسي', 'current_level' => 10],
+            ]),
+            fakeDorf2Overview([
+                ['slot_id' => 26, 'building_gid' => 15, 'building_name' => 'المبنى الرئيسي', 'current_level' => 10],
+            ]),
+        ],
+    );
+
+    $account = Account::factory()->create(['server_url' => 'https://example.com/']);
+    $village = $account->villages()->create([
+        'travian_village_id' => '23379',
+        'name' => 'Roman Hero Fields',
+        'is_active' => true,
+    ]);
+    $village->settings()->create([
+        'inherit_from_account' => false,
+        'field_priority' => ['wood' => 1, 'clay' => 1, 'iron' => 2, 'crop' => 2],
+        'pause_fields' => false,
+        'pause_buildings' => false,
+        'hero_resources_enabled' => true,
+    ]);
+    $village->runtimeState()->create([
+        'tribe_id' => 1,
+        'troop_slots' => [],
+        'movement_entries' => [],
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 1,
+        'building_gid' => 1,
+        'building_type' => 'الحطاب',
+        'current_level' => 1,
+    ]);
+    $village->buildings()->create([
+        'slot_id' => 26,
+        'building_gid' => 15,
+        'building_type' => 'المبنى الرئيسي',
+        'current_level' => 10,
+    ]);
+    $village->buildingTargets()->create([
+        'slot_id' => 26,
+        'building_gid' => 15,
+        'building_type' => 'المبنى الرئيسي',
+        'target_level' => 11,
+        'priority' => 1,
+        'is_enabled' => true,
+    ]);
+
+    mock(UseHeroResourcesForConstruction::class)
+        ->shouldReceive('handle')
+        ->once()
+        ->andReturnTrue();
+
+    $session = new class implements AccountSession
+    {
+        /** @var list<string> */
+        public array $requests = [];
+
+        public function get(string $uri, array $options = []): SessionResponse
+        {
+            $this->requests[] = $uri;
+
+            return match ($uri) {
+                '/dorf1.php?newdid=23379' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php?newdid=23379'),
+                '/build.php?id=1' => $this->response(fakeResourceShortageBuildHtml(), 'https://example.com/build.php?id=1&gid=1'),
+                '/build.php?id=1&reload=auto' => $this->response('<button onclick="window.location.href = \'/dorf1.php?id=1&amp;gid=1&amp;action=build&amp;checksum=hero-field\';"></button>', 'https://example.com/build.php?id=1&gid=1&reload=auto'),
+                '/dorf1.php?id=1&gid=1&action=build&checksum=hero-field' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php?id=1&gid=1&action=build&checksum=hero-field'),
+                '/dorf2.php' => $this->response('<body class="village2"></body>', 'https://example.com/dorf2.php'),
+                '/build.php?id=26&gid=15' => $this->response('<button onclick="window.location.href = \'/dorf2.php?id=26&amp;gid=15&amp;action=build&amp;checksum=building\';"></button>', 'https://example.com/build.php?id=26&gid=15'),
+                '/dorf2.php?id=26&gid=15&action=build&checksum=building' => $this->response('<body class="village2"></body>', 'https://example.com/dorf2.php?id=26&gid=15&action=build&checksum=building'),
+                '/dorf1.php' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php'),
+                default => $this->response('<body></body>', 'https://example.com'.$uri),
+            };
+        }
+
+        public function postForm(string $uri, array $formParams, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('postForm was not expected during construction execution.');
+        }
+
+        public function postJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('postJson was not expected during construction execution.');
+        }
+
+        public function putJson(string $uri, array $payload, array $options = []): SessionResponse
+        {
+            throw new RuntimeException('putJson was not expected during construction execution.');
+        }
+
+        public function persist(): void {}
+
+        protected function response(string $body, string $effectiveUri): SessionResponse
+        {
+            return new SessionResponse(200, $body, $effectiveUri, []);
+        }
+    };
+
+    app(ExecuteVillageConstruction::class)->handle(
+        $account->fresh(),
+        $village->fresh(['settings', 'runtimeState', 'buildings', 'buildingTargets']),
+        $session,
+    );
+
+    expect($session->requests)->toContain('/build.php?id=1&reload=auto')
+        ->and(ActivityLog::query()->where('message', 'Field upgrade order issued successfully.')->exists())->toBeTrue()
+        ->and(ActivityLog::query()->where('message', 'Building upgrade order issued successfully.')->exists())->toBeTrue();
 });
 
 test('non roman village falls back to the explicit building target when no field can be upgraded', function () {
@@ -888,13 +1036,13 @@ test('field automation does not execute candidates outside the visible dashboard
     expect(ActivityLog::query()->where('message', 'Field upgrade order issued successfully.')->exists())->toBeTrue();
 });
 
-test('field automation allows candidates within the two level resource family gap', function () {
+test('field automation limits adjacent priority families to a one level gap', function () {
     bindConstructionRefreshSnapshots(
         [
             fakeDorf1Overview('23387', 'قرية Priority Lead', 2, [
                 [
-                    'building_name' => 'حفرة الطين',
-                    'target_level' => 7,
+                    'building_name' => 'منجم حديد',
+                    'target_level' => 6,
                     'remaining_seconds' => 360,
                     'remaining_label' => '0:06:00',
                     'finish_label' => '12:30',
@@ -959,8 +1107,8 @@ test('field automation allows candidates within the two level resource family ga
 
             return match ($uri) {
                 '/dorf1.php?newdid=23387' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php?newdid=23387'),
-                '/build.php?id=5' => $this->response('<button onclick="this.disabled = true; window.location.href = \'/dorf1.php?id=5&amp;gid=2&amp;action=build&amp;checksum=clay607\'; return false;"></button>', 'https://example.com/build.php?id=5&gid=2'),
-                '/dorf1.php?id=5&gid=2&action=build&checksum=clay607' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php?id=5&gid=2&action=build&checksum=clay607'),
+                '/build.php?id=4' => $this->response('<button onclick="this.disabled = true; window.location.href = \'/dorf1.php?id=4&amp;gid=3&amp;action=build&amp;checksum=iron506\'; return false;"></button>', 'https://example.com/build.php?id=4&gid=3'),
+                '/dorf1.php?id=4&gid=3&action=build&checksum=iron506' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php?id=4&gid=3&action=build&checksum=iron506'),
                 '/dorf1.php' => $this->response('<body class="village1"></body>', 'https://example.com/dorf1.php'),
                 '/dorf2.php' => $this->response('<body class="village2"></body>', 'https://example.com/dorf2.php'),
                 default => $this->response('<body class="village1"></body>', 'https://example.com'.$uri),
@@ -999,11 +1147,11 @@ test('field automation allows candidates within the two level resource family ga
 
     $buildLog = ActivityLog::query()->where('message', 'Field upgrade order issued successfully.')->latest('id')->first();
 
-    expect($session->requests)->toContain('/build.php?id=5');
-    expect($session->requests)->not->toContain('/build.php?id=4');
+    expect($session->requests)->not->toContain('/build.php?id=5');
+    expect($session->requests)->toContain('/build.php?id=4');
     expect($session->requests)->not->toContain('/build.php?id=8');
-    expect($buildLog?->payload['field_key'] ?? null)->toBe('clay');
-    expect($buildLog?->payload['building_name'] ?? null)->toBe('حفرة الطين');
+    expect($buildLog?->payload['field_key'] ?? null)->toBe('iron');
+    expect($buildLog?->payload['building_name'] ?? null)->toBe('منجم حديد');
 });
 
 test('held schedule field is not skipped when resources are missing', function () {

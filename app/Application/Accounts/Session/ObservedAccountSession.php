@@ -2,8 +2,6 @@
 
 namespace App\Application\Accounts\Session;
 
-use App\Application\Accounts\Rewards\ExecuteDailyQuestRewardCollection;
-use App\Application\Accounts\Rewards\ExecuteQuestRewardCollection;
 use App\Application\Accounts\Session\Contracts\AccountSession;
 use App\Application\Accounts\Session\Data\SessionResponse;
 use App\Models\Account;
@@ -20,8 +18,6 @@ class ObservedAccountSession implements AccountSession
         protected Account $account,
         protected AccountSession $inner,
         protected TravianSessionResponseObserver $observer,
-        protected ?ExecuteQuestRewardCollection $questRewardCollection = null,
-        protected ?ExecuteDailyQuestRewardCollection $dailyQuestRewardCollection = null,
     ) {}
 
     /**
@@ -70,8 +66,6 @@ class ObservedAccountSession implements AccountSession
     protected function observe(SessionResponse $response): SessionResponse
     {
         $this->observer->observe($this->account, $response);
-        $this->questRewardCollection?->handleObservedDorf1Response($this->account, $this, $response);
-        $this->dailyQuestRewardCollection?->handleObservedDorf1Response($this->account, $this, $response);
 
         return $response;
     }

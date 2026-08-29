@@ -70,7 +70,7 @@ trait ManagesAutomationControls
             return;
         }
 
-        $this->dashboardRevision = '';
+        $this->invalidateDashboardRevision();
 
         session()->flash('dashboard-banner', "Account {$account->username} was queued for background sync.");
     }
@@ -288,9 +288,9 @@ trait ManagesAutomationControls
     }
 
     /**
-     * Toggle troop training automation for one village from the compact row button.
+     * Toggle hero resource usage for celebration shortages from the compact C panel.
      */
-    public function toggleVillageTroopTrainingAutomation(int $villageId): void
+    public function toggleVillageCelebrationHeroResources(int $villageId): void
     {
         $village = Village::query()->with(['account', 'settings'])->findOrFail($villageId);
         if ($this->villageAutomationControlsLocked($village)) {
@@ -302,16 +302,16 @@ trait ManagesAutomationControls
         $settings = $village->settings ?? $village->settings()->create([
             'field_priority' => VillageSetting::defaultFieldPriority(),
         ]);
-        $isEnabled = ! (bool) $settings->troop_training_enabled;
+        $isEnabled = ! (bool) $settings->celebration_use_hero_resources;
 
         $settings->forceFill([
-            'troop_training_enabled' => $isEnabled,
+            'celebration_use_hero_resources' => $isEnabled,
         ])->save();
 
         $this->logManualActivity(
             $village->account,
             $village,
-            'Village troop training automation '.($isEnabled ? 'enabled' : 'paused').' from dashboard.',
+            'Hero resources for celebration shortages '.($isEnabled ? 'enabled' : 'paused').' from dashboard.',
         );
     }
 
@@ -386,7 +386,7 @@ trait ManagesAutomationControls
             return;
         }
 
-        $this->dashboardRevision = '';
+        $this->invalidateDashboardRevision();
 
         session()->flash('dashboard-banner', "Village {$village->name} was queued for sync, then village automation.");
     }
@@ -418,7 +418,7 @@ trait ManagesAutomationControls
 
         $this->queueVillageSync($village, 'Village timer elapsed; sync queued automatically.', true);
 
-        $this->dashboardRevision = '';
+        $this->invalidateDashboardRevision();
         $this->skipRender();
     }
 
@@ -433,6 +433,11 @@ trait ManagesAutomationControls
         }
 
         return app(QueueAccountWork::class)->queueVillageSync($village, $message, $useReloadAuto);
+    }
+
+    protected function invalidateDashboardRevision(): void
+    {
+        $this->dashboardRevision = '';
     }
 
     protected function villageCanQueueSync(Village $village): bool

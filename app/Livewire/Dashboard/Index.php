@@ -7,7 +7,6 @@ use App\Enums\ActivityLogStatus;
 use App\Enums\ActivityType;
 use App\Livewire\Dashboard\Concerns\BuildsDashboardViewData;
 use App\Livewire\Dashboard\Concerns\ManagesAccountImports;
-use App\Livewire\Dashboard\Concerns\ManagesAccountSettings;
 use App\Livewire\Dashboard\Concerns\ManagesAutomationControls;
 use App\Livewire\Dashboard\Concerns\ManagesDashboardPolling;
 use App\Livewire\Dashboard\Concerns\ManagesDashboardShell;
@@ -31,7 +30,6 @@ class Index extends Component
 {
     use BuildsDashboardViewData;
     use ManagesAccountImports;
-    use ManagesAccountSettings;
     use ManagesAutomationControls;
     use ManagesDashboardPolling;
     use ManagesDashboardShell;
@@ -47,16 +45,21 @@ class Index extends Component
      */
     protected $listeners = [
         'dashboard-toggle-account-expansion' => 'toggleAccountExpansion',
-        'dashboard-open-account-settings' => 'openAccountSettingsModal',
-        'dashboard-open-village-settings' => 'openVillageSettingsModal',
-        'dashboard-open-marketplace-transfer' => 'openMarketplaceTransferModal',
-        'dashboard-open-village-demolition' => 'openVillageDemolitionModal',
     ];
+
+    public bool $dashboardChildModalOpen = false;
 
     #[On('dashboard-row-updated')]
     public function markDashboardChanged(): void
     {
         $this->dashboardRevision = '';
+    }
+
+    #[On('dashboard-modal-visibility-changed')]
+    public function updateDashboardModalVisibility(bool $open): void
+    {
+        $this->dashboardChildModalOpen = $open;
+        $this->skipRender();
     }
 
     /**

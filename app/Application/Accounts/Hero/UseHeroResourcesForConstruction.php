@@ -35,6 +35,27 @@ class UseHeroResourcesForConstruction
     ];
 
     /**
+     * Read the resource stacks currently held in the Hero inventory.
+     *
+     * @return array{resources: array{wood: int, clay: int, iron: int, crop: int}, travian_village_id: int|string|null, effective_uri: string, status_code: int}|null
+     */
+    public function readAvailableResources(AccountSession $session, string $referer): ?array
+    {
+        $inventorySnapshot = $this->fetchHeroInventory($session, $referer);
+
+        if ($inventorySnapshot === null) {
+            return null;
+        }
+
+        return [
+            'resources' => $this->availableHeroResources($this->heroResourceItems($inventorySnapshot['items'])),
+            'travian_village_id' => $inventorySnapshot['travian_village_id'],
+            'effective_uri' => $inventorySnapshot['effective_uri'],
+            'status_code' => $inventorySnapshot['status_code'],
+        ];
+    }
+
+    /**
      * Try to cover one construction resource shortage from the hero inventory.
      *
      * @param  array<string, mixed>  $constructionPayload

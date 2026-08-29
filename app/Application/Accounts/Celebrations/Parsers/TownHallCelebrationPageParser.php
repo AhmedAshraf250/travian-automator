@@ -44,6 +44,8 @@ class TownHallCelebrationPageParser
                 type: $type,
                 culturePoints: $this->extractInteger($pointsNode->textContent) ?? 0,
                 actionUri: $this->extractActionUri($html, $type, $researchNode),
+                cost: $this->extractResources($xpath, $researchNode),
+                serverMessage: $this->extractServerMessage($xpath, $researchNode),
             );
         }
 
@@ -114,6 +116,42 @@ class TownHallCelebrationPageParser
         }
 
         return html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    }
+
+    /** @return array{wood: int, clay: int, iron: int, crop: int} */
+    protected function extractResources(DOMXPath $xpath, DOMElement $node): array
+    {
+        $resources = ['wood' => 0, 'clay' => 0, 'iron' => 0, 'crop' => 0];
+        $classMap = ['r1Big' => 'wood', 'r2Big' => 'clay', 'r3Big' => 'iron', 'r4Big' => 'crop'];
+
+        foreach ($xpath->query(".//*[contains(concat(' ', normalize-space(@class), ' '), ' resource ')]", $node) ?: [] as $resourceNode) {
+            if (! $resourceNode instanceof DOMElement) {
+                continue;
+            }
+
+            $icon = $xpath->query('.//i', $resourceNode)?->item(0);
+            $value = $xpath->query(".//*[contains(concat(' ', normalize-space(@class), ' '), ' value ')]", $resourceNode)?->item(0);
+
+            if (! $icon instanceof DOMElement || $value === null) {
+                continue;
+            }
+
+            foreach ($classMap as $class => $key) {
+                if (str_contains(' '.$icon->getAttribute('class').' ', ' '.$class.' ')) {
+                    $resources[$key] = $this->extractInteger($value->textContent) ?? 0;
+                }
+            }
+        }
+
+        return $resources;
+    }
+
+    protected function extractServerMessage(DOMXPath $xpath, DOMElement $node): ?string
+    {
+        $message = $xpath->query(".//*[contains(concat(' ', normalize-space(@class), ' '), ' errorMessage ')]", $node)?->item(0);
+        $value = trim((string) $message?->textContent);
+
+        return $value === '' ? null : $value;
     }
 
     /**

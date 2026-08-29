@@ -5,6 +5,7 @@ namespace App\Application\Accounts\Celebrations;
 use App\Application\Accounts\Celebrations\Data\ParsedCelebrationOption;
 use App\Application\Accounts\Celebrations\Parsers\TownHallCelebrationPageParser;
 use App\Application\Accounts\Connection\RecordsAccountConnectionFailure;
+use App\Application\Accounts\Hero\UseHeroResourcesForCost;
 use App\Application\Accounts\Session\Contracts\AccountSession;
 use App\Enums\ActivityLogStatus;
 use App\Enums\ActivityType;
@@ -26,6 +27,7 @@ class ExecuteVillageCelebration
     public function __construct(
         protected TownHallCelebrationPageParser $townHallCelebrationPageParser,
         protected RecordsAccountConnectionFailure $recordsAccountConnectionFailure,
+        protected UseHeroResourcesForCost $useHeroResourcesForCost,
     ) {}
 
     /**
@@ -51,6 +53,11 @@ class ExecuteVillageCelebration
                 return;
             }
 
+            $session->get(
+                (string) config('travian.paths.overview', '/dorf1.php')
+                .'?newdid='.rawurlencode((string) $village->travian_village_id),
+            );
+
             $townHallPageUri = (string) config('travian.paths.build', '/build.php')
                 .'?id='.(int) $townHallSlot->slot_id
                 .'&gid=24';
@@ -73,6 +80,34 @@ class ExecuteVillageCelebration
                     : VillageSetting::defaultCelebrationType(),
                 minimumCulturePoints: max(0, (int) $settings->celebration_min_culture_points),
             );
+
+            if (! $selectedOption instanceof ParsedCelebrationOption) {
+                return;
+            }
+
+            if ($selectedOption->actionUri === null
+                && (bool) $settings->celebration_use_hero_resources
+                && array_sum($selectedOption->cost) > 0
+                && $this->useHeroResourcesForCost->handleCost(
+                    account: $account,
+                    village: $village,
+                    session: $session,
+                    requiredResources: $selectedOption->cost,
+                    referer: $townHallPage->effectiveUri,
+                    purpose: $selectedOption->type->value.' celebration',
+                    manualOverride: true,
+                    contextPayload: ['celebration_type' => $selectedOption->type->value],
+                )) {
+                $townHallPage = $session->get($townHallPageUri, $this->documentRequestOptions($townHallPage->effectiveUri));
+                $parsedPage = $this->townHallCelebrationPageParser->parse($townHallPage->body);
+                $selectedOption = $this->selectCelebrationOption(
+                    options: $parsedPage->options,
+                    preferredType: $settings->celebration_type instanceof VillageCelebrationType
+                        ? $settings->celebration_type
+                        : VillageSetting::defaultCelebrationType(),
+                    minimumCulturePoints: max(0, (int) $settings->celebration_min_culture_points),
+                );
+            }
 
             if (! $selectedOption instanceof ParsedCelebrationOption || $selectedOption->actionUri === null) {
                 return;

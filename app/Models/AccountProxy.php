@@ -31,6 +31,11 @@ class AccountProxy extends Model
     /** @use HasFactory<AccountProxyFactory> */
     use HasFactory;
 
+    /** @var list<string> */
+    protected $hidden = [
+        'password',
+    ];
+
     public const StatusActive = 'active';
 
     public const StatusCooldown = 'cooldown';

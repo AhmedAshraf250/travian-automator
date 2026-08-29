@@ -1,0 +1,132 @@
+(الأكاديمية) -> (Academy)
+(ثكنة) -> (Barracks)
+(أفران صهر الحديد) -> (Smithy)
+(إسطبل) -> (Stable)
+(المصانع الحربية) -> (Workshop)
+(120, 100, 150, 30) -> (Wood, Clay, Iron, Crop)
+
+# Romans:
+- الجندي الأول: (Legionnaire)
+    - ثكنة المستوى 1
+    - 120, 100, 150, 30
+    - icon: u1 (public/assets/troops-icons/)
+    - cost: 1
+- حارس الإمبراطور: (Praetorian)
+    - الأكاديمية المستوى 1, أفران صهر الحديد المستوى 1
+    - 100, 130, 160, 70
+    - icon: u2 (public/assets/troops-icons/)
+    - cost: 1
+- الجندي المهاجم: (Imperian)
+    - الأكاديمية المستوى 5, أفران صهر الحديد المستوى 1
+    - 150, 160, 210, 80
+    - icon: u3 (public/assets/troops-icons/)
+    - cost: 1
+- ضابط التجسس: (Equites Legati)
+    - إسطبل المستوى 1, الأكاديمية المستوى 5
+    - 140, 160, 20, 40
+    - icon: u4 (public/assets/troops-icons/)
+    - cost: 2
+- الفارس المهاجم: (Equites Imperatoris)
+    - إسطبل المستوى 5, الأكاديمية المستوى 5
+    - 550, 440, 320, 100
+    - icon: u5 (public/assets/troops-icons/)
+    - cost: 3
+- فارس القيصر: (Equites Caesaris)
+    - إسطبل المستوى 10, الأكاديمية المستوى 15
+    - 550, 640, 800, 180
+    - icon: u6 (public/assets/troops-icons/)
+    - cost: 4
+- محطمة الأبواب: (Battering ram)
+    - الأكاديمية المستوى 10, المصانع الحربية المستوى 1
+    - 900, 360, 500, 70
+    - icon: u7 (public/assets/troops-icons/)
+    - cost: 3
+- المنجنيق الناري: (Fire Catapult)
+    - المصانع الحربية المستوى 10, الأكاديمية المستوى 15
+    - 950, 1350, 600, 90
+    - icon: u8 (public/assets/troops-icons/)
+    - cost: 6
+
+# Teutons:
+- المهاجم بهراوة: (Maceman)
+    - ثكنة المستوى 1
+    - 95, 75, 40, 40
+    - icon: u11 (public/assets/troops-icons/)
+    - cost: 1
+- مقاتل برمح: (Spearman)
+    - الأكاديمية المستوى 1, ثكنة المستوى 3
+    - 145, 70, 85, 40
+    - icon: u12 (public/assets/troops-icons/)
+    - cost: 1
+- مقاتل بفأس: (Axeman)
+    - الأكاديمية المستوى 3, أفران صهر الحديد المستوى 1
+    - 130, 120, 170, 70
+    - icon: u13 (public/assets/troops-icons/)
+    - cost: 1
+- الكشّاف: (Scout)
+    - الأكاديمية المستوى 1, المبنى الرئيسي المستوى 5
+    - 160, 100, 50, 50
+    - icon: u14 (public/assets/troops-icons/)
+    - cost: 1
+- مدافع الجرمان: (Paladin)
+    - الأكاديمية المستوى 5, إسطبل المستوى 3
+    - 370, 270, 290, 75
+    - icon: u15 (public/assets/troops-icons/)
+    - cost: 2
+- فارس الجرمان: (Teutonic Knight)
+    - الأكاديمية المستوى 15, إسطبل المستوى 10
+    - 450, 515, 480, 80
+    - icon: u16 (public/assets/troops-icons/)
+    - cost: 3
+- مدقّ رأس الكبش: (Ram)
+    - الأكاديمية المستوى 10, المصانع الحربية المستوى 1
+    - 1000, 300, 350, 70
+    - icon: u17 (public/assets/troops-icons/)
+    - cost: 3
+- منجنيق: (Catapult)
+    - المصانع الحربية المستوى 10, الأكاديمية المستوى 15
+    - 900, 1200, 600, 60
+    - icon: u18 (public/assets/troops-icons/)
+    - cost: 6
+
+# Gauls:
+- العسكري المقدوني: (Phalanx)
+    - ثكنة المستوى 1
+    - 100, 130, 55, 30
+    - icon: u21 (public/assets/troops-icons/)
+    - cost: 1
+- المبارز: (Swordsman)
+    - الأكاديمية المستوى 3, أفران صهر الحديد المستوى 1
+    - 140, 150, 185, 60
+    - icon: u22 (public/assets/troops-icons/)
+    - cost: 1
+- وحدة الاستطلاع: (Pathfinder)
+    - الأكاديمية المستوى 5, إسطبل المستوى 1
+    - 170, 150, 20, 40
+    - icon: u23 (public/assets/troops-icons/)
+    - cost: 2
+- رعد الإغريق: (Theutates Thunder)
+    - الأكاديمية المستوى 5, إسطبل المستوى 3
+    - 350, 450, 230, 60
+    - icon: u24 (public/assets/troops-icons/)
+    - cost: 2
+- الفارس الصلب: (Druidrider)
+    - الأكاديمية المستوى 5, إسطبل المستوى 5
+    - 360, 330, 280, 120
+    - icon: u25 (public/assets/troops-icons/)
+    - cost: 2
+- الفارس المقنّع: (Haeduan)
+    - الأكاديمية المستوى 15, إسطبل المستوى 10
+    - 500, 620, 675, 170
+    - icon: u26 (public/assets/troops-icons/)
+    - cost: 3
+- مدقّ رأس الكبش: (Ram)
+    - الأكاديمية المستوى 10, المصانع الحربية المستوى 1
+    - 950, 555, 330, 75
+    - icon: u27 (public/assets/troops-icons/)
+    - cost: 3
+- المقلاع الحربي: (Trebuchet)
+    - المصانع الحربية المستوى 10, الأكاديمية المستوى 15
+    - 960, 1450, 630, 90
+    - icon: u28 (public/assets/troops-icons/)
+    - cost: 6

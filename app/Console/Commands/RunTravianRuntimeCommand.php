@@ -8,7 +8,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Symfony\Component\Process\Process;
 
-#[Signature('travian:runtime {--host= : Host used by the local Laravel server} {--port= : Port used by the local Laravel server} {--no-server : Run only queue and scheduler workers} {--no-open : Do not open the dashboard in the browser} {--verbose-workers : Print child process output to this console}')]
+#[Signature('travian:runtime {--host= : Host used by the local Laravel server} {--port= : Port used by the local Laravel server} {--no-server : Run only queue and scheduler workers} {--open : Open the dashboard in the browser} {--verbose-workers : Print child process output to this console}')]
 #[Description('Run and supervise the local Travian web server, queue worker, and scheduler.')]
 class RunTravianRuntimeCommand extends Command
 {
@@ -36,7 +36,7 @@ class RunTravianRuntimeCommand extends Command
 
             $this->line("Dashboard: {$url}");
 
-            if (! (bool) $this->option('no-open')) {
+            if ((bool) $this->option('open')) {
                 $this->openDashboard($url);
             }
         }

@@ -54,9 +54,9 @@ class SystemSetting extends Model
     {
         return [
             'wood' => 1,
-            'clay' => 2,
-            'iron' => 3,
-            'crop' => 4,
+            'clay' => 1,
+            'iron' => 2,
+            'crop' => 2,
         ];
     }
 

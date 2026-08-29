@@ -57,8 +57,8 @@
                             });
                         $logSourceLabel = $hasTravianEvidence ? 'TRAVIAN' : 'APP';
                         $logSourceTitle = $hasTravianEvidence
-                            ? 'This log is tied to a Travian request or response.'
-                            : 'This log was created by local application logic before/without a Travian response.';
+                            ? 'Travian confirmed this activity.'
+                            : 'Created by an automation rule or dashboard action.';
                         $logSourceClasses = $hasTravianEvidence
                             ? 'bg-blue-100 text-blue-950 ring-1 ring-blue-200'
                             : 'bg-slate-100 text-slate-700 ring-1 ring-slate-200';

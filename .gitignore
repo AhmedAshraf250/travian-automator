@@ -1,4 +1,5 @@
 /.phpunit.cache
+/database/*.sqlite*
 /node_modules
 /public/build
 /public/fonts-manifest.dev.json
@@ -6,6 +7,7 @@
 /public/storage
 /storage/*.key
 /storage/framework/*.lock
+/storage/framework/psysh/
 /storage/pail
 /storage/app/private/debug
 /vendor

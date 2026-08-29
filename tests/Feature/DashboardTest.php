@@ -10,9 +10,12 @@ use App\Jobs\RefreshVillageMarketplaceSnapshotJob;
 use App\Jobs\RunTravianAutomationJob;
 use App\Jobs\SendManualMarketplaceTransferJob;
 use App\Jobs\SyncTravianAccountJob;
-use App\Livewire\Dashboard\AccountRow;
+use App\Livewire\Dashboard\Account\Row as AccountRow;
 use App\Livewire\Dashboard\Index;
-use App\Livewire\Dashboard\VillageRow;
+use App\Livewire\Dashboard\Modals\AccountSettings as AccountSettingsModal;
+use App\Livewire\Dashboard\Modals\MarketplaceTransfer as MarketplaceTransferModal;
+use App\Livewire\Dashboard\Modals\VillageSettings as VillageSettingsModal;
+use App\Livewire\Dashboard\Village\Row as VillageRow;
 use App\Models\Account;
 use App\Models\AccountProxy;
 use App\Models\AccountSetting;
@@ -90,11 +93,9 @@ test('account settings can manage a proxy pool and choose the active proxy', fun
     $account = Account::factory()->create([
         'username' => 'marshal',
     ]);
-    $account->settings()->create([
-        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
-    ]);
+    $account->settings()->create();
 
-    Livewire::test(Index::class)
+    Livewire::test(AccountSettingsModal::class)
         ->call('openAccountSettingsModal', $account->id)
         ->call('setAccountSettingsTab', 'proxies')
         ->call('addAccountProxyDraft')
@@ -133,11 +134,9 @@ test('account settings upgrades a legacy proxy into the pool and selects it', fu
         'proxy_password' => 'secret',
         'active_account_proxy_id' => null,
     ]);
-    $account->settings()->create([
-        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
-    ]);
+    $account->settings()->create();
 
-    Livewire::test(Index::class)
+    Livewire::test(AccountSettingsModal::class)
         ->call('openAccountSettingsModal', $account->id)
         ->assertSet('accountActiveProxyDraft', 'proxy:'.$account->fresh()->active_account_proxy_id)
         ->assertSet('accountProxyDrafts.0.host', '47.82.77.82');
@@ -164,11 +163,9 @@ test('account settings can remove every proxy without recreating the legacy prox
     $account->forceFill([
         'active_account_proxy_id' => $proxy->id,
     ])->save();
-    $account->settings()->create([
-        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
-    ]);
+    $account->settings()->create();
 
-    Livewire::test(Index::class)
+    Livewire::test(AccountSettingsModal::class)
         ->call('openAccountSettingsModal', $account->id)
         ->call('removeAccountProxyDraft', 0)
         ->assertSet('accountActiveProxyDraft', 'direct')
@@ -199,11 +196,9 @@ test('marking a cooled proxy as ready clears only its current failure window', f
         'cooldown_until' => now()->addMinutes(5),
         'last_error_message' => 'timeout',
     ]);
-    $account->settings()->create([
-        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
-    ]);
+    $account->settings()->create();
 
-    Livewire::test(Index::class)
+    Livewire::test(AccountSettingsModal::class)
         ->call('openAccountSettingsModal', $account->id)
         ->set('accountProxyDrafts.0.status', AccountProxy::StatusActive)
         ->set('accountActiveProxyDraft', 'proxy:'.$proxy->id)
@@ -296,9 +291,7 @@ test('dashboard shows imported account username', function () {
         'username' => 'strategist',
     ]);
 
-    $account->settings()->create([
-        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
-    ]);
+    $account->settings()->create();
 
     $this->get(route('home'))
         ->assertOk()
@@ -422,6 +415,53 @@ test('village transfer modal queues a manual marketplace transfer job', function
         ->exists())->toBeTrue();
 });
 
+test('isolated TR modal owns trade drafts and can switch to manual coordinates', function () {
+    $account = Account::factory()->create();
+    $sourceVillage = $account->villages()->create([
+        'travian_village_id' => '23378',
+        'name' => 'AMH7',
+        'x' => 60,
+        'y' => 19,
+        'is_active' => true,
+    ]);
+    $sourceVillage->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+        'support_enabled' => true,
+    ]);
+
+    Livewire::test(MarketplaceTransferModal::class)
+        ->dispatch('dashboard-open-marketplace-transfer', villageId: $sourceVillage->id)
+        ->call('setMarketplaceTransferTab', 'settings')
+        ->assertSee('Receive support')
+        ->assertSet('villageSupplyResourcesDraft', true)
+        ->call('setMarketplaceTransferTab', 'send')
+        ->set('marketplaceDestinationMode', 'manual')
+        ->assertSet('marketplaceDestinationMode', 'manual')
+        ->assertSee('Manual coordinates')
+        ->assertSee('X')
+        ->assertSee('Y');
+});
+
+test('village C panel toggles hero resources for celebration shortages', function () {
+    $account = Account::factory()->create();
+    $village = $account->villages()->create([
+        'travian_village_id' => 'celebration-hero',
+        'name' => 'Celebration Village',
+        'is_active' => true,
+    ]);
+    $village->settings()->create([
+        'field_priority' => VillageSetting::defaultFieldPriority(),
+        'celebration_use_hero_resources' => false,
+    ]);
+
+    Livewire::test(VillageRow::class, ['villageId' => $village->id])
+        ->assertSee('Hero resources if short')
+        ->call('toggleVillageCelebrationHeroResources', $village->id)
+        ->assertHasNoErrors();
+
+    expect($village->settings->fresh()->celebration_use_hero_resources)->toBeTrue();
+});
+
 test('village transfer modal queues a merchant snapshot refresh manually', function () {
     Queue::fake();
 
@@ -443,8 +483,8 @@ test('village transfer modal queues a merchant snapshot refresh manually', funct
     Livewire::test(Index::class)
         ->call('openMarketplaceTransferModal', $sourceVillage->id)
         ->assertDontSeeHtml('wire:poll.3s="refreshMarketplaceTransferCapacityView"')
-        ->assertSee('No merchant snapshot')
-        ->assertSee('Use Refresh to check available merchants in the background.')
+        ->assertSee('Merchant capacity unavailable')
+        ->assertSee('Refresh to check the available merchants.')
         ->call('refreshMarketplaceSnapshot')
         ->assertSeeHtml('wire:poll.3s="refreshMarketplaceTransferCapacityView"');
 
@@ -733,6 +773,38 @@ test('account update queues a manual sync even during connection cooldown', func
     });
 });
 
+test('account row never mutates the dashboard revision reactive prop while requesting sync', function () {
+    Queue::fake();
+    $account = Account::factory()->create();
+
+    Livewire::test(AccountRow::class, ['accountId' => $account->id, 'dashboardRevision' => 'parent-owned-revision'])
+        ->call('requestAccountSync', $account->id)
+        ->assertSet('dashboardRevision', 'parent-owned-revision');
+
+    Queue::assertPushed(SyncTravianAccountJob::class);
+});
+
+test('open child modal pauses dashboard refresh without rendering away its selected tab', function () {
+    Queue::fake();
+    $account = Account::factory()->create();
+    $village = $account->villages()->create(['travian_village_id' => '23378', 'name' => 'Stable modal', 'is_active' => true]);
+    $village->settings()->create(['field_priority' => VillageSetting::defaultFieldPriority()]);
+
+    Livewire::test(Index::class)
+        ->call('updateDashboardModalVisibility', true)
+        ->assertSet('dashboardChildModalOpen', true)
+        ->call('markDashboardChanged')
+        ->assertSet('dashboardChildModalOpen', true);
+
+    Livewire::test(VillageSettingsModal::class)
+        ->call('openVillageTroopOrders', $village->id)
+        ->assertSet('showVillageBuildPlanModal', true)
+        ->assertSet('villageSettingsTab', 'troops')
+        ->call('$refresh')
+        ->assertSet('showVillageBuildPlanModal', true)
+        ->assertSet('villageSettingsTab', 'troops');
+});
+
 test('account update ignores repeated clicks while sync work is pending', function () {
     Queue::fake();
 
@@ -848,7 +920,7 @@ test('dashboard toggles the global automation switch', function () {
 test('dashboard separates automation intent from runtime process health', function () {
     Livewire::test(Index::class)
         ->assertSee('Enabled')
-        ->assertSee('Runtime offline')
+        ->assertSee('Services unavailable')
         ->assertDontSee('Running');
 
     SystemSetting::markRuntimeHeartbeat('queue_worker', now());
@@ -856,7 +928,7 @@ test('dashboard separates automation intent from runtime process health', functi
 
     Livewire::test(Index::class)
         ->assertSee('Enabled')
-        ->assertSee('Runtime online');
+        ->assertSee('Services ready');
 });
 
 test('dashboard saves the global fallback user agent setting', function () {
@@ -896,9 +968,7 @@ test('dashboard shows the inherited global fallback user agent for accounts with
         'user_agent' => null,
     ]);
 
-    $account->settings()->create([
-        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
-    ]);
+    $account->settings()->create();
 
     $this->get(route('home'))
         ->assertOk()
@@ -910,11 +980,9 @@ test('dashboard saves per account user agent and hero settings', function () {
         'username' => 'hero-owner',
         'user_agent' => null,
     ]);
-    $account->settings()->create([
-        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
-    ]);
+    $account->settings()->create();
 
-    Livewire::test(Index::class)
+    Livewire::test(AccountSettingsModal::class)
         ->call('openAccountSettingsModal', $account->id)
         ->assertSet('showAccountSettingsModal', true)
         ->call('setAccountSettingsTab', 'hero')
@@ -956,6 +1024,37 @@ test('dashboard saves per account user agent and hero settings', function () {
             'defBonus' => 3,
             'productionPoints' => 4,
         ]);
+});
+
+test('account Hero tab shows the last known resource inventory without refreshing Travian automatically', function () {
+    $account = Account::factory()->create(['username' => 'hero-inventory']);
+    $account->settings()->create();
+    $account->heroState()->create([
+        'payload' => [
+            'resource_inventory' => [
+                'wood' => 1200,
+                'clay' => 2300,
+                'iron' => 3400,
+                'crop' => 4500,
+                'reported_at' => now()->subMinute()->toIso8601String(),
+            ],
+        ],
+    ]);
+
+    Livewire::test(AccountSettingsModal::class)
+        ->call('openAccountSettingsModal', $account->id)
+        ->call('setAccountSettingsTab', 'hero')
+        ->assertSee('Hero resources')
+        ->assertSee('1,200')
+        ->assertSee('2,300')
+        ->assertSee('3,400')
+        ->assertSee('4,500')
+        ->assertSee('Refresh Hero resources')
+        ->assertSeeHtml('assets/res-icons/lumber_small.png')
+        ->assertSeeHtml('assets/res-icons/crop_small.png')
+        ->assertSeeHtml('role="tablist"')
+        ->assertDontSee('Refresh resources')
+        ->assertSee('Read only');
 });
 
 test('dashboard toggles village field, building, and hero resource automation flags', function () {
@@ -1118,12 +1217,13 @@ test('dashboard opens the village settings modal with existing slot data', funct
         'is_enabled' => true,
     ]);
 
-    Livewire::test(Index::class)
+    Livewire::test(VillageSettingsModal::class)
         ->call('openVillageSettingsModal', $village->id)
         ->assertSet('showVillageBuildPlanModal', true)
         ->assertSet('editingVillageId', $village->id)
         ->assertSet('editingVillageTribeLabel', 'Roman')
-        ->assertSee('Automation switches')
+        ->assertSeeHtml('role="tablist"')
+        ->assertSee('Automatic upgrades')
         ->assertSee('Field priority mode')
         ->assertSee('Hero resources')
         ->assertSee('Use Hero Resources')
@@ -1215,7 +1315,7 @@ test('dashboard saves village field priorities, automation toggles, and building
         ->set('villageCelebrationEnabledDraft', true)
         ->set('villageCelebrationTypeDraft', 'great')
         ->set('villageCelebrationMinimumCulturePointsDraft', 300)
-        ->set('villageTroopTrainingEnabledDraft', true)
+        ->set('villageCelebrationUseHeroResourcesDraft', true)
         ->set('villagePrioritizeCropFieldsWhenNegativeDraft', false)
         ->set('villageFieldLevelCapModeDraft', 'custom')
         ->set('villageFieldLevelCapDraft', 15)
@@ -1253,10 +1353,10 @@ test('dashboard saves village field priorities, automation toggles, and building
     expect($savedSettings?->hero_resources_enabled)->toBeFalse();
     expect($savedSettings?->supply_negative_crop_enabled)->toBeFalse();
     expect($savedSettings?->trade_max_duration_seconds)->toBe(3 * 60 * 60);
-    expect($savedSettings?->troop_training_enabled)->toBeTrue();
     expect($savedSettings?->celebration_enabled)->toBeTrue();
     expect($savedSettings?->celebration_type?->value)->toBe('great');
     expect($savedSettings?->celebration_min_culture_points)->toBe(300);
+    expect($savedSettings?->celebration_use_hero_resources)->toBeTrue();
     expect($savedSettings?->prioritize_crop_fields_when_negative)->toBeFalse();
     expect($savedSettings?->field_level_cap_mode)->toBe('custom');
     expect($savedSettings?->field_level_cap)->toBe(10);
@@ -1923,9 +2023,7 @@ test('dashboard shows construction countdown and finish time in the village row 
         'username' => 'marshal',
     ]);
 
-    $account->settings()->create([
-        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
-    ]);
+    $account->settings()->create();
 
     $village = $account->villages()->create([
         'travian_village_id' => '23390',
@@ -2023,7 +2121,7 @@ test('dashboard shows construction countdown and finish time in the village row 
         ->assertSee('1800')
         ->assertSee('+140/h')
         ->assertSee('#f88c1f')
-        ->assertSee('T - Troops: train enabled troop queues for this village')
+        ->assertSee('T - Troop command panel: indigo means trainable units are ready; amber means orders are pending')
         ->assertSee('C - Celebrations: inspect and toggle town hall celebrations')
         ->assertSee('CP >= 200', false)
         ->assertDontSee('WH 4000')
@@ -2104,6 +2202,8 @@ test('dashboard keeps elapsed construction visible until the next sync confirms 
     ])
         ->assertSee('الحطاب')
         ->assertSee('Lv 7')
+        ->assertSeeHtml('wire:key="construction-timer-')
+        ->assertSeeHtml('x-effect="tick($store.dashboardClock.now)"')
         ->assertSee('Sync due');
 
     Carbon::setTestNow();
@@ -2177,7 +2277,7 @@ test('dashboard schedule keeps pinned running building target visible for releas
     Carbon::setTestNow();
 });
 
-test('dashboard field schedule allows candidates within the two level resource family gap', function () {
+test('dashboard field schedule limits adjacent priority families to a one level gap', function () {
     $account = Account::factory()->create([
         'username' => 'marshal',
     ]);
@@ -2223,7 +2323,7 @@ test('dashboard field schedule allows candidates within the two level resource f
         'globalFieldLevelCap' => 10,
         'globalPrioritizeCropFieldsWhenNegative' => true,
     ])
-        ->assertSeeHtml("schedule-entry-{$village->id}-field:5:7")
+        ->assertDontSeeHtml("schedule-entry-{$village->id}-field:5:7")
         ->assertSeeHtml("schedule-entry-{$village->id}-field:4:6")
         ->assertSeeHtml("schedule-entry-{$village->id}-field:8:6");
 });
@@ -2463,9 +2563,7 @@ test('dashboard separates successful sync age from connection retry status', fun
         'last_connection_error_message' => 'cURL error 28: Connection timed out.',
     ]);
 
-    $account->settings()->create([
-        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
-    ]);
+    $account->settings()->create();
 
     Livewire::test(Index::class)
         ->assertSee('connection')
@@ -2548,6 +2646,8 @@ test('dashboard styles outgoing attack movements with the attack icon palette', 
     ])
         ->assertSee('assets/movements-icons/att2.gif')
         ->assertSee('#fff6b5')
+        ->assertSeeHtml('wire:key="movement-timer-')
+        ->assertSeeHtml('x-effect="tick($store.dashboardClock.now)"')
         ->assertSee('1 هجوم');
 
     Carbon::setTestNow();

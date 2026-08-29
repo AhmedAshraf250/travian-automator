@@ -1,12 +1,12 @@
 <?php
 
 use App\Application\Accounts\Rewards\ExecuteQuestRewardCollection;
+use App\Application\Accounts\Rewards\ObservedQuestRewardReaction;
 use App\Application\Accounts\Session\Contracts\AccountSession;
 use App\Application\Accounts\Session\Data\SessionResponse;
 use App\Enums\ActivityLogStatus;
 use App\Enums\ActivityType;
 use App\Models\Account;
-use App\Models\AccountSetting;
 use App\Models\ActivityLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -19,7 +19,6 @@ function makeQuestRewardAccount(bool $acceptQuests = true): array
     ]);
 
     $account->settings()->create([
-        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
         'accept_quests' => $acceptQuests,
     ]);
 
@@ -240,7 +239,7 @@ test('quest reward collection can react to an already observed dorf1 response', 
         '/api/v1/progressive-tasks/collectReward' => '{"success":true}',
     ]);
 
-    app(ExecuteQuestRewardCollection::class)->handleObservedDorf1Response($account, $session, new SessionResponse(
+    app(ObservedQuestRewardReaction::class)->handle($account, $session, new SessionResponse(
         statusCode: 200,
         body: '<input id="villageName" data-did="'.$village->travian_village_id.'"><div class="bigSpeechBubble newQuestSpeechBubble" title=""></div>',
         effectiveUri: 'https://ts7.x1.arabics.travian.com/dorf1.php?newdid='.$village->travian_village_id,

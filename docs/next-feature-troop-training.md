@@ -40,7 +40,7 @@ Keep this data out of Blade.
   - parser/snapshot service for training pages.
 - Livewire:
   - Keep page shell coordination in `Dashboard\Index`.
-  - Put village training actions in a dedicated dashboard concern or `VillageRow` action if it is row-local.
+  - Put village training actions in a dedicated dashboard concern or `Dashboard\Village\Row` action if it is row-local.
   - Keep modal/tab state lazy so it loads only when the user opens Troops Training.
 - Persistence:
   - Check existing tables/models before adding new ones.

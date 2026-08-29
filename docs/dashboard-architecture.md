@@ -6,10 +6,10 @@ This file explains the current dashboard structure and where future changes shou
 
 - `App\Livewire\Dashboard\Index` is the dashboard shell. Keep it focused on page-level state, modal coordination, and shared actions.
 - Dashboard behavior is split into concerns under `app/Livewire/Dashboard/Concerns/`. Add behavior to the closest existing concern before expanding `Index`.
-- `App\Livewire\Dashboard\AccountRow` owns account-row display and account-level controls.
-- `App\Livewire\Dashboard\VillageRow` owns village-row display and village-level controls.
-- Row views live under `resources/views/livewire/dashboard/`.
-- Reusable modal bodies and small dashboard pieces live under `resources/views/livewire/dashboard/partials/`.
+- `App\Livewire\Dashboard\Account\Row` owns account-row display and account-level controls.
+- `App\Livewire\Dashboard\Village\Row` owns village-row display and village-level controls.
+- Stateful child components are grouped by owner and their views mirror the class namespace, such as `Dashboard\Village\TroopOrders` and `livewire.dashboard.village.troop-orders`.
+- Passive Blade fragments with no Livewire class live under `resources/views/livewire/dashboard/partials/`.
 
 ## Performance Direction
 

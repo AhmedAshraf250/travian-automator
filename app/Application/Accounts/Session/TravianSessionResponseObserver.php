@@ -7,9 +7,11 @@ use App\Application\Accounts\Hero\Parsers\HeroAttributesAnalyzer;
 use App\Application\Accounts\Hero\Parsers\HeroHudDataParser;
 use App\Application\Accounts\Hero\Parsers\HeroTopBarParser;
 use App\Application\Accounts\Session\Data\SessionResponse;
+use App\Application\Accounts\Sync\Parsers\ActiveVillageIdParser;
 use App\Application\Accounts\Sync\Parsers\Dorf1OverviewParser;
 use App\Application\Accounts\Sync\Parsers\Dorf2OverviewParser;
 use App\Application\Accounts\Sync\PersistVillageOverview;
+use App\Application\Accounts\Trading\Parsers\MarketplaceMerchantStatusParser;
 use App\Models\Account;
 use App\Models\AccountHeroState;
 use Throwable;
@@ -28,6 +30,8 @@ class TravianSessionResponseObserver
         protected HeroAttributesAnalyzer $heroAttributesAnalyzer,
         protected Dorf1OverviewParser $dorf1OverviewParser,
         protected Dorf2OverviewParser $dorf2OverviewParser,
+        protected ActiveVillageIdParser $activeVillageIdParser,
+        protected MarketplaceMerchantStatusParser $merchantStatusParser,
         protected PersistVillageOverview $persistVillageOverview,
     ) {}
 
@@ -97,7 +101,7 @@ class TravianSessionResponseObserver
      */
     protected function observeDorf2Document(Account $account, SessionResponse $response): void
     {
-        $travianVillageId = $this->extractActiveVillageId($response->body);
+        $travianVillageId = $this->activeVillageIdParser->parse($response->body);
 
         if ($travianVillageId === null) {
             return;
@@ -121,13 +125,13 @@ class TravianSessionResponseObserver
      */
     protected function observeMarketplaceDocument(Account $account, SessionResponse $response): void
     {
-        $merchantStatus = $this->extractMerchantStatus($response->body);
+        $merchantStatus = $this->merchantStatusParser->parse($response->body);
 
         if ($merchantStatus === null) {
             return;
         }
 
-        $travianVillageId = $this->extractActiveVillageId($response->body);
+        $travianVillageId = $this->activeVillageIdParser->parse($response->body);
 
         if ($travianVillageId === null) {
             return;
@@ -224,74 +228,6 @@ class TravianSessionResponseObserver
             || str_contains($body, 'id="topBarHero"')
             || str_contains($body, "id='topBarHero'")
             || str_contains($body, 'whereAreMyMerchants');
-    }
-
-    /**
-     * Extract the active village id from the standard village name input.
-     */
-    protected function extractActiveVillageId(string $html): ?string
-    {
-        if (preg_match('/id=["\']villageName["\'][\s\S]*?data-did=(["\']?)([^"\'\s>]+)\1/u', $html, $matches) !== 1) {
-            return null;
-        }
-
-        return html_entity_decode($matches[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
-    }
-
-    /**
-     * @return array{available: int, total: int}|null
-     */
-    protected function extractMerchantStatus(string $html): ?array
-    {
-        if (preg_match('/<div[^>]*class=["\'][^"\']*whereAreMyMerchants[^"\']*["\'][^>]*>(.*?)<\/div>/isu', $html, $matches) !== 1) {
-            return null;
-        }
-
-        $text = html_entity_decode(strip_tags($matches[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $numbers = [];
-
-        if (preg_match_all('/\d+/u', $this->normalizeUnicodeDigits($text), $numberMatches) === false) {
-            return null;
-        }
-
-        foreach ($numberMatches[0] as $number) {
-            $numbers[] = (int) $number;
-        }
-
-        if (count($numbers) < 2) {
-            return null;
-        }
-
-        return [
-            'available' => max(0, $numbers[0]),
-            'total' => max(0, $numbers[1]),
-        ];
-    }
-
-    protected function normalizeUnicodeDigits(string $value): string
-    {
-        return strtr($value, [
-            '٠' => '0',
-            '١' => '1',
-            '٢' => '2',
-            '٣' => '3',
-            '٤' => '4',
-            '٥' => '5',
-            '٦' => '6',
-            '٧' => '7',
-            '٨' => '8',
-            '٩' => '9',
-            '۰' => '0',
-            '۱' => '1',
-            '۲' => '2',
-            '۳' => '3',
-            '۴' => '4',
-            '۵' => '5',
-            '۶' => '6',
-            '۷' => '7',
-            '۸' => '8',
-            '۹' => '9',
-        ]);
     }
 
     protected function merchantCapacityForTribe(int $tribeId): int

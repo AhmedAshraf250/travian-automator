@@ -97,14 +97,25 @@ class ExecuteVillageConstruction
             $fieldCandidates = $this->filterCandidatesByScheduleKeys($fieldCandidates, $visibleScheduleKeys, 'field');
             $buildingCandidates = $this->filterCandidatesByScheduleKeys($buildingCandidates, $visibleScheduleKeys, 'building');
             $firstResourceShortage = null;
-            $anyConstructionExecuted = false;
 
             if (TravianBuildingCatalog::isRomanTribe($tribeId)) {
                 foreach ($this->resolveRomanQueueOrder($fieldCandidates, $buildingCandidates, $settings) as $queueKind) {
                     if ($queueKind === 'field' && $fieldCandidates !== [] && $queueAvailability['field']) {
                         $fieldResult = $this->executeFirstFieldCandidate($account, $village, $session, $fieldCandidates, $settings);
-                        $anyConstructionExecuted = $anyConstructionExecuted || $fieldResult['executed'];
-                        $firstResourceShortage ??= $fieldResult['resource_shortage'];
+                        $fieldExecuted = $fieldResult['executed'];
+
+                        if (! $fieldExecuted && $fieldResult['resource_shortage'] !== null) {
+                            $fieldExecuted = $this->retryConstructionAfterHeroResources(
+                                $account,
+                                $village,
+                                $session,
+                                $fieldResult['resource_shortage'],
+                            );
+
+                            if (! $fieldExecuted) {
+                                $firstResourceShortage ??= $fieldResult['resource_shortage'];
+                            }
+                        }
 
                         if ($fieldResult['blocked_by_schedule_stop']) {
                             break;
@@ -115,8 +126,20 @@ class ExecuteVillageConstruction
 
                     if ($queueKind === 'building' && $buildingCandidates !== [] && $queueAvailability['building']) {
                         $buildingResult = $this->executeFirstBuildingCandidate($account, $village, $session, $buildingCandidates, $switchResponse->effectiveUri, $settings);
-                        $anyConstructionExecuted = $anyConstructionExecuted || $buildingResult['executed'];
-                        $firstResourceShortage ??= $buildingResult['resource_shortage'];
+                        $buildingExecuted = $buildingResult['executed'];
+
+                        if (! $buildingExecuted && $buildingResult['resource_shortage'] !== null) {
+                            $buildingExecuted = $this->retryConstructionAfterHeroResources(
+                                $account,
+                                $village,
+                                $session,
+                                $buildingResult['resource_shortage'],
+                            );
+
+                            if (! $buildingExecuted) {
+                                $firstResourceShortage ??= $buildingResult['resource_shortage'];
+                            }
+                        }
 
                         if ($buildingResult['blocked_by_schedule_stop']) {
                             break;
@@ -124,11 +147,7 @@ class ExecuteVillageConstruction
                     }
                 }
 
-                if (! $anyConstructionExecuted && $firstResourceShortage !== null) {
-                    if ($this->retryConstructionAfterHeroResources($account, $village, $session, $firstResourceShortage)) {
-                        return;
-                    }
-
+                if ($firstResourceShortage !== null) {
                     $this->executeVillageResourceTransfer->handle(
                         $account,
                         $village,
@@ -440,7 +459,7 @@ class ExecuteVillageConstruction
 
             $otherPriority = $priorityMap[$fieldKey] ?? 999;
 
-            $allowedLead = max(2, abs($otherPriority - $candidatePriority));
+            $allowedLead = max(1, abs($otherPriority - $candidatePriority));
 
             if ($candidateNextLevel > ((int) $minLevel + $allowedLead)) {
                 return false;

@@ -16,5 +16,8 @@ final readonly class ParsedCelebrationOption
         public VillageCelebrationType $type,
         public int $culturePoints,
         public ?string $actionUri,
+        /** @var array{wood: int, clay: int, iron: int, crop: int} */
+        public array $cost,
+        public ?string $serverMessage,
     ) {}
 }

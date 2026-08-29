@@ -225,10 +225,6 @@ trait BuildsDashboardViewData
             $payload['globalPrioritizeCropFieldsWhenNegative'] = (bool) $constructionDefaults['prioritize_crop_fields_when_negative'];
         }
 
-        if ($this->showAccountSettingsModal) {
-            $payload['globalHeroDefaults'] = SystemSetting::heroDefaults();
-        }
-
         return $payload;
     }
 
@@ -251,6 +247,8 @@ trait BuildsDashboardViewData
             'village_runtime_states' => 'updated_at',
             'village_buildings' => 'updated_at',
             'village_building_targets' => 'updated_at',
+            'village_troop_snapshots' => 'updated_at',
+            'village_troop_orders' => 'updated_at',
         ];
 
         $parts = [];

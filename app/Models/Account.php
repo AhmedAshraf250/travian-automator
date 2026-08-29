@@ -51,6 +51,13 @@ class Account extends Model
     /** @use HasFactory<AccountFactory> */
     use HasFactory;
 
+    /** @var list<string> */
+    protected $hidden = [
+        'password',
+        'proxy_password',
+        'session_cookies',
+    ];
+
     /**
      * Get the attributes that should be cast.
      *

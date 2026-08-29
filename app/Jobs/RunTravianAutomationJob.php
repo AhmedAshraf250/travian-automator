@@ -18,6 +18,7 @@ use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
+use Illuminate\Support\Facades\Cache;
 use Throwable;
 
 /**
@@ -34,7 +35,7 @@ class RunTravianAutomationJob implements ShouldBeUnique, ShouldQueue
     /**
      * The maximum number of attempts for the job.
      */
-    public int $tries = 12;
+    public int $tries = 1;
 
     /**
      * Let slow proxy-backed sync/build requests finish before timeout handling.
@@ -42,11 +43,9 @@ class RunTravianAutomationJob implements ShouldBeUnique, ShouldQueue
     public int $timeout = 90;
 
     /**
-     * Back off when a manual sync or another automation job owns the account lock.
-     *
-     * @var list<int>
+     * An ambiguous timeout must never replay remote mutations automatically.
      */
-    public array $backoff = [5, 10, 20, 30, 45, 60];
+    public bool $failOnTimeout = true;
 
     /**
      * Keep duplicate account automation jobs out while one is pending or running.
@@ -86,8 +85,8 @@ class RunTravianAutomationJob implements ShouldBeUnique, ShouldQueue
         return [
             (new WithoutOverlapping("travian-account:{$this->accountId}"))
                 ->shared()
-                ->releaseAfter(15)
-                ->expireAfter(1800),
+                ->dontRelease()
+                ->expireAfter(max($this->timeout + 30, (int) config('travian.automation.account_lock_expire_seconds', 360))),
         ];
     }
 
@@ -110,6 +109,10 @@ class RunTravianAutomationJob implements ShouldBeUnique, ShouldQueue
             || $account->is_archived
             || $account->isWaitingForConnectionRetry()
         ) {
+            return;
+        }
+
+        if ($this->villageId === null && ! $this->claimAutomationCycle()) {
             return;
         }
 
@@ -227,6 +230,21 @@ class RunTravianAutomationJob implements ShouldBeUnique, ShouldQueue
                     || $this->hasElapsedVillageTimer($village);
             })
             || $this->hasElapsedHeroTimer($account);
+    }
+
+    /**
+     * Prevent scheduler, chained, and previously queued jobs from starting
+     * complete account cycles too close together.
+     */
+    protected function claimAutomationCycle(): bool
+    {
+        $minimumCycleSeconds = max(30, (int) config('travian.automation.minimum_cycle_seconds', 60));
+
+        return Cache::add(
+            "travian-automation-cycle:{$this->accountId}",
+            true,
+            now()->addSeconds($minimumCycleSeconds),
+        );
     }
 
     /**

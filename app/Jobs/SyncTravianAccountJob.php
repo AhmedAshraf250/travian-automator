@@ -11,6 +11,7 @@ use App\Models\Account;
 use App\Models\ActivityLog;
 use App\Models\SystemSetting;
 use App\Models\Village;
+use DateTimeInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -33,7 +34,15 @@ class SyncTravianAccountJob implements ShouldBeUnique, ShouldQueue
     /**
      * The maximum number of attempts for the job.
      */
-    public int $tries = 12;
+    public int $tries = 0;
+
+    /**
+     * A real exception must not replay a complete Travian session.
+     *
+     * Lock-contention releases are not exceptions and remain eligible until
+     * retryUntil(), while the first genuine exception fails the job.
+     */
+    public int $maxExceptions = 1;
 
     /**
      * Let slow proxies finish before the worker treats the job as timed out.
@@ -41,11 +50,16 @@ class SyncTravianAccountJob implements ShouldBeUnique, ShouldQueue
     public int $timeout = 90;
 
     /**
+     * Never replay a full sync after the worker killed it at the hard timeout.
+     */
+    public bool $failOnTimeout = true;
+
+    /**
      * Back off when another account job is holding the shared Travian session lock.
      *
      * @var list<int>
      */
-    public array $backoff = [5, 10, 20, 30, 45, 60];
+    public array $backoff = [60, 120, 300];
 
     /**
      * Keep duplicate account jobs out of the queue while one is pending or running.
@@ -73,6 +87,14 @@ class SyncTravianAccountJob implements ShouldBeUnique, ShouldQueue
     }
 
     /**
+     * Stop waiting for an account session lock after a bounded quiet window.
+     */
+    public function retryUntil(): DateTimeInterface
+    {
+        return now()->addMinutes(max(1, (int) config('travian.automation.sync_lock_wait_minutes', 15)));
+    }
+
+    /**
      * Prevent two workers from processing the same account at the same time.
      *
      * @return list<object>
@@ -82,8 +104,8 @@ class SyncTravianAccountJob implements ShouldBeUnique, ShouldQueue
         return [
             (new WithoutOverlapping("travian-account:{$this->accountId}"))
                 ->shared()
-                ->releaseAfter(15)
-                ->expireAfter(1800),
+                ->releaseAfter(max(30, (int) config('travian.automation.account_lock_release_seconds', 60)))
+                ->expireAfter(max($this->timeout + 30, (int) config('travian.automation.account_lock_expire_seconds', 360))),
         ];
     }
 

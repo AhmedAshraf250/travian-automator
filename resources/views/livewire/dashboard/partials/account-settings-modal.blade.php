@@ -8,25 +8,29 @@
                 </div>
 
                 <button type="button" wire:click="closeAccountSettingsModal"
+                    aria-label="Close account settings" title="Close account settings"
                     class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--color-line-strong)] text-lg font-semibold text-[var(--color-muted)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]">
                     ×
                 </button>
             </div>
 
-            <div class="border-b border-[var(--color-line)] px-5 pt-3">
-                <div class="flex flex-wrap gap-1.5">
+            <div class="border-b border-[var(--color-line)] bg-[var(--color-panel-alt)] px-5 py-2.5">
+                <div role="tablist" aria-label="Account settings sections" class="inline-flex flex-wrap gap-1 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-1 shadow-sm">
                     <button type="button" wire:click="setAccountSettingsTab('account')"
-                        class="rounded-t-lg border px-3 py-2 text-sm font-semibold transition {{ $accountSettingsTab === 'account' ? 'border-[var(--color-line)] border-b-[var(--color-panel)] bg-[var(--color-panel)] text-[var(--color-accent)]' : 'border-transparent bg-[var(--color-panel-alt)] text-[var(--color-muted)] hover:text-[var(--color-accent)]' }}">
-                        Account Settings
+                        role="tab" aria-selected="{{ $accountSettingsTab === 'account' ? 'true' : 'false' }}"
+                        class="cursor-pointer rounded-lg border px-3.5 py-2 text-sm font-semibold transition {{ $accountSettingsTab === 'account' ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-accent-contrast)] shadow-sm' : 'border-transparent text-[var(--color-muted)] hover:border-[var(--color-line-strong)] hover:bg-[var(--color-panel-alt)] hover:text-[var(--color-ink)]' }}">
+                        General
                     </button>
 
                     <button type="button" wire:click="setAccountSettingsTab('proxies')"
-                        class="rounded-t-lg border px-3 py-2 text-sm font-semibold transition {{ $accountSettingsTab === 'proxies' ? 'border-[var(--color-line)] border-b-[var(--color-panel)] bg-[var(--color-panel)] text-[var(--color-accent)]' : 'border-transparent bg-[var(--color-panel-alt)] text-[var(--color-muted)] hover:text-[var(--color-accent)]' }}">
+                        role="tab" aria-selected="{{ $accountSettingsTab === 'proxies' ? 'true' : 'false' }}"
+                        class="cursor-pointer rounded-lg border px-3.5 py-2 text-sm font-semibold transition {{ $accountSettingsTab === 'proxies' ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-accent-contrast)] shadow-sm' : 'border-transparent text-[var(--color-muted)] hover:border-[var(--color-line-strong)] hover:bg-[var(--color-panel-alt)] hover:text-[var(--color-ink)]' }}">
                         Proxies
                     </button>
 
                     <button type="button" wire:click="setAccountSettingsTab('hero')"
-                        class="rounded-t-lg border px-3 py-2 text-sm font-semibold transition {{ $accountSettingsTab === 'hero' ? 'border-[var(--color-line)] border-b-[var(--color-panel)] bg-[var(--color-panel)] text-[var(--color-accent)]' : 'border-transparent bg-[var(--color-panel-alt)] text-[var(--color-muted)] hover:text-[var(--color-accent)]' }}">
+                        role="tab" aria-selected="{{ $accountSettingsTab === 'hero' ? 'true' : 'false' }}"
+                        class="cursor-pointer rounded-lg border px-3.5 py-2 text-sm font-semibold transition {{ $accountSettingsTab === 'hero' ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-accent-contrast)] shadow-sm' : 'border-transparent text-[var(--color-muted)] hover:border-[var(--color-line-strong)] hover:bg-[var(--color-panel-alt)] hover:text-[var(--color-ink)]' }}">
                         Hero
                     </button>
                 </div>
@@ -65,7 +69,7 @@
                             <div class="flex flex-wrap items-center justify-between gap-3">
                                 <div>
                                     <h3 class="text-sm font-semibold text-[var(--color-ink)]">Proxy pool</h3>
-                                    <p class="mt-1 text-xs text-[var(--color-muted)]">Use socks5h/socks4a when possible so DNS is resolved through the proxy endpoint.</p>
+                                    <p class="mt-1 text-xs text-[var(--color-muted)]">For SOCKS proxies, prefer socks5h or socks4a so name lookups also use the proxy.</p>
                                 </div>
 
                                 <button type="button" wire:click="addAccountProxyDraft"
@@ -146,10 +150,10 @@
 
                                         <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-[var(--color-muted)]">
                                             <span class="rounded-md bg-[var(--color-panel-alt)] px-2 py-1">
-                                                current fail {{ $proxyFailureCount }}/{{ $proxyFailureThreshold }}
+                                                Recent failures {{ $proxyFailureCount }}/{{ $proxyFailureThreshold }}
                                             </span>
                                             <span class="rounded-md bg-[var(--color-panel-alt)] px-2 py-1">
-                                                lifetime fail {{ $proxyLifetimeFailureCount }}
+                                                All-time failures {{ $proxyLifetimeFailureCount }}
                                             </span>
 
                                             @if (($proxyDraft['status'] ?? null) === \App\Models\AccountProxy::StatusCooldown && $proxyCooldownTimestamp > 0)
@@ -189,8 +193,8 @@
 
                                             @if (! empty($proxyDraft['last_error_message']))
                                                 <span class="max-w-full truncate rounded-md bg-rose-500/10 px-2 py-1 text-rose-900"
-                                                    title="{{ $proxyDraft['last_error_message'] }}">
-                                                    {{ \Illuminate\Support\Str::limit($proxyDraft['last_error_message'], 80) }}
+                                                    title="The last proxy connection check failed">
+                                                    Last connection failed
                                                 </span>
                                             @endif
                                         </div>
@@ -225,6 +229,31 @@
                         $heroModeIsGlobal = (bool) $accountHeroUseGlobalSettingsDraft;
                     @endphp
                     <div class="space-y-4">
+                        <section class="rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] px-3 py-2.5">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <div class="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
+                                    <span class="font-semibold text-[var(--color-ink)]">Hero resources</span>
+                                    @foreach (['wood' => ['Wood', 'assets/res-icons/lumber_small.png'], 'clay' => ['Clay', 'assets/res-icons/clay_small.png'], 'iron' => ['Iron', 'assets/res-icons/iron_small.png'], 'crop' => ['Crop', 'assets/res-icons/crop_small.png']] as $resourceKey => [$resourceLabel, $resourceIcon])
+                                        <span wire:key="hero-resource-{{ $resourceKey }}" class="inline-flex items-center gap-1 text-[var(--color-muted)]">
+                                            <img src="{{ asset($resourceIcon) }}" alt="{{ $resourceLabel }}" title="{{ $resourceLabel }}" class="h-5 w-5 object-contain" />
+                                            <strong class="tabular-nums text-[var(--color-ink)]">{{ number_format((int) ($accountHeroResources[$resourceKey] ?? 0)) }}</strong>
+                                        </span>
+                                    @endforeach
+                                    <span class="text-[10px] text-[var(--color-muted)]">
+                                        {{ $accountHeroResourcesReportedAt ? 'Updated '.\Illuminate\Support\Carbon::parse($accountHeroResourcesReportedAt)->diffForHumans() : 'Not read yet' }}
+                                    </span>
+                                </div>
+                                <button type="button" wire:click="refreshAccountHeroResources" wire:loading.attr="disabled" wire:target="refreshAccountHeroResources"
+                                    aria-label="Refresh Hero resources" title="Read the latest Hero resources from Travian"
+                                    class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] text-[var(--color-ink)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:opacity-50">
+                                    <x-refresh-icon wire:loading.class="animate-spin" wire:target="refreshAccountHeroResources" />
+                                </button>
+                            </div>
+                            @if ($accountHeroResourcesMessage !== '')
+                                <p class="mt-2 text-[11px] text-[var(--color-muted)]">{{ $accountHeroResourcesMessage }}</p>
+                            @endif
+                        </section>
+
                         <section class="rounded-lg border border-[var(--color-line)] bg-[var(--color-panel-alt)] p-4">
                             <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                                 <div class="min-w-0">
@@ -241,37 +270,37 @@
 
                             <div class="mt-4 grid gap-2 md:grid-cols-2">
                                 <button type="button" wire:click="$set('accountHeroUseGlobalSettingsDraft', true)"
-                                    class="rounded-lg border px-3 py-3 text-left transition {{ $heroModeIsGlobal ? 'border-[var(--color-accent)] bg-[var(--color-panel)] ring-4 ring-[color:var(--color-accent-soft)]' : 'border-[var(--color-line)] bg-[var(--color-panel)] hover:border-[var(--color-accent)]' }}">
-                                    <span class="block text-sm font-semibold text-[var(--color-ink)]">Use Program Hero settings</span>
-                                    <span class="mt-1 block text-xs leading-5 text-[var(--color-muted)]">This account will use the effective values shown below.</span>
+                                    aria-pressed="{{ $heroModeIsGlobal ? 'true' : 'false' }}"
+                                    class="group cursor-pointer rounded-xl border px-3.5 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md {{ $heroModeIsGlobal ? 'border-[var(--color-accent)] bg-[var(--color-panel)] ring-4 ring-[color:var(--color-accent-soft)]' : 'border-[var(--color-line-strong)] bg-[var(--color-panel)] hover:border-[var(--color-accent)]' }}">
+                                    <span class="flex items-start gap-3"><span class="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 {{ $heroModeIsGlobal ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-accent-contrast)]' : 'border-[var(--color-line-strong)] bg-white' }}">{{ $heroModeIsGlobal ? '✓' : '' }}</span><span class="min-w-0"><span class="block text-sm font-semibold text-[var(--color-ink)]">Use Program Hero settings</span><span class="mt-1 block text-xs leading-5 text-[var(--color-muted)]">Apply the shared Hero policy to this account.</span></span></span>
                                 </button>
 
                                 <button type="button" wire:click="$set('accountHeroUseGlobalSettingsDraft', false)"
-                                    class="rounded-lg border px-3 py-3 text-left transition {{ ! $heroModeIsGlobal ? 'border-[var(--color-accent)] bg-[var(--color-panel)] ring-4 ring-[color:var(--color-accent-soft)]' : 'border-[var(--color-line)] bg-[var(--color-panel)] hover:border-[var(--color-accent)]' }}">
-                                    <span class="block text-sm font-semibold text-[var(--color-ink)]">Customize this account</span>
-                                    <span class="mt-1 block text-xs leading-5 text-[var(--color-muted)]">The controls below become the account's saved Hero policy.</span>
+                                    aria-pressed="{{ ! $heroModeIsGlobal ? 'true' : 'false' }}"
+                                    class="group cursor-pointer rounded-xl border px-3.5 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md {{ ! $heroModeIsGlobal ? 'border-emerald-500 bg-emerald-50 ring-4 ring-emerald-500/10' : 'border-[var(--color-line-strong)] bg-[var(--color-panel)] hover:border-emerald-500' }}">
+                                    <span class="flex items-start gap-3"><span class="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 {{ ! $heroModeIsGlobal ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-[var(--color-line-strong)] bg-white' }}">{{ ! $heroModeIsGlobal ? '✓' : '' }}</span><span class="min-w-0"><span class="block text-sm font-semibold text-[var(--color-ink)]">Customize this account</span><span class="mt-1 block text-xs leading-5 text-[var(--color-muted)]">Choose a separate Hero policy for this account.</span></span></span>
                                 </button>
                             </div>
                         </section>
 
                         @if ($heroModeIsGlobal)
-                            <section class="rounded-lg border border-sky-600/20 bg-sky-500/10 p-4">
+                            <section aria-readonly="true" class="rounded-lg border border-sky-200 bg-sky-50/90 p-4 shadow-inner">
                                 <div class="flex flex-wrap items-center justify-between gap-2">
-                                    <h3 class="text-sm font-semibold text-sky-950">Effective Program Hero settings</h3>
-                                    <span class="rounded-full bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-sky-900">Used now</span>
+                                    <div><h3 class="text-sm font-semibold text-[var(--color-ink)]">Effective Program Hero settings</h3><p class="mt-0.5 text-[10px] text-[var(--color-muted)]">Read-only values inherited from Program settings.</p></div>
+                                    <span class="rounded-full bg-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-700">Read only</span>
                                 </div>
 
                                 <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                                    <span class="rounded-md bg-white/70 px-3 py-2 text-xs font-semibold text-sky-950">
-                                        Adventures: {{ (bool) ($programHeroDefaults['adventures_enabled'] ?? false) ? 'On' : 'Off' }}
+                                    <span class="rounded-md bg-white/70 px-3 py-2 text-xs font-semibold text-[var(--color-ink)]">
+                                        Adventures: <strong class="{{ (bool) ($programHeroDefaults['adventures_enabled'] ?? false) ? 'text-emerald-700' : 'text-slate-500' }}">{{ (bool) ($programHeroDefaults['adventures_enabled'] ?? false) ? 'On' : 'Off' }}</strong>
                                     </span>
-                                    <span class="rounded-md bg-white/70 px-3 py-2 text-xs font-semibold text-sky-950">
-                                        Revive: {{ (bool) ($programHeroDefaults['revive_enabled'] ?? false) ? 'On' : 'Off' }}
+                                    <span class="rounded-md bg-white/70 px-3 py-2 text-xs font-semibold text-[var(--color-ink)]">
+                                        Revive: <strong class="{{ (bool) ($programHeroDefaults['revive_enabled'] ?? false) ? 'text-emerald-700' : 'text-slate-500' }}">{{ (bool) ($programHeroDefaults['revive_enabled'] ?? false) ? 'On' : 'Off' }}</strong>
                                     </span>
-                                    <span class="rounded-md bg-white/70 px-3 py-2 text-xs font-semibold text-sky-950">
-                                        Attributes: {{ (bool) ($programHeroDefaults['attribute_upgrade_enabled'] ?? false) ? 'On' : 'Off' }}
+                                    <span class="rounded-md bg-white/70 px-3 py-2 text-xs font-semibold text-[var(--color-ink)]">
+                                        Attributes: <strong class="{{ (bool) ($programHeroDefaults['attribute_upgrade_enabled'] ?? false) ? 'text-emerald-700' : 'text-slate-500' }}">{{ (bool) ($programHeroDefaults['attribute_upgrade_enabled'] ?? false) ? 'On' : 'Off' }}</strong>
                                     </span>
-                                    <span class="rounded-md bg-white/70 px-3 py-2 text-xs font-semibold text-sky-950">
+                                    <span class="rounded-md bg-white/70 px-3 py-2 text-xs font-semibold text-[var(--color-ink)]">
                                         Health limit: {{ (int) ($programHeroDefaults['min_health'] ?? 40) }}%
                                     </span>
                                 </div>
@@ -279,7 +308,7 @@
                                 <div class="mt-3 flex flex-wrap gap-2">
                                     @foreach ($heroAttributeLabels as $attributeKey => $attributeLabel)
                                         <span wire:key="program-hero-effective-{{ $attributeKey }}"
-                                            class="rounded-md bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-sky-900">
+                                            class="rounded-md bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-[var(--color-muted)]">
                                             {{ $attributeLabel }} {{ (int) ($programHeroWeights[$attributeKey] ?? 0) }}
                                         </span>
                                     @endforeach

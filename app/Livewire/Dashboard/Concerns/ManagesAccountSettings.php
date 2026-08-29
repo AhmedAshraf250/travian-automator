@@ -3,6 +3,7 @@
 namespace App\Livewire\Dashboard\Concerns;
 
 use App\Application\Accounts\Connection\RotatesAccountProxy;
+use App\Application\Accounts\Hero\RefreshAccountHeroResources;
 use App\Models\Account;
 use App\Models\AccountProxy;
 use App\Models\AccountSetting;
@@ -88,17 +89,27 @@ trait ManagesAccountSettings
      */
     public array $accountHeroAttributeWeightsDraft = [];
 
+    /** @var array{wood: int, clay: int, iron: int, crop: int} */
+    public array $accountHeroResources = [
+        'wood' => 0,
+        'clay' => 0,
+        'iron' => 0,
+        'crop' => 0,
+    ];
+
+    public ?string $accountHeroResourcesReportedAt = null;
+
+    public string $accountHeroResourcesMessage = '';
+
     /**
      * Open the per-account settings modal.
      */
     public function openAccountSettingsModal(int $accountId): void
     {
         $account = Account::query()
-            ->with(['settings', 'proxies'])
+            ->with(['settings', 'proxies', 'heroState'])
             ->findOrFail($accountId);
-        $settings = $account->settings ?? $account->settings()->create([
-            'resource_priorities' => AccountSetting::defaultResourcePriorities(),
-        ]);
+        $settings = $account->settings ?? $account->settings()->create();
 
         $this->editingAccountId = $account->id;
         $this->editingAccountUsername = $account->username;
@@ -117,7 +128,26 @@ trait ManagesAccountSettings
         $this->accountHeroReviveEnabledDraft = (bool) $settings->hero_revive_enabled;
         $this->accountHeroAttributeUpgradeEnabledDraft = (bool) $settings->hero_attribute_upgrade_enabled;
         $this->accountHeroAttributeWeightsDraft = $this->normalizeHeroAttributeWeights($settings->hero_attribute_weights);
+        $this->loadHeroResourceInventory($account);
         $this->showAccountSettingsModal = true;
+    }
+
+    public function refreshAccountHeroResources(RefreshAccountHeroResources $refreshAccountHeroResources): void
+    {
+        $this->validate([
+            'editingAccountId' => ['required', 'integer', 'exists:accounts,id'],
+        ]);
+
+        $account = Account::query()->findOrFail((int) $this->editingAccountId);
+
+        try {
+            $this->accountHeroResources = $refreshAccountHeroResources->handle($account);
+            $this->accountHeroResourcesReportedAt = now()->toIso8601String();
+            $this->accountHeroResourcesMessage = 'Hero resources updated from Travian.';
+        } catch (\Throwable $exception) {
+            report($exception);
+            $this->accountHeroResourcesMessage = 'Hero resources could not be updated. Check the account connection and try again.';
+        }
     }
 
     /**
@@ -213,9 +243,7 @@ trait ManagesAccountSettings
         $account = Account::query()
             ->with(['settings', 'proxies'])
             ->findOrFail((int) $this->editingAccountId);
-        $settings = $account->settings ?? $account->settings()->create([
-            'resource_priorities' => AccountSetting::defaultResourcePriorities(),
-        ]);
+        $settings = $account->settings ?? $account->settings()->create();
 
         $account->forceFill([
             'user_agent' => $this->accountInheritUserAgentDraft
@@ -440,6 +468,23 @@ trait ManagesAccountSettings
         $this->accountHeroReviveEnabledDraft = false;
         $this->accountHeroAttributeUpgradeEnabledDraft = false;
         $this->accountHeroAttributeWeightsDraft = AccountSetting::defaultHeroAttributeWeights();
+        $this->accountHeroResources = ['wood' => 0, 'clay' => 0, 'iron' => 0, 'crop' => 0];
+        $this->accountHeroResourcesReportedAt = null;
+        $this->accountHeroResourcesMessage = '';
+    }
+
+    protected function loadHeroResourceInventory(Account $account): void
+    {
+        $inventory = data_get($account->heroState?->payload, 'resource_inventory', []);
+
+        $this->accountHeroResources = [
+            'wood' => max(0, (int) ($inventory['wood'] ?? 0)),
+            'clay' => max(0, (int) ($inventory['clay'] ?? 0)),
+            'iron' => max(0, (int) ($inventory['iron'] ?? 0)),
+            'crop' => max(0, (int) ($inventory['crop'] ?? 0)),
+        ];
+        $this->accountHeroResourcesReportedAt = isset($inventory['reported_at']) ? (string) $inventory['reported_at'] : null;
+        $this->accountHeroResourcesMessage = '';
     }
 
     /**

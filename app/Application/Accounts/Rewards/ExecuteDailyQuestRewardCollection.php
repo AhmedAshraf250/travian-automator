@@ -123,24 +123,6 @@ class ExecuteDailyQuestRewardCollection
         }
     }
 
-    /**
-     * React to a dorf1 response that was already requested by another automation flow.
-     */
-    public function handleObservedDorf1Response(Account $account, AccountSession $session, SessionResponse $sourceResponse): void
-    {
-        if (! $sourceResponse->successful()) {
-            return;
-        }
-
-        $path = (string) (parse_url($sourceResponse->effectiveUri, PHP_URL_PATH) ?: '');
-
-        if (! str_contains($path, '/dorf1.php') || ! $this->dailyQuestRewardsParser->hasCollectableRewardIndicator($sourceResponse->body)) {
-            return;
-        }
-
-        $this->handle($account, $session, $sourceResponse);
-    }
-
     protected function rewardCollectionIsEnabled(Account $account): bool
     {
         $settings = $account->settings;

@@ -14,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 trait ManagesVillageSettings
 {
+    use HasVillageTradeDrafts;
+
     /**
      * Controls the village build plan modal visibility.
      */
@@ -69,49 +71,14 @@ trait ManagesVillageSettings
     public int $villageFieldLevelCapDraft = 10;
 
     /**
-     * Stores whether the edited village can supply resources to other villages.
-     */
-    public bool $villageSendResourcesDraft = true;
-
-    /**
-     * Stores whether the edited village accepts resources from other villages.
-     */
-    public bool $villageSupplyResourcesDraft = true;
-
-    /**
      * Stores whether the edited village may use hero resource items before marketplace support.
      */
     public bool $villageHeroResourcesDraft = true;
 
     /**
-     * Stores whether the edited village may receive crop while crop production is negative.
-     */
-    public bool $villageSupplyNegativeCropDraft = true;
-
-    /**
-     * Stores the max one-way merchant travel time allowed for this village.
-     */
-    public int $villageTradeMaxDurationMinutesDraft = 300;
-
-    /**
-     * Stores the minimum stock percentage required before the edited village can send one resource.
-     */
-    public int $villageSendMinResourcePercentageDraft = 30;
-
-    /**
-     * Stores the stock percentage the edited village keeps after sending resources.
-     */
-    public int $villageSendReserveResourcePercentageDraft = 10;
-
-    /**
      * Stores whether celebration automation is enabled for the edited village.
      */
     public bool $villageCelebrationEnabledDraft = false;
-
-    /**
-     * Stores whether troop training automation is enabled for the edited village.
-     */
-    public bool $villageTroopTrainingEnabledDraft = false;
 
     /**
      * Stores the preferred celebration type for the edited village.
@@ -122,6 +89,9 @@ trait ManagesVillageSettings
      * Stores the minimum culture points required before starting a celebration.
      */
     public int $villageCelebrationMinimumCulturePointsDraft = 200;
+
+    /** Stores whether celebration shortages may use hero resource items. */
+    public bool $villageCelebrationUseHeroResourcesDraft = false;
 
     /**
      * Stores the current celebration readiness warning for the edited village.
@@ -255,7 +225,7 @@ trait ManagesVillageSettings
             0,
             (int) ($settings->celebration_min_culture_points ?? VillageSetting::defaultCelebrationMinCulturePoints()),
         );
-        $this->villageTroopTrainingEnabledDraft = (bool) $settings->troop_training_enabled;
+        $this->villageCelebrationUseHeroResourcesDraft = (bool) $settings->celebration_use_hero_resources;
         $this->villagePrioritizeCropFieldsWhenNegativeDraft = (bool) $settings->prioritize_crop_fields_when_negative;
         $this->slotBuildingOptions = $this->buildSlotBuildingOptions($village, $tribeId);
         $this->villageBuildingPlanDraft = $this->buildVillagePlanDraft($village, $tribeId);
@@ -313,7 +283,7 @@ trait ManagesVillageSettings
             'villageCelebrationEnabledDraft' => ['boolean'],
             'villageCelebrationTypeDraft' => ['required', 'string', 'in:small,great'],
             'villageCelebrationMinimumCulturePointsDraft' => ['required', 'integer', 'min:0', 'max:2000'],
-            'villageTroopTrainingEnabledDraft' => ['boolean'],
+            'villageCelebrationUseHeroResourcesDraft' => ['boolean'],
             'villagePrioritizeCropFieldsWhenNegativeDraft' => ['boolean'],
             'villageBuildingPlanDraft' => ['array'],
             'villageBuildingPlanDraft.*.slot_id' => ['required', 'integer', 'min:19', 'max:40'],
@@ -372,7 +342,7 @@ trait ManagesVillageSettings
             'celebration_enabled' => $this->villageCelebrationEnabledDraft,
             'celebration_type' => VillageCelebrationType::from($this->villageCelebrationTypeDraft),
             'celebration_min_culture_points' => $this->villageCelebrationMinimumCulturePointsDraft,
-            'troop_training_enabled' => $this->villageTroopTrainingEnabledDraft,
+            'celebration_use_hero_resources' => $this->villageCelebrationUseHeroResourcesDraft,
             'prioritize_crop_fields_when_negative' => $this->villagePrioritizeCropFieldsWhenNegativeDraft,
         ])->save();
 
@@ -472,7 +442,7 @@ trait ManagesVillageSettings
 
             if ($buildingName === null) {
                 throw ValidationException::withMessages([
-                    "villageBuildingPlanDraft.{$slotId}.building_gid" => 'Unknown building gid selected for this slot.',
+                    "villageBuildingPlanDraft.{$slotId}.building_gid" => 'This building is not recognized. Refresh the village and choose it again.',
                 ]);
             }
 
@@ -493,6 +463,7 @@ trait ManagesVillageSettings
         }
 
         $this->logManualActivity($village->account, $village, 'Village settings saved from dashboard.');
+        $this->dashboardRevision = $this->computeDashboardRevision();
         $village = $village->fresh([
             'runtimeState',
             'buildings' => fn ($query) => $query->orderBy('slot_id'),
@@ -1142,8 +1113,8 @@ trait ManagesVillageSettings
         $this->villageCelebrationEnabledDraft = false;
         $this->villageCelebrationTypeDraft = VillageSetting::defaultCelebrationType()->value;
         $this->villageCelebrationMinimumCulturePointsDraft = VillageSetting::defaultCelebrationMinCulturePoints();
+        $this->villageCelebrationUseHeroResourcesDraft = false;
         $this->villageCelebrationReadinessMessage = '';
-        $this->villageTroopTrainingEnabledDraft = false;
         $this->villagePrioritizeCropFieldsWhenNegativeDraft = true;
         $this->villageFieldPriorityDraft = [];
         $this->villageBuildingPlanDraft = [];

@@ -64,6 +64,78 @@ test('smart automation uses a fresh local snapshot without syncing first', funct
     expect($freshAccount->last_error_message)->toBeNull();
 });
 
+test('account automation suppresses backlogged cycles inside the safety interval', function () {
+    config()->set('travian.automation.minimum_cycle_seconds', 60);
+
+    $account = Account::factory()->create([
+        'is_active' => true,
+        'is_archived' => false,
+        'last_sync_at' => now(),
+    ]);
+    $village = $account->villages()->create([
+        'travian_village_id' => 'cycle-guard',
+        'name' => 'Cycle Guard Village',
+        'is_active' => true,
+        'last_sync_at' => now(),
+    ]);
+    $village->resourceState()->create([
+        'wood' => 100,
+        'clay' => 100,
+        'iron' => 100,
+        'crop' => 100,
+        'wood_production' => 10,
+        'clay_production' => 10,
+        'iron_production' => 10,
+        'crop_production' => 10,
+        'warehouse_capacity' => 800,
+        'granary_capacity' => 800,
+        'simulated_at' => now(),
+        'server_reported_at' => now(),
+    ]);
+    $village->runtimeState()->create([
+        'construction_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+
+    $syncAccountOverview = Mockery::mock(SyncAccountOverview::class);
+    $syncAccountOverview->shouldNotReceive('handle');
+    $runAccountAutomation = Mockery::mock(RunAccountAutomation::class);
+    $runAccountAutomation->shouldReceive('handle')->once();
+    $planNextAccountAutomation = Mockery::mock(PlanNextAccountAutomation::class);
+    $planNextAccountAutomation->shouldReceive('handle')->once()->andReturn(now()->addMinute()->toImmutable());
+
+    (new RunTravianAutomationJob($account->id))
+        ->handle($syncAccountOverview, $runAccountAutomation, $planNextAccountAutomation);
+    (new RunTravianAutomationJob($account->id))
+        ->handle($syncAccountOverview, $runAccountAutomation, $planNextAccountAutomation);
+});
+
+test('village sync chain bypasses the account cycle guard and checks construction immediately', function () {
+    $account = Account::factory()->create([
+        'is_active' => true,
+        'is_archived' => false,
+        'last_sync_at' => now(),
+    ]);
+    $village = $account->villages()->create([
+        'travian_village_id' => 'manual-refresh',
+        'name' => 'Manual Refresh Village',
+        'is_active' => true,
+        'last_sync_at' => now(),
+    ]);
+
+    $syncAccountOverview = Mockery::mock(SyncAccountOverview::class);
+    $syncAccountOverview->shouldNotReceive('handle');
+    $runAccountAutomation = Mockery::mock(RunAccountAutomation::class);
+    $runAccountAutomation->shouldReceive('handle')->twice()->with(Mockery::type(Account::class), $village->id);
+    $planNextAccountAutomation = Mockery::mock(PlanNextAccountAutomation::class);
+    $planNextAccountAutomation->shouldReceive('handle')->twice()->andReturn(now()->addMinute()->toImmutable());
+
+    (new RunTravianAutomationJob($account->id, $village->id, false, true))
+        ->handle($syncAccountOverview, $runAccountAutomation, $planNextAccountAutomation);
+    (new RunTravianAutomationJob($account->id, $village->id, false, true))
+        ->handle($syncAccountOverview, $runAccountAutomation, $planNextAccountAutomation);
+});
+
 test('village scoped automation updates dispatch and next automation timestamps', function () {
     $now = now()->startOfSecond();
     $nextAutomationAt = $now->copy()->addMinutes(7);
@@ -462,6 +534,55 @@ test('account automation stops after sync schedules a retry window', function ()
     (new RunTravianAutomationJob($account->id))->handle($syncAccountOverview, $runAccountAutomation, app(PlanNextAccountAutomation::class));
 
     expect($account->fresh()->next_automation_at?->getTimestamp())->toBe($retryAfter->getTimestamp());
+});
+
+test('elapsed military queue timers do not force a full dorf village sync', function () {
+    $account = Account::factory()->create([
+        'is_active' => true,
+        'is_archived' => false,
+        'last_sync_at' => now(),
+    ]);
+    $village = $account->villages()->create([
+        'travian_village_id' => '12345',
+        'name' => 'Military Village',
+        'is_active' => true,
+        'last_sync_at' => now(),
+    ]);
+    $village->runtimeState()->create([
+        'construction_entries' => [],
+        'movement_entries' => [],
+        'server_reported_at' => now(),
+    ]);
+    $village->resourceState()->create([
+        'wood' => 100,
+        'clay' => 100,
+        'iron' => 100,
+        'crop' => 100,
+        'wood_production' => 10,
+        'clay_production' => 10,
+        'iron_production' => 10,
+        'crop_production' => 10,
+        'warehouse_capacity' => 800,
+        'granary_capacity' => 800,
+        'simulated_at' => now(),
+        'server_reported_at' => now(),
+    ]);
+    $village->troopSnapshot()->create([
+        'units' => [],
+        'training_queues' => ['19' => [['unit_id' => 1, 'quantity' => 1, 'remaining_seconds' => 1, 'recorded_at' => now()->subMinute()->toIso8601String()]]],
+        'research_queue' => [],
+        'smithy_queue' => [],
+        'pages' => [],
+        'server_reported_at' => now()->subMinute(),
+    ]);
+
+    $syncAccountOverview = Mockery::mock(SyncAccountOverview::class);
+    $syncAccountOverview->shouldNotReceive('handle');
+    $runAccountAutomation = Mockery::mock(RunAccountAutomation::class);
+    $runAccountAutomation->shouldReceive('handle')->once();
+
+    (new RunTravianAutomationJob($account->id, $village->id, true, true))
+        ->handle($syncAccountOverview, $runAccountAutomation, app(PlanNextAccountAutomation::class));
 });
 
 test('account automation respects an active connection retry window even when dispatched as a chained job', function () {

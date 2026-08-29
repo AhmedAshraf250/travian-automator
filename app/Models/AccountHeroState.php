@@ -34,7 +34,12 @@ class AccountHeroState extends Model
     {
         return [
             'health_percent' => 'float',
+            'experience_percent' => 'integer',
+            'level' => 'integer',
+            'adventures_available_count' => 'integer',
             'has_unspent_attribute_points' => 'boolean',
+            'unspent_attribute_points' => 'integer',
+            'hero_remaining_seconds' => 'integer',
             'payload' => 'array',
             'seen_at' => 'immutable_datetime',
         ];

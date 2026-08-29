@@ -1,8 +1,16 @@
 <?php
 
+use App\Application\Accounts\Session\Contracts\AccountSessionFactory;
+use App\Application\Accounts\Session\Contracts\AccountSessionTransportFactory;
+use App\Application\Accounts\Session\ObservedAccountSessionFactory;
 use App\Infrastructure\Accounts\Session\Guzzle\GuzzleAccountSessionFactory;
 use App\Models\Account;
 use App\Models\AccountProxy;
+
+test('container composes the observed factory separately from the Guzzle transport factory', function () {
+    expect(app(AccountSessionFactory::class))->toBeInstanceOf(ObservedAccountSessionFactory::class)
+        ->and(app(AccountSessionTransportFactory::class))->toBeInstanceOf(GuzzleAccountSessionFactory::class);
+});
 
 test('guzzle account session factory builds proxy uri with the stored protocol', function () {
     $account = Account::factory()->make([

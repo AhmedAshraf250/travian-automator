@@ -1,12 +1,11 @@
 <?php
 
-use App\Application\Accounts\Rewards\ExecuteDailyQuestRewardCollection;
+use App\Application\Accounts\Rewards\ObservedDailyQuestRewardReaction;
 use App\Application\Accounts\Session\Contracts\AccountSession;
 use App\Application\Accounts\Session\Data\SessionResponse;
 use App\Enums\ActivityLogStatus;
 use App\Enums\ActivityType;
 use App\Models\Account;
-use App\Models\AccountSetting;
 use App\Models\ActivityLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -19,7 +18,6 @@ function makeDailyQuestRewardAccount(bool $acceptQuests = true): Account
     ]);
 
     $account->settings()->create([
-        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
         'accept_quests' => $acceptQuests,
     ]);
 
@@ -202,7 +200,7 @@ test('daily quest reward collection follows browser request order and collects o
         '/api/v1/daily-quest/award' => '',
     ]);
 
-    app(ExecuteDailyQuestRewardCollection::class)->handleObservedDorf1Response($account, $session, new SessionResponse(
+    app(ObservedDailyQuestRewardReaction::class)->handle($account, $session, new SessionResponse(
         statusCode: 200,
         body: dailyQuestRewardDorf1Body(),
         effectiveUri: 'https://ts7.x1.arabics.travian.com/dorf1.php',
@@ -241,7 +239,7 @@ test('daily quest reward collection stays idle when account setting is disabled'
     $account = makeDailyQuestRewardAccount(false);
     $session = dailyQuestRewardSession();
 
-    app(ExecuteDailyQuestRewardCollection::class)->handleObservedDorf1Response($account, $session, new SessionResponse(
+    app(ObservedDailyQuestRewardReaction::class)->handle($account, $session, new SessionResponse(
         statusCode: 200,
         body: dailyQuestRewardDorf1Body(),
         effectiveUri: 'https://ts7.x1.arabics.travian.com/dorf1.php',
@@ -256,7 +254,7 @@ test('daily quest reward collection ignores other page indicators', function () 
     $account = makeDailyQuestRewardAccount();
     $session = dailyQuestRewardSession();
 
-    app(ExecuteDailyQuestRewardCollection::class)->handleObservedDorf1Response($account, $session, new SessionResponse(
+    app(ObservedDailyQuestRewardReaction::class)->handle($account, $session, new SessionResponse(
         statusCode: 200,
         body: '<a class="dailyQuests" href="#"></a><a class="reports" href="/report"><div class="indicator">!</div></a>',
         effectiveUri: 'https://ts7.x1.arabics.travian.com/dorf1.php',
@@ -278,7 +276,7 @@ test('daily quest reward collection logs pending when indicator has no unlocked 
         ],
     ]);
 
-    app(ExecuteDailyQuestRewardCollection::class)->handleObservedDorf1Response($account, $session, new SessionResponse(
+    app(ObservedDailyQuestRewardReaction::class)->handle($account, $session, new SessionResponse(
         statusCode: 200,
         body: dailyQuestRewardDorf1Body(),
         effectiveUri: 'https://ts7.x1.arabics.travian.com/dorf1.php',

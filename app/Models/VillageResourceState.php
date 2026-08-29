@@ -36,6 +36,18 @@ class VillageResourceState extends Model
     protected function casts(): array
     {
         return [
+            'wood' => 'integer',
+            'clay' => 'integer',
+            'iron' => 'integer',
+            'crop' => 'integer',
+            'wood_production' => 'integer',
+            'clay_production' => 'integer',
+            'iron_production' => 'integer',
+            'crop_production' => 'integer',
+            'warehouse_capacity' => 'integer',
+            'granary_capacity' => 'integer',
+            'available_merchants' => 'integer',
+            'merchant_capacity' => 'integer',
             'simulated_at' => 'immutable_datetime',
             'server_reported_at' => 'immutable_datetime',
         ];

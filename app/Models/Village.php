@@ -85,4 +85,20 @@ class Village extends Model
     {
         return $this->hasOne(VillageRuntimeState::class);
     }
+
+    /**
+     * Get explicit one-off military orders queued for this village.
+     */
+    public function troopOrders(): HasMany
+    {
+        return $this->hasMany(VillageTroopOrder::class);
+    }
+
+    /**
+     * Get the latest military-building snapshot observed from Travian.
+     */
+    public function troopSnapshot(): HasOne
+    {
+        return $this->hasOne(VillageTroopSnapshot::class);
+    }
 }

@@ -97,7 +97,7 @@
                                         </span>
                                     @else
                                         <span class="rounded-md bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-800">
-                                            No merchant snapshot
+                                            Merchant capacity unavailable
                                         </span>
                                         <span class="rounded-md bg-[var(--color-panel)] px-2.5 py-1 text-xs font-semibold text-[var(--color-muted)]">
                                             {{ $merchantCapacity }} resources per merchant
@@ -111,16 +111,16 @@
                                 </div>
                                 @if ($totalCapacity === null)
                                     <p class="mt-2 text-[11px] leading-4 text-[var(--color-muted)]">
-                                        Use Refresh to check available merchants in the background.
+                                        Refresh to check the available merchants.
                                     </p>
                                 @endif
                             </div>
 
                             <div class="flex flex-wrap items-center justify-end gap-2">
                                 <button type="button" wire:click="refreshMarketplaceSnapshot" wire:loading.attr="disabled" wire:target="refreshMarketplaceSnapshot"
-                                    class="inline-flex h-8 items-center justify-center rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 text-xs font-semibold transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]">
-                                    <span wire:loading.remove wire:target="refreshMarketplaceSnapshot">Refresh</span>
-                                    <span wire:loading wire:target="refreshMarketplaceSnapshot">Checking...</span>
+                                    aria-label="Refresh marketplace capacity" title="Read the latest merchants and resource capacity from Travian"
+                                    class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] text-[var(--color-ink)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]">
+                                    <x-refresh-icon wire:loading.class="animate-spin" wire:target="refreshMarketplaceSnapshot" />
                                 </button>
                                 <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $totalCapacity !== null && $enteredTotal > $totalCapacity ? 'bg-rose-500/10 text-rose-800' : 'bg-[var(--color-panel)] text-[var(--color-muted)]' }}">
                                     Total entered:
@@ -147,18 +147,18 @@
                         @endforeach
                     </section>
 
-                    <div class="grid gap-3 md:grid-cols-2">
+                    <div class="grid gap-3 md:grid-cols-2"
+                        x-data="{ destinationMode: $wire.entangle('marketplaceDestinationMode').live }">
                         <label class="grid gap-1 text-sm">
                             <span class="font-semibold text-[var(--color-ink)]">Destination</span>
-                            <select wire:model.change="marketplaceDestinationMode"
+                            <select x-model="destinationMode"
                                 class="h-10 min-w-0 rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] px-3 text-sm outline-none focus:border-[var(--color-accent)]">
                                 <option value="owned">Owned village</option>
                                 <option value="manual">Manual coordinates</option>
                             </select>
                         </label>
 
-                        @if ($marketplaceDestinationMode === 'owned')
-                            <label class="grid gap-1 text-sm">
+                            <label x-show="destinationMode === 'owned'" class="grid gap-1 text-sm">
                                 <span class="font-semibold text-[var(--color-ink)]">Village</span>
                                 <select wire:model.change="marketplaceDestinationVillageId"
                                     class="h-10 min-w-0 rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] px-3 text-sm outline-none focus:border-[var(--color-accent)]">
@@ -170,8 +170,7 @@
                                     @endforeach
                                 </select>
                             </label>
-                        @else
-                            <div class="grid grid-cols-2 gap-2">
+                            <div x-cloak x-show="destinationMode === 'manual'" class="grid grid-cols-2 gap-2">
                                 <label class="grid gap-1 text-sm">
                                     <span class="font-semibold text-[var(--color-ink)]">X</span>
                                     <input type="number" wire:model.blur="marketplaceDestinationX"
@@ -183,7 +182,6 @@
                                         class="h-10 min-w-0 rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] px-3 text-sm outline-none focus:border-[var(--color-accent)]">
                                 </label>
                             </div>
-                        @endif
                     </div>
 
                     <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">

@@ -17,6 +17,8 @@ use Illuminate\Support\Collection;
 
 trait ManagesMarketplaceTransfers
 {
+    use HasVillageTradeDrafts;
+
     public bool $showMarketplaceTransferModal = false;
 
     public string $marketplaceTransferTab = 'send';

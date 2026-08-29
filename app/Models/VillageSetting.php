@@ -33,6 +33,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'celebration_enabled',
     'celebration_type',
     'celebration_min_culture_points',
+    'celebration_use_hero_resources',
 ])]
 class VillageSetting extends Model
 {
@@ -131,6 +132,7 @@ class VillageSetting extends Model
             'celebration_enabled' => 'boolean',
             'celebration_type' => VillageCelebrationType::class,
             'celebration_min_culture_points' => 'integer',
+            'celebration_use_hero_resources' => 'boolean',
         ];
     }
 

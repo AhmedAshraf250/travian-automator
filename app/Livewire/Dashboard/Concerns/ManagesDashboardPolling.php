@@ -22,7 +22,7 @@ trait ManagesDashboardPolling
         RotatesAccountProxy $rotatesAccountProxy,
         RecoverStaleSyncingAccounts $recoverStaleSyncingAccounts,
     ): void {
-        if ($this->showProgramSettingsModal || $this->showAccountSettingsModal || $this->showImportModal || $this->showVillageBuildPlanModal || $this->showMarketplaceTransferModal || $this->showVillageDemolitionModal) {
+        if ($this->dashboardChildModalOpen || $this->showProgramSettingsModal || $this->showImportModal || $this->showVillageBuildPlanModal || $this->showMarketplaceTransferModal || $this->showVillageDemolitionModal) {
             $this->skipRender();
 
             return;

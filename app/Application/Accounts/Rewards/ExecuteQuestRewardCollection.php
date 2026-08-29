@@ -115,55 +115,11 @@ class ExecuteQuestRewardCollection
         }
     }
 
-    /**
-     * React to a dorf1 response that was already requested by another automation flow.
-     */
-    public function handleObservedDorf1Response(Account $account, AccountSession $session, SessionResponse $sourceResponse): void
-    {
-        if (! $sourceResponse->successful()) {
-            return;
-        }
-
-        $path = (string) (parse_url($sourceResponse->effectiveUri, PHP_URL_PATH) ?: '');
-
-        if (! str_contains($path, '/dorf1.php') || ! $this->questRewardsParser->hasCollectableRewardIndicator($sourceResponse->body)) {
-            return;
-        }
-
-        $village = $this->resolveVillageFromDorf1Response($account, $sourceResponse);
-
-        if (! $village instanceof Village) {
-            return;
-        }
-
-        $this->handle($account, $village, $session, $sourceResponse);
-    }
-
     protected function rewardCollectionIsEnabled(Account $account): bool
     {
         $settings = $account->settings;
 
         return $settings instanceof AccountSetting && (bool) $settings->accept_quests;
-    }
-
-    protected function resolveVillageFromDorf1Response(Account $account, SessionResponse $sourceResponse): ?Village
-    {
-        $travianVillageId = $this->extractActiveVillageId($sourceResponse->body);
-
-        if ($travianVillageId === null) {
-            return null;
-        }
-
-        return $account->villages()->firstWhere('travian_village_id', $travianVillageId);
-    }
-
-    protected function extractActiveVillageId(string $html): ?string
-    {
-        if (preg_match('/id=["\']villageName["\'][\s\S]*?data-did=["\']([^"\']+)["\']/u', $html, $matches) !== 1) {
-            return null;
-        }
-
-        return html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }
 
     protected function collectReward(AccountSession $session, CollectableQuestReward $reward, string $referer): SessionResponse

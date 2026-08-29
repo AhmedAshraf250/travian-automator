@@ -7,7 +7,6 @@ use App\Enums\ActivityLogStatus;
 use App\Enums\ActivityType;
 use App\Models\Account;
 use App\Models\AccountProxy;
-use App\Models\AccountSetting;
 use App\Models\ActivityLog;
 use Illuminate\Support\Facades\DB;
 
@@ -89,12 +88,7 @@ class ImportBulkAccounts
                     ])->save();
                 }
 
-                $account->settings()->updateOrCreate(
-                    [],
-                    [
-                        'resource_priorities' => AccountSetting::defaultResourcePriorities(),
-                    ],
-                );
+                $account->settings()->firstOrCreate();
 
                 ActivityLog::query()->create([
                     'account_id' => $account->id,

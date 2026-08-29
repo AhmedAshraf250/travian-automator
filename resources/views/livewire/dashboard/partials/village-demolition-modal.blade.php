@@ -47,9 +47,9 @@
                         </div>
 
                         <button type="button" wire:click="refreshVillageDemolitionSnapshot" wire:loading.attr="disabled" wire:target="refreshVillageDemolitionSnapshot"
-                            class="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] px-3 text-sm font-semibold transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]">
-                            <span wire:loading.remove wire:target="refreshVillageDemolitionSnapshot">Refresh</span>
-                            <span wire:loading wire:target="refreshVillageDemolitionSnapshot">Checking...</span>
+                            aria-label="Refresh demolition state" title="Read the latest Main Building and demolition state from Travian"
+                            class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-panel)] text-[var(--color-ink)] transition hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]">
+                            <x-refresh-icon wire:loading.class="animate-spin" wire:target="refreshVillageDemolitionSnapshot" />
                         </button>
                     </div>
 
@@ -131,7 +131,7 @@
 
                 @if ($demolitionBuildings->isEmpty())
                     <p class="rounded-lg border border-dashed border-[var(--color-line-strong)] bg-[var(--color-panel-alt)] px-4 py-5 text-center text-sm font-semibold text-[var(--color-muted)]">
-                        No demolition list is saved yet. Refresh the Main Building snapshot.
+                        Refresh to load the buildings available for demolition.
                     </p>
                 @endif
             </div>

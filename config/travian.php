@@ -24,10 +24,6 @@ return [
     'transport' => [
         'force_relogin_on_change' => env('TRAVIAN_FORCE_RELOGIN_ON_TRANSPORT_CHANGE', true),
     ],
-    'defaults' => [
-        // Default resource priority weights for new account settings: wood, clay, iron, crop.
-        'account_resource_priorities' => env('TRAVIAN_DEFAULT_ACCOUNT_RESOURCE_PRIORITIES', '15,11,1,1'),
-    ],
     'game' => [
         // Travian merchant carrying capacity by tribe. These are game rules, not user preferences.
         'merchant_capacity' => [
@@ -54,8 +50,15 @@ return [
         'dispatcher_batch_size' => (int) env('TRAVIAN_AUTOMATION_DISPATCHER_BATCH_SIZE', 50),
         'idle_minutes' => (int) env('TRAVIAN_AUTOMATION_IDLE_MINUTES', 10),
         'timer_grace_seconds' => (int) env('TRAVIAN_AUTOMATION_TIMER_GRACE_SECONDS', 45),
-        // Queue jobs must outlive slow proxy HTTP requests, otherwise accounts can remain in "syncing".
-        'job_timeout_seconds' => (int) env('TRAVIAN_AUTOMATION_JOB_TIMEOUT_SECONDS', 90),
+        // Atomic floor between two complete automation cycles for the same account.
+        'minimum_cycle_seconds' => (int) env('TRAVIAN_AUTOMATION_MINIMUM_CYCLE_SECONDS', 60),
+        // Full account cycles may cross several villages through a slow proxy.
+        'job_timeout_seconds' => (int) env('TRAVIAN_AUTOMATION_JOB_TIMEOUT_SECONDS', 300),
+        // Shared account-session locks must expire shortly after a killed worker, not remain orphaned for 30 minutes.
+        'account_lock_expire_seconds' => (int) env('TRAVIAN_ACCOUNT_LOCK_EXPIRE_SECONDS', 360),
+        // Manual/read-only syncs wait quietly for an active account session instead of polling aggressively.
+        'account_lock_release_seconds' => (int) env('TRAVIAN_ACCOUNT_LOCK_RELEASE_SECONDS', 60),
+        'sync_lock_wait_minutes' => (int) env('TRAVIAN_SYNC_LOCK_WAIT_MINUTES', 15),
         // Local cleanup window for jobs killed before they can write a failed status.
         'stale_syncing_minutes' => (int) env('TRAVIAN_STALE_SYNCING_MINUTES', 5),
         // When Travian rejects a construction candidate for non-resource reasons, skip that exact candidate briefly.

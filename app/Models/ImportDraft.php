@@ -11,6 +11,11 @@ use Illuminate\Database\Eloquent\Model;
 #[Fillable(['key', 'contents'])]
 class ImportDraft extends Model
 {
+    /** @var list<string> */
+    protected $hidden = [
+        'contents',
+    ];
+
     /**
      * Get the attributes that should be cast.
      *

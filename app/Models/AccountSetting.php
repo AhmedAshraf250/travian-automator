@@ -21,7 +21,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'login_period_minutes',
     'logout_period_minutes',
     'time_variability_percent',
-    'resource_priorities',
     'negative_crop_priority',
     'read_reports',
     'read_messages',
@@ -48,27 +47,6 @@ class AccountSetting extends Model
     ];
 
     /**
-     * Return the default resource priority payload.
-     *
-     * @return list<int>
-     */
-    public static function defaultResourcePriorities(): array
-    {
-        $priorities = config('travian.defaults.account_resource_priorities', '15,11,1,1');
-
-        if (is_string($priorities)) {
-            $priorities = explode(',', $priorities);
-        }
-
-        $priorities = array_map(
-            static fn (mixed $priority): int => max(1, (int) $priority),
-            array_slice((array) $priorities, 0, 4),
-        );
-
-        return array_pad($priorities, 4, 1);
-    }
-
-    /**
      * Return the default attribute weight payload.
      *
      * @return array{power: int, offBonus: int, defBonus: int, productionPoints: int}
@@ -76,10 +54,10 @@ class AccountSetting extends Model
     public static function defaultHeroAttributeWeights(): array
     {
         return [
-            'power' => 0,
+            'power' => 2,
             'offBonus' => 0,
             'defBonus' => 0,
-            'productionPoints' => 0,
+            'productionPoints' => 2,
         ];
     }
 
@@ -93,7 +71,6 @@ class AccountSetting extends Model
         return [
             'avoid_overflow' => 'boolean',
             'random_refresh_enabled' => 'boolean',
-            'resource_priorities' => 'array',
             'read_reports' => 'boolean',
             'read_messages' => 'boolean',
             'refresh_after_build' => 'boolean',

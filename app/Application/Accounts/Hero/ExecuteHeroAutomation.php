@@ -90,9 +90,7 @@ class ExecuteHeroAutomation
      */
     protected function resolveHeroSettings(Account $account): array
     {
-        $settings = $account->settings ?? $account->settings()->create([
-            'resource_priorities' => AccountSetting::defaultResourcePriorities(),
-        ]);
+        $settings = $account->settings ?? $account->settings()->create();
 
         if ((bool) $settings->hero_use_global_settings) {
             return SystemSetting::heroDefaults();
